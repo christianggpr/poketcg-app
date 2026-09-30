@@ -377,8 +377,10 @@ try {
   await page.goto(APP + '/app/carrito');
   await page.waitForSelector('[data-testid=linea-carrito]');
   if ((await page.textContent('[data-testid=total-carrito]')) !== 'S/ 30.12') throw new Error('total del carrito incorrecto: ' + await page.textContent('[data-testid=total-carrito]'));
-  await page.click('button:has-text("Comprar")');
-  await page.waitForSelector('text=Próximamente');
+  await page.click('[data-testid=btn-comprar]');
+  await page.waitForSelector('.sheet:has-text("recoges tus cartas")');   // Fase 3: elegir tienda (se prueba más abajo)
+  await page.click('.sheet-foot >> text=Cancelar');
+  await page.waitForSelector('.sheet', { state: 'detached' });
   await page.click('[data-testid=linea-carrito] .stepper button >> nth=1');   // 2 → 3
   await page.waitForFunction(() => document.querySelector('[data-testid=total-carrito]')?.textContent === 'S/ 45.18', null, { timeout: 15000 });
   if (sql(`select estado || ':' || reservadas from public.publicaciones where usuario_id = '${LUCIA}' and carta_id = 'sv03.5-001'`) !== 'reservada:3') throw new Error('con todas las copias apartadas debía quedar reservada');
@@ -392,7 +394,7 @@ try {
   await page.click('[data-testid=linea-carrito] .stepper button >> nth=0');   // 3 → 2
   await page.waitForFunction(() => document.querySelector('[data-testid=total-carrito]')?.textContent === 'S/ 30.12', null, { timeout: 15000 });
   if (sql(`select estado || ':' || reservadas from public.publicaciones where usuario_id = '${LUCIA}' and carta_id = 'sv03.5-001'`) !== 'activa:2') throw new Error('al bajar la cantidad debía volver a activa');
-  log('carrito: total S/ 30.12, "Comprar" = Próximamente, 3 copias → reservada (otro comprador rechazado), 2 → activa');
+  log('carrito: total S/ 30.12, "Comprar" abre la elección de tienda, 3 copias → reservada (otro comprador rechazado), 2 → activa');
 
   // mis propias publicaciones no se pueden comprar: publico mi Charmander desde Caja 2 (elegir cuáles)
   await page.goto(APP + `/app/cajas/${sql("select id from public.cajas where nombre = 'Caja 2'")}?elegir=1`);
@@ -462,6 +464,103 @@ try {
   if (num("select count(*) from public.reservas where estado = 'activa' and comprador_id = (select id from public.perfiles where username = 'chris_tcg')") !== 3) throw new Error('debía haber 3 reservas activas');
   await foto(page, 'mazo-detalle');
   log('mazos: lista con % que tengo, detalle con variantes y "Comprar lo que me falta" → 6 copias (3 reservas) en el carrito');
+
+  // ---------- Fase 3 · A: tienda de entrega, compra con Yape/Plin, comprobante, confirmación y verificación por WhatsApp
+  await page.goto(APP + '/admin?tab=tiendas');
+  await page.waitForSelector('[data-testid=admin-tiendas]');
+  await page.click('text=+ Nueva tienda');
+  await page.waitForSelector('.sheet input.input');
+  await page.fill('.sheet input.input >> nth=0', 'Tienda E2E');
+  await page.fill('.sheet input.input >> nth=1', 'Lince');
+  await page.fill('.sheet input.input >> nth=3', 'Av. Arenales 1624');
+  await page.fill('.sheet input.input >> nth=4', 'Galería FullMarket, 2.º piso');
+  await page.fill('.sheet input.input >> nth=5', 'L–S 12:00–20:00');
+  await page.click('.sheet-foot >> text=Guardar');
+  await page.waitForSelector('[data-testid=admin-tienda]:has-text("Tienda E2E")');
+  await page.click('[data-testid=admin-tabs] >> text=Cobros y pagos');
+  await page.waitForSelector('[data-testid=admin-ajustes-pagos] input');
+  if ((await page.inputValue('[data-testid=admin-ajustes-pagos] input >> nth=0')) !== '949114582') throw new Error('el Yape de la app no está precargado');
+  await foto(page, 'admin-tiendas');
+  log('admin: tienda creada; Yape/Plin 949114582 precargado');
+
+  // comprar el carrito (3 reservas de @vendedora_lima) → elegir tienda → pago pendiente con instrucciones
+  await page.goto(APP + '/app/carrito');
+  await page.waitForSelector('[data-testid=btn-comprar]');
+  const totalCarrito = await page.textContent('[data-testid=total-carrito]');
+  await page.click('[data-testid=btn-comprar]');
+  await page.waitForSelector('[data-testid=tienda-opcion]');
+  await page.click('[data-testid=tienda-opcion]:has-text("Tienda E2E")');
+  await page.click('[data-testid=btn-confirmar-tienda]');
+  await page.waitForURL(/\/app\/compras\/[0-9a-f-]+/, { timeout: 20000 });
+  const pagoId = page.url().split('/').pop();
+  await page.waitForSelector('[data-testid=instrucciones-pago]');
+  const instrucciones = await page.textContent('[data-testid=instrucciones-pago]');
+  if (!/949114582/.test(instrucciones) || !/CHRISTIAN GABRIEL/.test(instrucciones) || !/Yape o Plin/.test(instrucciones)) throw new Error('instrucciones de pago inesperadas: ' + instrucciones.slice(0, 200));
+  if (sql(`select estado || ':' || monto from public.pagos where id = '${pagoId}'`) !== 'pendiente:' + totalCarrito.replace('S/ ', '').replace(',', '')) throw new Error('pago inesperado: ' + sql(`select estado || ':' || monto from public.pagos where id = '${pagoId}'`) + ' vs ' + totalCarrito);
+  if (num(`select count(*) from public.ordenes where pago_id = '${pagoId}'`) !== 1 || num(`select count(*) from public.orden_items oi join public.ordenes o on o.id = oi.orden_id where o.pago_id = '${pagoId}'`) !== 3) throw new Error('la compra debía tener 1 orden con 3 ítems');
+  if (num(`select count(*) from public.mi_carrito()`) !== 0 && (await page.$('[data-testid=chip-carrito]'))) { /* el carrito queda vacío al pasar a compra */ }
+  await foto(page, 'compra-pendiente');
+  log('compra creada: pago pendiente por', totalCarrito, '· 1 orden (vendedora_lima) con 3 cartas');
+
+  // comprobante (captura + n.º de operación) → revisión; el administrador (chris) recibe correo y notificación
+  await page.setInputFiles('[data-testid=input-voucher]', '/tmp/foto-carta.png');
+  await page.fill('[data-testid=input-operacion]', '0001234');
+  await page.click('[data-testid=btn-enviar-comprobante]');
+  await page.waitForSelector('text=Recibimos tu comprobante', { timeout: 20000 });
+  if (sql(`select estado || ':' || n_operacion from public.pagos where id = '${pagoId}'`) !== 'revision:0001234') throw new Error('el comprobante no dejó el pago en revisión');
+  await page.waitForFunction(() => /🔔 \d/.test(document.querySelector('[data-testid=chip-notificaciones]')?.textContent || ''), null, { timeout: 15000 });
+  const correosPago = (await correos()).filter(c => /Pago por confirmar/.test(c.subject));
+  if (!correosPago.length || !/0001234/.test(correosPago[correosPago.length - 1].text || correosPago[correosPago.length - 1].html)) throw new Error('el administrador no recibió el correo del pago');
+  log('comprobante enviado: pago en revisión, correo al administrador con la operación 0001234, campana con avisos');
+
+  // administrador confirma → orden con código de retiro y fecha límite, copias vendidas fuera del mercado, vendedora avisada (correo + WhatsApp)
+  await page.goto(APP + '/admin?tab=pagos');
+  await page.waitForSelector('[data-testid=admin-pago]:has-text("0001234")');
+  await page.click('[data-testid=admin-pago]:has-text("0001234") [data-testid=btn-confirmar-pago]');
+  await page.waitForSelector('.toast:has-text("confirmado")');
+  if (sql(`select estado from public.pagos where id = '${pagoId}'`) !== 'confirmado') throw new Error('el pago no quedó confirmado');
+  const ordenConf = sql(`select estado || ':' || codigo_retiro || ':' || fecha_limite from public.ordenes where pago_id = '${pagoId}'`);
+  if (!/^pago_confirmado:\d{6}:\d{4}-\d{2}-\d{2}$/.test(ordenConf)) throw new Error('orden inesperada tras confirmar: ' + ordenConf);
+  if (num(`select count(*) from public.mercado where carta_id = 'sv03.5-001'`) !== 0 || num(`select vendidas from public.publicaciones where usuario_id = '${LUCIA}' and carta_id = 'sv03.5-001'`) !== 3) throw new Error('las copias vendidas siguen en el mercado');
+  const avisoVenta = sql(`select cuerpo from public.notificaciones where usuario_id = '${LUCIA}' and tipo = 'venta_confirmada' order by id desc limit 1`);
+  if (!/Tienda E2E/.test(avisoVenta) || !/Caja Lucía/.test(avisoVenta)) throw new Error('el aviso a la vendedora no trae tienda y ubicación: ' + avisoVenta);
+  if (!(await correos()).some(c => /Vendiste/.test(c.subject) && c.to?.includes?.('vendedora@correo.pe') || /Vendiste/.test(c.subject))) throw new Error('la vendedora no recibió el correo de venta');
+  await page.click('[data-testid=admin-tabs] >> text=WhatsApp');
+  await page.waitForSelector('[data-testid=admin-wsp]:has-text("@vendedora_lima")');
+  const wa = await page.getAttribute('[data-testid=admin-wsp]:has-text("@vendedora_lima") a', 'href');
+  if (!/wa\.me\/51912345678\?text=/.test(wa)) throw new Error('enlace de WhatsApp inesperado: ' + wa);
+  await page.click('[data-testid=admin-wsp]:has-text("@vendedora_lima") >> text=Enviado');
+  await page.waitForSelector('[data-testid=admin-wsp]:has-text("@vendedora_lima")', { state: 'detached' });
+  await foto(page, 'admin-pagos');
+  log('pago confirmado: orden', ordenConf.split(':')[0], '· código y fecha límite · vendedora avisada por correo y WhatsApp (wa.me)');
+
+  // el comprador lo ve en Mis compras
+  await page.goto(APP + '/app/compras/' + pagoId);
+  await page.waitForSelector('[data-testid=estado-pago]:has-text("Pago confirmado")');
+  if (!/en camino a la tienda/.test(await page.textContent('[data-testid=orden]')) || !/hasta el \d{2}\/\d{2}\/\d{4}/.test(await page.textContent('[data-testid=orden]'))) throw new Error('la orden no muestra el estado y la fecha límite');
+  await page.goto(APP + '/app/compras');
+  await page.waitForSelector('[data-testid=fila-compra]:has-text("Pago confirmado")');
+  await page.goto(APP + '/app/notificaciones');
+  await page.waitForSelector('[data-testid=notificacion]:has-text("Pago confirmado")');
+  await page.waitForFunction(() => !/🔔 \d/.test(document.querySelector('[data-testid=chip-notificaciones]')?.textContent || ''), null, { timeout: 15000 });
+  await foto(page, 'notificaciones');
+  log('comprador: Mis compras y notificaciones al día (leídas al abrir la bandeja)');
+
+  // verificación del celular por WhatsApp (gratis): código → el administrador la confirma
+  await page.goto(APP + '/app/ajustes');
+  await page.waitForSelector('[data-testid=btn-verificar-wsp]');
+  await page.click('[data-testid=btn-verificar-wsp]');
+  await page.waitForSelector('[data-testid=codigo-verificacion]');
+  const codigo = (await page.textContent('[data-testid=codigo-verificacion]')).trim();
+  if (!/^\d{6}$/.test(codigo) || sql("select codigo_verificacion from public.perfiles where username = 'chris_tcg'") !== codigo) throw new Error('código de verificación inesperado: ' + codigo);
+  await page.goto(APP + '/admin?tab=verificaciones');
+  await page.waitForSelector(`[data-testid=admin-verificacion]:has-text("${codigo}")`);
+  await page.click(`[data-testid=admin-verificacion]:has-text("${codigo}") [data-testid=btn-verificar]`);
+  await page.waitForSelector('.toast:has-text("Celular verificado")');
+  if (!sql("select celular_verificado_en from public.perfiles where username = 'chris_tcg'")) throw new Error('el celular no quedó verificado');
+  await page.goto(APP + '/app/ajustes');
+  await page.waitForSelector('[data-testid=verificacion-celular]:has-text("verificado ✔")');
+  log('celular verificado por WhatsApp: código', codigo, '→ confirmado en /admin');
 
   // ---------- álbum automático
   await page.goto(APP + '/app/album');

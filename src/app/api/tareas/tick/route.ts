@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { esAdminActual, traeSecretoCron } from '@/lib/admin-servidor';
 import { tick } from '@/lib/tareas';
+import { mantenimientoRapido } from '@/lib/notificar';
 import { json } from '@/lib/auth-servidor';
 
 export const runtime = 'nodejs';
@@ -22,8 +23,10 @@ async function manejar(req: Request) {
     return json({ ok: false, error: (e as Error).message }, 500);
   }
   try {
-    const r = await tick(admin, 50000, { forzar: url.searchParams.get('forzar') === '1' });
-    return json({ ok: true, pendiente: r.pendiente, ocupado: !!r.ocupado, hecho: r.hecho, tarea: r.tarea && { id: r.tarea.id, estado: r.tarea.estado, detalle: r.tarea.detalle } });
+    // Fase 3: cada llamada (pg_cron cada 10 min) vence compras sin comprobante y envía correos pendientes
+    const rapido = await mantenimientoRapido(admin, true);
+    const r = await tick(admin, 45000, { forzar: url.searchParams.get('forzar') === '1' });
+    return json({ ok: true, pendiente: r.pendiente, ocupado: !!r.ocupado, hecho: r.hecho, rapido, tarea: r.tarea && { id: r.tarea.id, estado: r.tarea.estado, detalle: r.tarea.detalle } });
   } catch (e) {
     return json({ ok: false, error: e instanceof Error ? e.message : String(e) }, 500);
   }

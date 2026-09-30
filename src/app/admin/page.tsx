@@ -1,7 +1,9 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { supabaseServer } from '@/lib/supabase/server';
 import { AdminPanel } from '@/components/vistas/Admin';
+import { CatalogoProvider } from '@/components/CatalogoProvider';
 import { APP_NAME } from '@/lib/config';
 
 export const metadata = { title: 'Administración' };
@@ -17,7 +19,7 @@ export default async function PaginaAdmin() {
   return (
     <div id="app">
       <header className="topbar"><div className="brand"><div className="brand-name">{APP_NAME} · Admin</div></div><div className="topbar-right"><span className="chip">@{perfil.username}</span></div></header>
-      <main id="main"><AdminPanel /></main>
+      <main id="main"><CatalogoProvider><Suspense><AdminPanel /></Suspense></CatalogoProvider></main>
     </div>
   );
 }

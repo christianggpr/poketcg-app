@@ -54,6 +54,8 @@ export function Ajustes() {
         </form>
       </div>
 
+      <VerificacionCelular />
+
       <div className="panel">
         <h3>Mercado</h3>
         <p className="small muted">Tus publicaciones, precios, fotos y estados se administran desde «Mis ventas». Los compradores solo ven tu nombre de usuario (@{perfil.username}).</p>
@@ -192,4 +194,37 @@ function descargar(nombre: string, contenido: string, tipo: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+/** Verificación del celular por WhatsApp (gratis): el usuario envía su código al WhatsApp de la app y el administrador lo confirma. */
+function VerificacionCelular() {
+  const { perfil, setPerfil } = usePerfil();
+  const toast = useToast();
+  const [datos, setDatos] = useState<{ codigo?: string; url?: string | null; whatsapp?: string; texto?: string } | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  const verificado = !!perfil.celular_verificado_en;
+  async function pedir() {
+    setOcupado(true);
+    const r = await fetch('/api/perfil/verificar', { method: 'POST' }).then(x => x.json()).catch(() => ({ ok: false, error: 'Sin conexión' }));
+    setOcupado(false);
+    if (!r.ok) { toast(r.error || 'No se pudo generar el código', 'danger', 4000); return; }
+    if (r.verificado) { setPerfil({ ...perfil, celular_verificado_en: new Date().toISOString() }); return; }
+    setDatos(r);
+    if (r.url) window.open(r.url, '_blank', 'noopener');
+  }
+  return (
+    <div className="panel" data-testid="verificacion-celular">
+      <h3>Celular {verificado ? <span className="pill ok">verificado ✔</span> : <span className="pill warn">sin verificar</span>}</h3>
+      {verificado ? <p className="small muted">Tu número {perfil.telefono} está verificado. Si lo cambias, tendrás que verificarlo de nuevo.</p> : (
+        <>
+          <p className="small muted">Para pagarte tus ventas necesitamos confirmar que el celular {perfil.telefono || '(regístralo arriba)'} es tuyo. Es gratis y por WhatsApp: pulsa el botón, se abre WhatsApp con tu código ya escrito, lo envías y listo. El administrador lo confirma en el día.</p>
+          <div className="row wrap" style={{ gap: 8, alignItems: 'center' }}>
+            <button className="btn primary sm" disabled={ocupado || !perfil.telefono} onClick={pedir} data-testid="btn-verificar-wsp">{datos ? '📲 Volver a abrir WhatsApp' : '📲 Verificar por WhatsApp'}</button>
+            {datos?.codigo ? <span className="small">Tu código: <b style={{ fontSize: 18, letterSpacing: 2 }} data-testid="codigo-verificacion">{datos.codigo}</b> → envíalo al WhatsApp <b>{datos.whatsapp}</b> desde tu número {perfil.telefono}.</span> : null}
+          </div>
+          {datos?.url ? <p className="small" style={{ marginTop: 6 }}>Si no se abrió WhatsApp: <a href={datos.url} target="_blank" rel="noreferrer">toca aquí</a> o escribe «{datos.texto}» al {datos.whatsapp}.</p> : null}
+        </>
+      )}
+    </div>
+  );
 }

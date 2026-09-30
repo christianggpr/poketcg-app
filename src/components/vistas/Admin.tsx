@@ -2,12 +2,18 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CATALOGO_VERSION, type DatosCatalogo } from '@/lib/catalogo';
+import { useSearchParams } from 'next/navigation';
 import { Aviso } from '../ui';
 import { AdminMercado } from './AdminMercado';
+import { AdminAjustesPagos, AdminPagos, AdminTiendas, AdminVerificaciones, AdminWhatsApp } from './AdminFase3';
+
+const PESTANAS: [string, string][] = [['pagos', '🧾 Pagos'], ['tiendas', '🏪 Tiendas'], ['verificaciones', '📱 Celulares'], ['whatsapp', '📲 WhatsApp'], ['cobros', '💳 Cobros y pagos'], ['mercado', '📈 Precios y tareas'], ['catalogo', '🗂️ Catálogo']];
 
 type Resumen = { colecciones: number; cartas: number; usuarios: number };
 
 export function AdminPanel() {
+  const params = useSearchParams();
+  const [tab, setTab] = useState(params.get('tab') || 'pagos');
   const [resumen, setResumen] = useState<Resumen | null>(null);
   const [error, setError] = useState('');
   const [progreso, setProgreso] = useState<{ hecho: number; total: number; texto: string } | null>(null);
@@ -65,14 +71,20 @@ export function AdminPanel() {
         <div className="box"><b>{resumen ? resumen.colecciones : '…'}</b><span>colecciones en la base</span></div>
         <div className="box"><b>{resumen ? resumen.cartas.toLocaleString('es-PE') : '…'}</b><span>cartas en la base</span></div>
       </div>
-      <div className="panel">
+      <div className="seg" style={{ flexWrap: 'wrap', margin: '10px 0' }} data-testid="admin-tabs">{PESTANAS.map(([v, l]) => <button key={v} className={tab === v ? 'active' : ''} onClick={() => { setTab(v); history.replaceState(null, '', '/admin?tab=' + v); }}>{l}</button>)}</div>
+      {tab === 'pagos' ? <AdminPagos /> : null}
+      {tab === 'tiendas' ? <AdminTiendas /> : null}
+      {tab === 'verificaciones' ? <AdminVerificaciones /> : null}
+      {tab === 'whatsapp' ? <AdminWhatsApp /> : null}
+      {tab === 'cobros' ? <AdminAjustesPagos /> : null}
+      {tab === 'catalogo' ? <div className="panel">
         <h3>Catálogo de cartas</h3>
         <p className="small muted">La app trae el catálogo en el archivo <span className="mono">public/data/catalogo.json</span> (versión <b>{CATALOGO_VERSION}</b>). Este botón lo copia a la base de datos de Supabase (necesario para guardar cartas y consultar precios). Tarda 1–3 minutos; repítelo cada vez que se publique una versión nueva del catálogo.</p>
         <button className="btn primary" onClick={cargarCatalogo} disabled={!!progreso}>{progreso ? 'Cargando…' : 'Cargar catálogo en la base de datos'}</button>
         {progreso ? <div style={{ marginTop: 10 }}><div className="bar"><div style={{ width: Math.round((progreso.hecho / progreso.total) * 100) + '%' }} /></div><p className="small muted">{progreso.texto}</p></div> : null}
         {log.length ? <pre className="mono small" style={{ whiteSpace: 'pre-wrap' }}>{log.join('\n')}</pre> : null}
-      </div>
-      <AdminMercado />
+      </div> : null}
+      {tab === 'mercado' ? <AdminMercado /> : null}
     </div>
   );
 }

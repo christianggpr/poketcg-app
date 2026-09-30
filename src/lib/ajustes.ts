@@ -1,6 +1,6 @@
 // Ajustes globales del mercado (tipo de cambio, pisos, comisión) guardados en `ajustes_globales`. Solo servidor.
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { AJUSTES_POR_DEFECTO, FX_RESPALDO, MAX_EDAD_MS, type Ajustes, type TipoCambio } from './precios-core';
+import { AJUSTES_POR_DEFECTO, FX_RESPALDO, MAX_EDAD_MS, PAGOS_POR_DEFECTO, type Ajustes, type AjustesPagos, type TipoCambio } from './precios-core';
 
 const FX_API = process.env.FX_API_USD || process.env.FX_API?.replace(/EUR$/, 'USD') || 'https://open.er-api.com/v6/latest/USD';
 
@@ -18,17 +18,19 @@ async function escribirClave(admin: SupabaseClient, clave: string, valor: unknow
 /** Ajustes vigentes (con caché de 5 min en memoria). */
 export async function cargarAjustes(admin: SupabaseClient, fresco = false): Promise<Ajustes> {
   if (cache && !fresco && Date.now() - cache.t < 5 * 60 * 1000) return cache.ajustes;
-  const [fx, respaldo, pisos, comision] = await Promise.all([
+  const [fx, respaldo, pisos, comision, pagos] = await Promise.all([
     leerClave<TipoCambio>(admin, 'fx'),
     leerClave<TipoCambio>(admin, 'fx_respaldo'),
     leerClave<{ normal: number; especial: number }>(admin, 'pisos'),
-    leerClave<{ valor: number }>(admin, 'comision')
+    leerClave<{ valor: number }>(admin, 'comision'),
+    leerClave<Partial<AjustesPagos>>(admin, 'pagos')
   ]);
   const fxValido = fx && fx.usd_pen > 0 && fx.eur_pen > 0 ? fx : null;
   const ajustes: Ajustes = {
     fx: fxValido || (respaldo && respaldo.usd_pen > 0 ? { ...respaldo, fuente: 'respaldo' } : FX_RESPALDO),
     pisos: pisos && pisos.normal >= 0 && pisos.especial >= 0 ? pisos : AJUSTES_POR_DEFECTO.pisos,
-    comision: comision && comision.valor >= 0 && comision.valor < 1 ? comision.valor : AJUSTES_POR_DEFECTO.comision
+    comision: comision && comision.valor >= 0 && comision.valor < 1 ? comision.valor : AJUSTES_POR_DEFECTO.comision,
+    pagos: { ...PAGOS_POR_DEFECTO, ...(pagos || {}) }
   };
   cache = { ajustes, t: Date.now() };
   return ajustes;

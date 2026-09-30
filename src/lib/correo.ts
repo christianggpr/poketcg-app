@@ -55,3 +55,13 @@ export function correoRecuperacion(nombre: string, url: string): Omit<Correo, 'p
     texto: `${nombre ? 'Hola, ' + nombre + ':' : 'Hola:'}\n\nPara cambiar tu contraseña de ${APP_NAME} abre este enlace (vence en 1 hora):\n${url}\n\nSi no pediste este cambio, ignora este mensaje.`
   };
 }
+
+/** Correo genérico de una notificación de la app (compras, ventas, pagos, retiros). */
+export function correoNotificacion(nombre: string, titulo: string, cuerpo: string, url: string): Omit<Correo, 'para'> {
+  const saludo = nombre ? `Hola, ${esc(nombre)}:` : 'Hola:';
+  return {
+    asunto: `${titulo} · ${APP_NAME}`,
+    html: plantilla(titulo, [saludo, esc(cuerpo)], { texto: 'Ver en la app', url }, `Este aviso también está en tu bandeja de notificaciones de ${APP_NAME}.`),
+    texto: `${nombre ? 'Hola, ' + nombre + ':' : 'Hola:'}\n\n${titulo}\n${cuerpo}\n\nVer en la app: ${url}`
+  };
+}

@@ -86,13 +86,17 @@ export function fmtUsd(usd: number | null | undefined): string {
 // ---- Fase 2: soles, pisos y precio por defecto -----------------------------------------------
 
 export type TipoCambio = { usd_pen: number; eur_pen: number; t?: number; fuente?: string };
+/** Ajustes públicos de pagos (Fase 3): a dónde pagar y plazos; lo privado no viaja al cliente. */
+export type AjustesPagos = { yape_numero: string; yape_nombre: string; metodos: string[]; whatsapp: string; reserva_min: number; confirmacion_dias: number; liberacion_dias: number; retiro_minimo: number; dias_pago: number[] };
+export const PAGOS_POR_DEFECTO: AjustesPagos = { yape_numero: '949114582', yape_nombre: '', metodos: ['Yape', 'Plin'], whatsapp: '', reserva_min: 30, confirmacion_dias: 3, liberacion_dias: 0, retiro_minimo: 0, dias_pago: [0, 1, 2, 3, 4, 5, 6] };
 export type Ajustes = {
   fx: TipoCambio;
   pisos: { normal: number; especial: number };
-  comision: number;               // 0.05 = 5 %
+  comision: number;
+  pagos: AjustesPagos;
 };
 export const FX_RESPALDO: TipoCambio = { usd_pen: 3.75, eur_pen: 4.2, fuente: 'respaldo' };
-export const AJUSTES_POR_DEFECTO: Ajustes = { fx: FX_RESPALDO, pisos: { normal: 1, especial: 2 }, comision: 0.05 };
+export const AJUSTES_POR_DEFECTO: Ajustes = { fx: FX_RESPALDO, pisos: { normal: 1, especial: 2 }, comision: 0.05, pagos: PAGOS_POR_DEFECTO };
 
 export type ValorPen = { pen: number; usd?: number; eur?: number; finish: string; label: string; approx: boolean; src: string };
 

@@ -1,25 +1,29 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
+import { crearPago, tiendasActivas, DIAS_CORTOS, type Tienda } from '@/lib/compras';
 import type { LineaCarrito } from '@/lib/mercado';
 import { fmtPen } from '@/lib/precios-core';
 import { useCatalogo } from '../CatalogoProvider';
 import { useMercado } from '../MercadoProvider';
 import { usePerfil } from '../PerfilProvider';
 import { usePrecios } from '../PreciosProvider';
+import { Sheet } from '../Sheet';
 import { Thumb } from '../Thumb';
 import { useToast } from '../Toast';
 import { Aviso } from '../ui';
 
-/** Carrito: reservas activas (24 h) sin pago; "Comprar" llega en la siguiente fase. */
+/** Carrito: reservas activas (24 h); "Comprar" elige la tienda de entrega y crea el pago por Yape. */
 export function Carrito() {
   const cat = useCatalogo();
   const { perfil } = usePerfil();
   const mercado = useMercado();
   const precios = usePrecios();
   const toast = useToast();
-  const [proximamente, setProximamente] = useState(false);
+  const router = useRouter();
+  const [comprar, setComprar] = useState(false);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const comision = precios.ajustes.comision;
   const lineas = mercado.carrito;
@@ -80,10 +84,43 @@ export function Carrito() {
           <div className="row" style={{ justifyContent: 'space-between' }}><span>{mercado.unidades} {mercado.unidades === 1 ? 'carta' : 'cartas'} de {vendedores.length} {vendedores.length === 1 ? 'vendedor' : 'vendedores'}</span><span>{fmtPen(total)}</span></div>
           <div className="row small muted" style={{ justifyContent: 'space-between' }}><span>Comisión de PokéTCG ({Math.round(comision * 100)} %, la paga el vendedor)</span><span>{fmtPen(Math.round(total * comision * 100) / 100)}</span></div>
           <div className="row" style={{ justifyContent: 'space-between', fontWeight: 800, fontSize: 18, marginTop: 6 }}><span>Total</span><span data-testid="total-carrito">{fmtPen(total)}</span></div>
-          <button className="btn primary block" style={{ marginTop: 10 }} disabled={!!conProblema.length} onClick={() => setProximamente(true)}>Comprar</button>
-          {proximamente ? <Aviso tipo="info"><b>Próximamente.</b> El pago en línea y la coordinación de la entrega llegan en la siguiente fase. Tus reservas se mantienen 24 horas.</Aviso> : null}
+          <button className="btn primary block" style={{ marginTop: 10 }} disabled={!!conProblema.length} onClick={() => setComprar(true)} data-testid="btn-comprar">Comprar</button>
+          <p className="small muted" style={{ marginTop: 8 }}>Pagas por Yape al número de la app y subes la foto del comprobante. Recoges tus cartas en la tienda que elijas; el vendedor las deja ahí a más tardar el sábado.</p>
         </div>
       ) : null}
+      {comprar ? <ElegirTienda total={total} onClose={() => setComprar(false)} onListo={id => { mercado.recargarCarrito(); router.push(`/app/compras/${id}`); }} /> : null}
     </div>
+  );
+}
+
+/** Paso 1 de la compra: elegir la tienda/sede donde recoger. */
+function ElegirTienda({ total, onClose, onListo }: { total: number; onClose: () => void; onListo: (pagoId: string) => void }) {
+  const toast = useToast();
+  const [tiendas, setTiendas] = useState<Tienda[] | null>(null);
+  const [sel, setSel] = useState<string>('');
+  const [ocupado, setOcupado] = useState(false);
+  useEffect(() => { tiendasActivas().then(t => { setTiendas(t); if (t.length === 1) setSel(t[0].id); }).catch(() => setTiendas([])); }, []);
+  async function confirmar() {
+    if (!sel) { toast('Elige una tienda', 'danger'); return; }
+    setOcupado(true);
+    const r = await crearPago(sel);
+    setOcupado(false);
+    if (!r.ok || !r.pago_id) { toast(r.error || 'No se pudo iniciar la compra', 'danger', 4000); return; }
+    onListo(r.pago_id);
+  }
+  return (
+    <Sheet titulo="¿Dónde recoges tus cartas?" onClose={onClose} pie={<><button className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" disabled={ocupado || !sel} onClick={confirmar} data-testid="btn-confirmar-tienda">{ocupado ? 'Reservando…' : `Continuar al pago (${fmtPen(total)})`}</button></>}>
+      <p className="small muted">El vendedor deja las cartas en la tienda que elijas y tú las recoges con un código de retiro. Sin costo de envío.</p>
+      {tiendas === null ? <p className="small muted"><span className="spinner" /> Cargando tiendas…</p> : null}
+      {tiendas && !tiendas.length ? <Aviso tipo="warn">Todavía no hay tiendas de entrega configuradas. Escríbenos a info@poketcg.pe.</Aviso> : null}
+      <div className="stack" style={{ marginTop: 8 }}>
+        {(tiendas || []).map(t => (
+          <label key={t.id} className="check" style={{ padding: 8, border: '1px solid var(--line)', borderRadius: 10 }} data-testid="tienda-opcion">
+            <input type="radio" name="tienda" checked={sel === t.id} onChange={() => setSel(t.id)} />
+            <span><b>{t.nombre}</b>{t.distrito ? ` · ${t.distrito}` : ''}<br /><span className="small muted">{t.direccion}{t.referencia ? ` (${t.referencia})` : ''}{t.horario ? ` · ${t.horario}` : ''} · abre: {t.dias_abierto.map(d => DIAS_CORTOS[d]).join(' ')}</span></span>
+          </label>
+        ))}
+      </div>
+    </Sheet>
   );
 }

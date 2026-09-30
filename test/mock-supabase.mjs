@@ -20,6 +20,7 @@ const CORREOS = process.env.MOCK_CORREOS || '/tmp/mock-correos.jsonl';
 // Como PostgREST: numeric e int8 llegan como números JSON, no como texto
 pg.types.setTypeParser(1700, v => (v == null ? null : parseFloat(v)));
 pg.types.setTypeParser(20, v => (v == null ? null : parseInt(v, 10)));
+pg.types.setTypeParser(1082, v => v);   // date → 'AAAA-MM-DD' como PostgREST
 const pool = new pg.Pool({ connectionString: DB, max: 8 });
 
 // FK conocidas para incrustar recursos (select=alias:tabla(cols))
@@ -132,6 +133,7 @@ function condicion(k, v, vals) {
   const m = /^(\w+)\.(.*)$/s.exec(v);
   if (!m) return null;
   const col = columna(k), op = m[1], val = m[2];
+  if (op === 'not') { const interna = condicion(k, val, vals); return interna ? `not (${interna})` : null; }
   if (op === 'eq') return `${col} = ${push(val)}`;
   if (op === 'neq') return `${col} <> ${push(val)}`;
   if (op === 'ilike') return `${col}::text ilike ${push(val.replace(/\*/g, '%'))}`;
@@ -142,6 +144,10 @@ function condicion(k, v, vals) {
   if (op === 'gte') return `${col} >= ${push(val)}`;
   if (op === 'lt') return `${col} < ${push(val)}`;
   if (op === 'lte') return `${col} <= ${push(val)}`;
+  if (op === 'cs' || op === 'cd') {   // contiene / contenido en (arrays: {a,b}; json: {...})
+    if (/^\{.*\}$/.test(val) && !/^\{\s*"/.test(val)) { const lista = val.slice(1, -1).split(',').map(x => x.trim().replace(/^"|"$/g, '')).filter(Boolean); return `${col} ${op === 'cs' ? '@>' : '<@'} ${push(lista)}`; }
+    return `${col} ${op === 'cs' ? '@>' : '<@'} ${push(val)}::jsonb`;
+  }
   throw new Error('operador no soportado: ' + op);
 }
 function parseFilters(params, tabla) {
@@ -304,7 +310,7 @@ async function rpc(req, res, url, body) {
 // escribe/borra dentro de su carpeta (<uid>/...); la lectura de fotos es pública.
 const objetos = new Map();
 let limitlessCaido = false;   // /__limitless?caido=1 simula que Limitless no responde
-const BUCKETS = new Set(['fotos-publicaciones', 'huellas']);   // huellas: cualquier usuario con sesión escribe
+const BUCKETS = new Set(['fotos-publicaciones', 'huellas', 'comprobantes']);   // huellas: cualquier usuario con sesión escribe; comprobantes: privado
 const leerBytes = req => new Promise(resolve => { const partes = []; req.on('data', c => partes.push(c)); req.on('end', () => resolve(Buffer.concat(partes))); });
 async function storage(req, res, url) {
   const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -312,7 +318,27 @@ async function storage(req, res, url) {
   const sub = bearer === SERVICE_KEY ? 'service' : c?.sub || null;
   const pub = /^\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/.exec(url.pathname);
   if (pub && req.method === 'GET') {
+    if (pub[1] === 'comprobantes') return send(res, 400, { statusCode: '400', error: 'Bucket privado', message: 'Bucket not public' });
     const o = objetos.get(`${pub[1]}/${decodeURIComponent(pub[2])}`);
+    if (!o) return send(res, 404, { statusCode: '404', error: 'not_found', message: 'Object not found' });
+    res.writeHead(200, { 'Content-Type': o.tipo, 'Content-Length': o.bytes.length, 'Access-Control-Allow-Origin': '*' }); return res.end(o.bytes);
+  }
+  // URL firmada: POST /storage/v1/object/sign/<bucket>/<ruta> → { signedURL }; GET /storage/v1/object/sign/<bucket>/<ruta>?token=…
+  const firma = /^\/storage\/v1\/object\/sign\/([^/]+)\/(.+)$/.exec(url.pathname);
+  if (firma && req.method === 'POST') {
+    await leerBytes(req);
+    const ruta = decodeURIComponent(firma[2]);
+    const dueno = ruta.split('/')[0];
+    const esAdmin = sub && sub !== 'service' ? (await pool.query(`select 1 from public.perfiles where id = $1 and rol = 'admin'`, [sub])).rowCount > 0 : sub === 'service';
+    if (!(sub === 'service' || esAdmin || dueno === sub)) return send(res, 400, { statusCode: '400', error: 'Unauthorized', message: 'new row violates row-level security policy' });
+    const token = crypto.createHash('sha256').update('firma:' + ruta).digest('hex').slice(0, 32);
+    return send(res, 200, { signedURL: `/object/sign/${firma[1]}/${firma[2]}?token=${token}` });
+  }
+  if (firma && req.method === 'GET') {
+    const ruta = decodeURIComponent(firma[2]);
+    const token = crypto.createHash('sha256').update('firma:' + ruta).digest('hex').slice(0, 32);
+    if (url.searchParams.get('token') !== token) return send(res, 400, { statusCode: '400', error: 'Invalid token', message: 'Invalid token' });
+    const o = objetos.get(`${firma[1]}/${ruta}`);
     if (!o) return send(res, 404, { statusCode: '404', error: 'not_found', message: 'Object not found' });
     res.writeHead(200, { 'Content-Type': o.tipo, 'Content-Length': o.bytes.length, 'Access-Control-Allow-Origin': '*' }); return res.end(o.bytes);
   }
@@ -372,7 +398,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/fx') return send(res, 200, { base_code: 'USD', rates: { USD: 1, PEN: 3.7, EUR: 0.9 } });
     if (url.pathname.startsWith('/realtime/')) { res.writeHead(404); return res.end(); }
     if (url.pathname === '/__reset' && req.method === 'POST') {
-      await pool.query('delete from public.precios; delete from public.tareas_programadas; delete from public.mazos_arquetipos; delete from public.publicaciones; delete from public.entradas; delete from public.album_casillas; delete from public.albumes; delete from public.cajas; delete from public.perfiles; delete from auth.mock_tokens; delete from auth.mock_refresh; delete from auth.users;');
+      await pool.query("delete from public.tiendas where nombre <> 'TCG Center Perú'; delete from public.precios; delete from public.tareas_programadas; delete from public.mazos_arquetipos; delete from public.publicaciones; delete from public.entradas; delete from public.album_casillas; delete from public.albumes; delete from public.cajas; delete from public.perfiles; delete from auth.mock_tokens; delete from auth.mock_refresh; delete from auth.users;");
       objetos.clear();
       return send(res, 200, { ok: true });
     }

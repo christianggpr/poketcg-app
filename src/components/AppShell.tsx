@@ -5,6 +5,7 @@ import { APP_NAME } from '@/lib/config';
 import { useCatalogoOpcional } from './CatalogoProvider';
 import { useColeccion } from './ColeccionProvider';
 import { useMercado } from './MercadoProvider';
+import { useNotificaciones } from './NotificacionesProvider';
 import { usePerfil } from './PerfilProvider';
 import { totalCartas } from '@/lib/coleccion';
 import { Aviso, Cargando } from './ui';
@@ -24,7 +25,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const col = useColeccion();
   const { perfil } = usePerfil();
   const mercado = useMercado();
-  const activo = (href: string) => (href === '/app' ? ruta === '/app' || ruta.startsWith('/app/carta') : href === '/app/cajas' ? ruta.startsWith(href) || ruta.startsWith('/app/ventas') : href === '/app/mercado' ? ruta.startsWith(href) || ruta.startsWith('/app/carrito') || ruta.startsWith('/app/mazos') : ruta.startsWith(href));
+  const notif = useNotificaciones();
+  const activo = (href: string) => (href === '/app' ? ruta === '/app' || ruta.startsWith('/app/carta') : href === '/app/cajas' ? ruta.startsWith(href) || ruta.startsWith('/app/ventas') : href === '/app/mercado' ? ruta.startsWith(href) || ruta.startsWith('/app/carrito') || ruta.startsWith('/app/mazos') || ruta.startsWith('/app/compras') : ruta.startsWith(href));
   const sub = col.cargado ? `${totalCartas(col.entradas).toLocaleString('es-PE')} cartas · ${col.cajas.length} ${col.cajas.length === 1 ? 'caja' : 'cajas'}` : perfil.username;
   return (
     <div id="app">
@@ -38,6 +40,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {TABS.map(t => <Link key={t.href} href={t.href} className={`${activo(t.href) ? 'active' : ''} ${t.soon ? 'soon' : ''}`}>{t.ico} {t.label}</Link>)}
         </nav>
         <div className="topbar-right">
+          <Link className={`chip ${notif.noLeidas ? 'warn' : ''}`} href="/app/notificaciones" title="Notificaciones" data-testid="chip-notificaciones">🔔{notif.noLeidas ? ` ${notif.noLeidas}` : ''}</Link>
           {mercado.unidades ? <Link className="chip ok" href="/app/carrito" title="Carrito" data-testid="chip-carrito">🛒 {mercado.unidades}</Link> : null}
           {perfil.rol === 'admin' ? <Link className="chip" href="/admin">Admin</Link> : null}
           <span className="chip" title={perfil.email}>@{perfil.username}</span>

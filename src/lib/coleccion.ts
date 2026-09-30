@@ -77,7 +77,9 @@ export type Perfil = {
   email: string;
   telefono: string | null;
   dni: string | null;
-  rol: 'usuario' | 'admin';
+  rol: 'usuario' | 'admin' | 'tienda';
+  tienda_id?: string | null;
+  celular_verificado_en?: string | null;
   acepto_terminos_en: string | null;
   idioma_nombres: IdiomaNombres;
   creado_en: string;
