@@ -1,0 +1,21 @@
+# dependencias y compilación
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# claves y configuración local: NUNCA se suben
+.env
+.env.*
+claves.env
+!.env.example
+
+# fuentes de la base v1 (grandes; el catálogo generado sí se sube)
+tools/fuente-v1-*.js
+
+# sistema
+.DS_Store
+Thumbs.db
+*.log
+.vercel

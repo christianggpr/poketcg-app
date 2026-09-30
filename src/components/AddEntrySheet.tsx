@@ -1,0 +1,96 @@
+'use client';
+import { useState } from 'react';
+import type { Carta } from '@/lib/catalogo';
+import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
+import { ACABADOS, CONDICIONES, IDIOMAS_CARTA } from '@/lib/config';
+import { cajasOrdenadas, type Entrada, type Personalizada } from '@/lib/coleccion';
+import { useCatalogo } from './CatalogoProvider';
+import { useColeccion } from './ColeccionProvider';
+import { usePerfil } from './PerfilProvider';
+import { useUbicador } from './useUbicador';
+import { Sheet } from './Sheet';
+import { Thumb } from './Thumb';
+import { Colocacion, LocChip } from './Ubicacion';
+import { useToast } from './Toast';
+import { Campo } from './ui';
+
+type Props = { carta?: Carta | null; personalizada?: Personalizada | null; idiomaInicial?: string; cajaInicial?: string | null; onClose: () => void; onGuardada?: (e: Entrada) => void };
+
+/** Hoja "Guardar en una caja": elige caja, cantidad, acabado, idioma… y muestra dónde colocarla. */
+export function AddEntrySheet({ carta, personalizada, idiomaInicial, cajaInicial, onClose, onGuardada }: Props) {
+  const cat = useCatalogo();
+  const col = useColeccion();
+  const { perfil } = usePerfil();
+  const ubicador = useUbicador();
+  const toast = useToast();
+  const cajas = cajasOrdenadas(col.cajas);
+  const set = carta ? cat.setOf(carta) : undefined;
+  const [cajaId, setCajaId] = useState<string | null>(cajaInicial && cajas.some(c => c.id === cajaInicial) ? cajaInicial : col.ultimaCajaId && cajas.some(c => c.id === col.ultimaCajaId) ? col.ultimaCajaId : cajas[0]?.id || null);
+  const [cantidad, setCantidad] = useState(1);
+  const [acabado, setAcabado] = useState('');
+  const [idioma, setIdioma] = useState(set?.rg === 'ja' ? 'JP' : idiomaInicial && (IDIOMAS_CARTA as readonly string[]).includes(idiomaInicial) ? idiomaInicial : '');
+  const [condicion, setCondicion] = useState('');
+  const [nota, setNota] = useState('');
+  const [nuevaCaja, setNuevaCaja] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const [resultado, setResultado] = useState<{ entrada: Entrada; fusionada: boolean } | null>(null);
+
+  const propias = carta ? col.entradas.filter(e => e.carta_id === carta.id) : [];
+
+  async function crearCaja() {
+    const c = await col.crearCaja({ nombre: nuevaCaja.trim() || `Caja ${cajas.length + 1}` });
+    if (c) { setCajaId(c.id); setNuevaCaja(''); toast('Caja creada', 'ok'); }
+  }
+  async function guardar() {
+    if (!cajaId) { toast('Crea una caja primero', 'danger'); return; }
+    setGuardando(true);
+    const r = await col.agregarEntrada({ carta_id: carta?.id || null, personalizada: carta ? null : { nombre: personalizada?.nombre || 'Carta', coleccion: personalizada?.coleccion || '', numero: personalizada?.numero || '' }, caja_id: cajaId, cantidad, acabado, idioma, condicion, nota });
+    setGuardando(false);
+    if (!r) { toast('No se pudo guardar', 'danger'); return; }
+    setResultado(r);
+    onGuardada?.(r.entrada);
+  }
+
+  if (resultado) {
+    // La colección ya está actualizada: el ubicador se recalculó con la carta nueva
+    const loc = ubicador.ubicacion(resultado.entrada);
+    return (
+      <Sheet titulo={resultado.fusionada ? 'Cantidad actualizada' : 'Carta guardada'} onClose={onClose} pie={<button className="btn primary block" onClick={onClose}>Listo</button>}>
+        <Colocacion entrada={resultado.entrada} loc={loc} />
+        {resultado.fusionada ? <p className="small muted" style={{ marginTop: 8 }}>Ya tenías esta carta con el mismo acabado e idioma en esa caja: ahora hay {resultado.entrada.cantidad}.</p> : null}
+      </Sheet>
+    );
+  }
+
+  return (
+    <Sheet titulo="Guardar en una caja" onClose={onClose} pie={<><button className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" onClick={guardar} disabled={guardando || !cajaId}>{guardando ? 'Guardando…' : 'Guardar'}</button></>}>
+      <div className="card-row" style={{ cursor: 'default' }}>
+        <Thumb carta={carta} set={set} />
+        <div className="card-main">
+          <div className="card-name">{carta ? nombreCarta(carta, perfil.idioma_nombres) : personalizada?.nombre}</div>
+          <div className="card-set">{carta ? <>{nombreColeccion(set, perfil.idioma_nombres)} <span className="num">{numLabel(carta, set)}</span></> : <>{personalizada?.coleccion || 'Personalizada'} <span className="num">{personalizada?.numero || ''}</span></>}</div>
+          {propias.length ? <div className="small" style={{ marginTop: 4 }}>Ya tienes {propias.reduce((n, e) => n + e.cantidad, 0)} en: {propias.map(e => <span key={e.id} style={{ marginRight: 6 }}><LocChip loc={ubicador.ubicacion(e)} corto /></span>)}</div> : null}
+        </div>
+      </div>
+      <div className="field" style={{ marginTop: 12 }}>
+        <label>Caja</label>
+        <div className="chips">
+          {cajas.map(c => <button key={c.id} className={`chipbtn ${cajaId === c.id ? 'active' : ''}`} onClick={() => setCajaId(c.id)}>📦 {c.nombre}</button>)}
+        </div>
+        <div className="row" style={{ marginTop: 8, gap: 6 }}>
+          <input className="input sm grow" placeholder={cajas.length ? 'Nueva caja…' : 'Nombre de tu primera caja (p. ej. Caja 1)'} value={nuevaCaja} onChange={e => setNuevaCaja(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') crearCaja(); }} />
+          <button className="btn sm" onClick={crearCaja}>+ Crear</button>
+        </div>
+      </div>
+      <div className="row wrap" style={{ marginTop: 12 }}>
+        <div className="field"><label>Cantidad</label><div className="stepper"><button onClick={() => setCantidad(c => Math.max(1, c - 1))}>−</button><input type="number" min={1} value={cantidad} onChange={e => setCantidad(Math.max(1, parseInt(e.target.value, 10) || 1))} /><button onClick={() => setCantidad(c => c + 1)}>+</button></div></div>
+        <Campo label="Acabado">{id => <select id={id} className="input" value={acabado} onChange={e => setAcabado(e.target.value)}>{ACABADOS.map(a => <option key={a} value={a}>{a || '—'}</option>)}</select>}</Campo>
+        <Campo label="Idioma">{id => <select id={id} className="input" value={idioma} onChange={e => setIdioma(e.target.value)}><option value="">—</option>{IDIOMAS_CARTA.map(l => <option key={l} value={l}>{l}</option>)}</select>}</Campo>
+      </div>
+      <div className="row wrap">
+        <Campo label="Estado">{id => <select id={id} className="input" value={condicion} onChange={e => setCondicion(e.target.value)}>{CONDICIONES.map(c => <option key={c} value={c}>{c || '—'}</option>)}</select>}</Campo>
+        <div className="field grow"><label>Nota</label><input className="input" value={nota} onChange={e => setNota(e.target.value)} placeholder="opcional" /></div>
+      </div>
+    </Sheet>
+  );
+}

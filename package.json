@@ -1,0 +1,32 @@
+{
+  "name": "poketcg-app",
+  "version": "2.0.0",
+  "private": true,
+  "description": "PokéTCG — tu colección Pokémon TCG, ubicada al instante (poketcg.pe)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "catalogo": "node tools/generar-catalogo.mjs && node tools/validar-catalogo.mjs",
+    "validar-catalogo": "node tools/validar-catalogo.mjs",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.117.2",
+    "next": "15.5.26",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "pg": "^8.23.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
