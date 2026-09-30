@@ -304,7 +304,7 @@ async function rpc(req, res, url, body) {
 // escribe/borra dentro de su carpeta (<uid>/...); la lectura de fotos es pública.
 const objetos = new Map();
 let limitlessCaido = false;   // /__limitless?caido=1 simula que Limitless no responde
-const BUCKETS = new Set(['fotos-publicaciones']);
+const BUCKETS = new Set(['fotos-publicaciones', 'huellas']);   // huellas: cualquier usuario con sesión escribe
 const leerBytes = req => new Promise(resolve => { const partes = []; req.on('data', c => partes.push(c)); req.on('end', () => resolve(Buffer.concat(partes))); });
 async function storage(req, res, url) {
   const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -319,7 +319,7 @@ async function storage(req, res, url) {
   const m = /^\/storage\/v1\/object\/([^/]+)(?:\/(.+))?$/.exec(url.pathname);
   if (!m || !BUCKETS.has(m[1])) { await leerBytes(req); return send(res, 404, { statusCode: '404', error: 'Bucket not found', message: 'Bucket not found' }); }
   const bucket = m[1], ruta = m[2] ? decodeURIComponent(m[2]) : '';
-  const propia = r => sub === 'service' || (sub && r.split('/')[0] === sub);
+  const propia = r => sub === 'service' || (bucket === 'huellas' ? !!sub : (sub && r.split('/')[0] === sub));
   if (req.method === 'POST' || req.method === 'PUT') {
     const bytes = await leerBytes(req);
     if (!propia(ruta)) return send(res, 403, { statusCode: '403', error: 'Unauthorized', message: 'new row violates row-level security policy' });

@@ -50,18 +50,18 @@ export function Reconocimiento() {
     if (!ids.length) { toast('Selecciona al menos una colección'); return; }
     if (rec.ocupado) { toast('Ya hay una preparación en curso'); return; }
     rec.ocupado = true; rec.cancelar = false;
-    let i = 0, ok = 0;
+    let i = 0, ok = 0, compartidas = 0;
     for (const id of ids) {
       if (rec.cancelar) break;
       const nombre = nombreColeccion(cat.coleccion(id), idioma);
       try {
-        const meta = await rec.prepararColeccion(cat, id, (d, t) => setProgreso({ msg: `(${i + 1}/${ids.length}) ${nombre}: ${d} de ${t} imágenes`, pct: Math.round(((i + (t ? d / t : 1)) / ids.length) * 100) }));
-        if (meta) { ok++; if (meta.count < meta.total * 0.5) toast(`${nombre}: solo ${meta.count} de ${meta.total} imágenes disponibles`, 'danger', 4000); }
+        const meta = await rec.prepararColeccion(cat, id, (d, t) => setProgreso({ msg: `(${i + 1}/${ids.length}) ${nombre}: ${d === 0 ? 'buscando huellas compartidas…' : `${d} de ${t} imágenes`}`, pct: Math.round(((i + (t ? d / t : 1)) / ids.length) * 100) }));
+        if (meta) { ok++; if (rec.ultimoOrigen === 'compartidas') compartidas++; if (meta.count < meta.total * 0.5) toast(`${nombre}: solo ${meta.count} de ${meta.total} imágenes disponibles`, 'danger', 4000); }
       } catch (e) { toast(`Error preparando ${nombre}: ${(e as Error).message}`, 'danger'); }
       i++;
     }
     rec.ocupado = false; setProgreso(null);
-    toast(rec.cancelar ? 'Preparación cancelada' : `Listo: ${ok} ${ok === 1 ? 'colección preparada' : 'colecciones preparadas'}`, rec.cancelar ? '' : 'ok');
+    toast(rec.cancelar ? 'Preparación cancelada' : `Listo: ${ok} ${ok === 1 ? 'colección preparada' : 'colecciones preparadas'}${compartidas ? ` (${compartidas} descargadas de la red)` : ''}`, rec.cancelar ? '' : 'ok', 3500);
     setSeleccion(new Set()); actualizarEspacio();
   }
   const pendientesMias = enColeccion.filter(id => !rec.prepared.has(id) || rec.prepared.get(id)?.stale);

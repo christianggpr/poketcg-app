@@ -88,3 +88,15 @@ test('qué tengo de una variante: cuenta copias una sola vez, ES/EN, misma impre
   const b = analizarVariante(cat, indice, doble, [entrada('sv03.5-025', 3)]);
   assert.deepEqual([b.tengo, b.faltan], [3, 1]);
 });
+
+test('huellas compartidas: empaquetar y desempaquetar el archivo binario', async () => {
+  const { empaquetarHuellas, desempaquetarHuellas, rutaHuellas } = await import('../src/lib/huellas.ts');
+  const sigs = [{ id: 'sv03.5-001', sig: new Uint8Array([1, 2, 3, 4]) }, { id: 'sv03.5-002', sig: new Uint8Array([9, 8, 7, 6]) }];
+  const cab = { v: 3, set: 'sv03.5', sigLen: 4, ids: sigs.map(s => s.id), count: 2, total: 2, ts: 1 };
+  const bytes = empaquetarHuellas(cab, sigs);
+  const r = desempaquetarHuellas(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer)!;
+  assert.deepEqual(r.cab, cab);
+  assert.deepEqual(r.sigs.map(s => [s.id, [...s.sig]]), [['sv03.5-001', [1, 2, 3, 4]], ['sv03.5-002', [9, 8, 7, 6]]]);
+  assert.equal(desempaquetarHuellas(new Uint8Array([1, 2, 3]).buffer), null);
+  assert.equal(rutaHuellas('jp-SV2a', 3), 'v3/jp-SV2a.bin');
+});

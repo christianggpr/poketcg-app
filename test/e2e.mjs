@@ -506,6 +506,27 @@ try {
   const casillas = parseInt(sql('select count(*) from public.album_casillas'), 10);
   log('álbum físico: 18 bolsillos,', casillas, 'asignados, movimiento OK');
 
+
+  // ---------- Fase 2 · E: huellas compartidas (otro usuario ya preparó la colección 151 → se descarga en segundos)
+  {
+    const idsMew = sql("select id from public.cartas where coleccion_id = 'sv03.5' and not sin_datos order by numero_orden").split('\n').filter(Boolean);
+    const SIG_LEN = 1456, SIG_V = 2;
+    const cab = Buffer.from(JSON.stringify({ v: SIG_V, set: 'sv03.5', sigLen: SIG_LEN, ids: idsMew, count: idsMew.length, total: idsMew.length, ts: Date.now() }));
+    const archivo = Buffer.alloc(8 + cab.length + idsMew.length * SIG_LEN);
+    archivo.write('PKH1', 0); archivo.writeUInt32BE(cab.length, 4); cab.copy(archivo, 8);
+    for (let i = 0; i < idsMew.length; i++) archivo.fill((i * 7) % 251 + 1, 8 + cab.length + i * SIG_LEN, 8 + cab.length + (i + 1) * SIG_LEN);
+    const subida = await fetch(MOCK + '/storage/v1/object/huellas/v2/sv03.5.bin', { method: 'POST', headers: { Authorization: 'Bearer service-de-prueba', 'Content-Type': 'application/octet-stream', 'x-upsert': 'true' }, body: archivo });
+    if (!subida.ok) throw new Error('no se pudo subir el archivo de huellas compartidas: ' + subida.status);
+    await page.goto(APP + '/app/ajustes');
+    await page.waitForSelector('#reconocimiento .set-item', { timeout: 60000 });
+    await page.fill('#reconocimiento input[placeholder="Filtrar colecciones…"]', '151');
+    await page.check('#reconocimiento .set-item:has-text("151") input[type=checkbox] >> nth=0');
+    await page.click('#reconocimiento button:has-text("Preparar seleccionadas")');
+    await page.waitForSelector('.toast:has-text("1 descargadas de la red")', { timeout: 60000 });
+    await page.waitForSelector(`#reconocimiento .set-item.done:has-text("Preparada: ${idsMew.length} de ${idsMew.length}")`, { timeout: 15000 });
+    await foto(page, 'huellas-compartidas');
+    log(`huellas compartidas: colección 151 preparada desde la red (${idsMew.length} huellas) sin calcular nada`);
+  }
   // ---------- ajustes: perfil e importación v1
   await page.goto(APP + '/app/ajustes');
   await page.fill('input.input >> nth=0', 'Christian G.');
@@ -582,6 +603,19 @@ try {
   await page.goto(APP + '/app');
   await page.waitForSelector('text=valor estimado', { timeout: 60000 });
   await foto(page, 'escritorio');
+
+  // ---------- Fase 2 · E: service worker registrado y página sin conexión
+  const sw = await page.evaluate(async () => { const r = await navigator.serviceWorker.ready; return { scope: r.scope, activo: !!r.active }; });
+  if (!sw.activo || !/\/$/.test(sw.scope)) throw new Error('service worker no activo: ' + JSON.stringify(sw));
+  await page.waitForFunction(async () => (await caches.keys()).some(k => k.includes('poketcg')), null, { timeout: 15000 });
+  await page.reload();
+  await page.waitForSelector('text=valor estimado', { timeout: 60000 });
+  // (Playwright no puede simular "sin conexión" para el service worker: se comprueba lo que quedó en caché)
+  const cacheado = await page.evaluate(async () => { const out = []; for (const k of await caches.keys()) { const c = await caches.open(k); for (const r of await c.keys()) out.push(new URL(r.url).pathname); } return out; });
+  if (!cacheado.includes('/sin-conexion.html') || !cacheado.some(p => p.startsWith('/_next/static/')) || !cacheado.includes('/data/catalogo.json')) throw new Error('la caché del service worker está incompleta: ' + cacheado.slice(0, 10).join(', '));
+  const sinConexion = await page.evaluate(async () => (await (await caches.match('/sin-conexion.html')).text()).includes('Sin conexión'));
+  if (!sinConexion) throw new Error('la página sin conexión no está en caché');
+  log('service worker activo: caché de la app, el catálogo y la página sin conexión (' + cacheado.length + ' archivos)');
 
   if (erroresConsola.length) { console.log('Errores de consola:', erroresConsola.slice(0, 10)); }
   console.log('\nE2E OK ✔  capturas en', CAPTURAS);

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { APP_NAME, APP_TAGLINE } from '@/lib/config';
 import { ToastProvider } from '@/components/Toast';
+import { RegistrarSW } from '@/components/RegistrarSW';
 
 export const metadata: Metadata = {
   title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <body>
         <ToastProvider>{children}</ToastProvider>
+        <RegistrarSW />
       </body>
     </html>
   );

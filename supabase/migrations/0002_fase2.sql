@@ -631,3 +631,16 @@ create policy "mazos listas: ver" on public.mazos_listas for select using (true)
 drop policy if exists "mazos variantes: ver" on public.mazos_variantes;
 create policy "mazos variantes: ver" on public.mazos_variantes for select using (true);
 -- (sin políticas de escritura: solo el servidor con service_role)
+
+-- ----------------------------------------------------------------------------
+-- E. Huellas visuales compartidas (Storage): quien prepara una colección la sube; los demás la descargan
+-- ----------------------------------------------------------------------------
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('huellas', 'huellas', true, 8388608, array['application/octet-stream'])
+on conflict (id) do update set public = true, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+drop policy if exists "huellas: ver" on storage.objects;
+create policy "huellas: ver" on storage.objects for select using (bucket_id = 'huellas');
+drop policy if exists "huellas: subir" on storage.objects;
+create policy "huellas: subir" on storage.objects for insert with check (bucket_id = 'huellas' and auth.role() = 'authenticated');
+drop policy if exists "huellas: actualizar" on storage.objects;
+create policy "huellas: actualizar" on storage.objects for update using (bucket_id = 'huellas' and auth.role() = 'authenticated');
