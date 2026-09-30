@@ -4,6 +4,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { appUrl } from './config';
 import { correoNotificacion, enviarCorreo } from './correo';
+import { borrarFotosVendidas } from './ordenes-servidor';
 
 export type Notificacion = {
   id: number; usuario_id: string; tipo: string; titulo: string; cuerpo: string; enlace: string | null;
@@ -49,12 +50,26 @@ export async function enviarWhatsApp(usuario: { telefono: string | null }, plant
 }
 
 let ultimoMantenimiento = 0;
-/** Cada pocos minutos: vence compras sin comprobante y envía correos pendientes (barato; lo llaman el tick y las visitas). */
-export async function mantenimientoRapido(admin: SupabaseClient, forzar = false): Promise<{ vencidos: number; enviadas: number } | null> {
+/**
+ * Cada pocos minutos (pg_cron → tick, y tras cada acción importante): vence compras sin comprobante,
+ * mantiene las órdenes (confirmación automática, recordatorios, vencidas), libera saldos, borra las fotos
+ * de publicaciones agotadas y envía los correos pendientes. Todo es idempotente y barato.
+ */
+export async function mantenimientoRapido(admin: SupabaseClient, forzar = false): Promise<{ vencidos: number; ordenes?: Record<string, number>; liberadas?: number; enviadas: number } | null> {
   if (!forzar && Date.now() - ultimoMantenimiento < 120000) return null;
   ultimoMantenimiento = Date.now();
-  let vencidos = 0;
+  let vencidos = 0, ordenes: Record<string, number> | undefined, liberadas: number | undefined;
   try { const { data } = await admin.rpc('vencer_pagos'); vencidos = (data as { vencidos?: number } | null)?.vencidos || 0; } catch { /* sin 0003 aún */ }
+  try { const { data } = await admin.rpc('mantenimiento_ordenes'); if (data) ordenes = data as Record<string, number>; } catch { /* sin 0003 aún */ }
+  try { const { data } = await admin.rpc('liberar_saldos'); liberadas = (data as { liberadas?: number } | null)?.liberadas; } catch { /* sin 0003 aún */ }
+  await limpiarFotosVendidas(admin).catch(() => null);
   const r = await procesarNotificacionesPendientes(admin).catch(() => ({ enviadas: 0, errores: 0 }));
-  return { vencidos, enviadas: r.enviadas };
+  return { vencidos, ordenes, liberadas, enviadas: r.enviadas };
+}
+
+/** Publicaciones que se agotaron (también por confirmación automática) y aún conservan fotos: se borran. */
+async function limpiarFotosVendidas(admin: SupabaseClient): Promise<void> {
+  const { data } = await admin.from('publicaciones').select('id, fotos').eq('estado', 'vendida').neq('fotos', '{}').limit(50);
+  const ids = (data || []).filter(p => Array.isArray(p.fotos) && p.fotos.length).map(p => p.id as string);
+  if (ids.length) await borrarFotosVendidas(admin, ids);
 }

@@ -1079,3 +1079,143 @@ as $$
   );
 $$;
 grant execute on function public.mi_saldo() to authenticated;
+
+-- ----------------------------------------------------------------------------
+-- D. Avisos que faltaban (tabla §10): recordatorios al vendedor el día anterior y el día de la entrega,
+--    publicaciones pausadas por falta de foto en la tarea diaria; y el comprobante del pago al vendedor
+-- ----------------------------------------------------------------------------
+alter table public.ordenes add column if not exists recordatorio_vendedor date;   -- último día en que se recordó al vendedor
+
+-- Mantenimiento de órdenes (lo llama el servidor cada 10 minutos y la tarea diaria; es idempotente):
+-- confirmación automática, recordatorios al comprador (día 1 y 2 en tienda), recordatorios al vendedor
+-- (el día anterior y el día de la entrega, y de la fecha límite; solo desde las 8:00 de Lima) y órdenes vencidas.
+drop function if exists public.mantenimiento_ordenes();
+create or replace function public.mantenimiento_ordenes(p_hora int default null)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  dias int := coalesce((public.ajustes_pagos()->>'confirmacion_dias')::int, 3);
+  hoy date := (now() at time zone 'America/Lima')::date;
+  hora int := coalesce(p_hora, extract(hour from now() at time zone 'America/Lima')::int);
+  o record;
+  it record;
+  fecha_ref date;
+  auto int := 0; venc int := 0; rec int := 0; rec_v int := 0;
+begin
+  -- confirmación automática
+  for o in select * from public.ordenes where estado = 'en_tienda' and en_tienda_en < now() - make_interval(days => dias) loop
+    perform public.marcar_entregada(o.id, null, 'automatica');
+    auto := auto + 1;
+  end loop;
+  -- recordatorios al comprador (día 1 y día 2 en tienda)
+  for o in select * from public.ordenes where estado = 'en_tienda' and recordatorios < 2 and en_tienda_en < now() - make_interval(days => recordatorios + 1) loop
+    perform public.notificar(o.comprador_id, 'recordatorio', 'Tu orden #' || o.numero || ' te espera en la tienda', 'Recógela con tu código ' || o.codigo_retiro || ' y marca «Entregado». Si no hay novedad en ' || dias || ' días, se confirma sola.', '/app/compras/' || o.pago_id, jsonb_build_object('orden_id', o.id), '{app,correo}');
+    update public.ordenes set recordatorios = recordatorios + 1 where id = o.id;
+    rec := rec + 1;
+  end loop;
+  -- recordatorios al vendedor: el día anterior y el día de la entrega (y de la fecha límite), una vez al día desde las 8:00
+  if hora >= 8 then
+    for o in select ord.*, t.nombre as tienda_nombre, t.direccion as tienda_direccion, t.horario as tienda_horario
+               from public.ordenes ord left join public.tiendas t on t.id = ord.tienda_id
+              where ord.estado = 'pago_confirmado' and (ord.recordatorio_vendedor is null or ord.recordatorio_vendedor < hoy)
+                and hoy in (coalesce(ord.fecha_entrega, ord.fecha_limite) - 1, coalesce(ord.fecha_entrega, ord.fecha_limite), ord.fecha_limite - 1, ord.fecha_limite) loop
+      fecha_ref := coalesce(o.fecha_entrega, o.fecha_limite);
+      perform public.notificar(o.vendedor_id, 'recordatorio_vendedor',
+        case when hoy < fecha_ref then 'Mañana entregas la orden #' || o.numero
+             when hoy = fecha_ref then 'Hoy entregas la orden #' || o.numero
+             else 'Orden #' || o.numero || ': la entrega está atrasada' end,
+        'Deja las cartas en ' || coalesce(o.tienda_nombre, 'la tienda') || case when coalesce(o.tienda_direccion, '') <> '' then ' (' || o.tienda_direccion || ')' else '' end
+          || case when coalesce(o.tienda_horario, '') <> '' then ' · ' || o.tienda_horario else '' end
+          || '. Fecha límite: ' || to_char(o.fecha_limite, 'DD/MM/YYYY') || '. Si no llegan a tiempo, la orden se anula y queda registrada la falta.',
+        '/app/ventas/ordenes/' || o.id, jsonb_build_object('orden_id', o.id), '{app,correo}');
+      update public.ordenes set recordatorio_vendedor = hoy where id = o.id;
+      rec_v := rec_v + 1;
+    end loop;
+  end if;
+  -- vencidas: pasó la fecha límite sin dejar la carta en la tienda
+  for o in select * from public.ordenes where estado = 'pago_confirmado' and fecha_limite < hoy loop
+    update public.ordenes set estado = 'vencida', motivo = 'No se entregó en la tienda antes del ' || to_char(o.fecha_limite, 'DD/MM/YYYY'), actualizada = now() where id = o.id;
+    perform set_config('poketcg.interno', '1', true);
+    for it in select * from public.orden_items where orden_id = o.id loop
+      update public.publicaciones set vendidas = greatest(0, vendidas - it.cantidad) where id = it.publicacion_id;   -- la copia vuelve al vendedor
+    end loop;
+    perform public.notificar_admins('orden_vencida', 'Orden #' || o.numero || ' vencida: devolver S/ ' || to_char(o.subtotal, 'FM999990.00'), 'El vendedor @' || (select username from public.perfiles where id = o.vendedor_id) || ' no entregó a tiempo. Devuelve el dinero al comprador @' || (select username from public.perfiles where id = o.comprador_id) || '.', '/admin?tab=ordenes', jsonb_build_object('orden_id', o.id));
+    perform public.notificar(o.comprador_id, 'orden_vencida', 'Orden #' || o.numero || ' no se entregó a tiempo', 'El vendedor no dejó las cartas en la tienda dentro del plazo. Te devolveremos S/ ' || to_char(o.subtotal, 'FM999990.00') || ' por Yape/Plin; te escribiremos para coordinarlo.', '/app/compras/' || o.pago_id, jsonb_build_object('orden_id', o.id), '{app,correo}');
+    perform public.notificar(o.vendedor_id, 'orden_vencida_vendedor', 'Orden #' || o.numero || ' vencida', 'No se registró la entrega en la tienda antes del ' || to_char(o.fecha_limite, 'DD/MM/YYYY') || '. La venta se anuló y queda registrada la falta.', '/app/ventas/ordenes/' || o.id, jsonb_build_object('orden_id', o.id), '{app,correo}');
+    venc := venc + 1;
+  end loop;
+  return jsonb_build_object('confirmadas_auto', auto, 'recordatorios', rec, 'recordatorios_vendedor', rec_v, 'vencidas', venc);
+end;
+$$;
+revoke all on function public.mantenimiento_ordenes(int) from public, anon, authenticated;
+
+-- Tarea diaria: recalcula precios por defecto y avisa a cada vendedor cuyas publicaciones quedaron pausadas
+-- porque superaron S/ 50 sin foto (§10: "Precio de su publicación superó S/ 50 (necesita foto)").
+create or replace function public.recalcular_publicaciones()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  n int;
+  pausadas int;
+  antes uuid[];
+  v record;
+  avisados int := 0;
+begin
+  antes := array(select id from public.publicaciones where estado = 'activa' and tipo_precio = 'defecto');
+  update public.publicaciones p
+     set precio_pen = public.precio_defecto_pen(p.carta_id, p.acabado),
+         precio_mercado_pen = public.valor_mercado_pen(p.carta_id, p.acabado)
+   where p.estado in ('activa', 'pausada') and p.tipo_precio = 'defecto';
+  get diagnostics n = row_count;
+  update public.publicaciones p set precio_mercado_pen = public.valor_mercado_pen(p.carta_id, p.acabado)
+   where p.estado in ('activa', 'pausada') and p.tipo_precio = 'manual';
+  -- las que estaban activas y hoy quedaron pausadas por la foto: un aviso por vendedor con sus cartas
+  for v in select p.usuario_id, count(*) as n,
+                  string_agg(public.nombre_carta_texto(p.carta_id) || ' a S/ ' || to_char(p.precio_pen, 'FM999990.00'), ', ' order by p.precio_pen desc) as cartas
+             from public.publicaciones p
+            where p.id = any(antes) and p.estado = 'pausada' and p.motivo_pausa = 'foto'
+            group by p.usuario_id loop
+    perform public.notificar(v.usuario_id, 'necesita_foto',
+      case when v.n = 1 then 'Tu publicación superó S/ 50: agrega una foto' else v.n || ' publicaciones superaron S/ 50: agrega fotos' end,
+      'El precio de mercado subió y ahora ' || case when v.n = 1 then 'esta carta necesita' else 'estas cartas necesitan' end || ' una foto real para seguir a la venta: ' || v.cartas || '. Quedaron pausadas hasta que la agregues en Mis ventas.',
+      '/app/ventas', jsonb_build_object('publicaciones', v.n), '{app,correo}');
+    avisados := avisados + 1;
+  end loop;
+  select count(*) into pausadas from public.publicaciones where estado = 'pausada' and motivo_pausa = 'foto';
+  return jsonb_build_object('recalculadas', n, 'pausadas_por_foto', pausadas, 'vendedores_avisados', avisados);
+end;
+$$;
+revoke all on function public.recalcular_publicaciones() from public, anon, authenticated;
+
+-- Pago marcado con comprobante: la ruta del voucher (bucket privado `comprobantes`, carpeta del vendedor) queda en el retiro
+-- y el aviso al vendedor le dice dónde verlo.
+create or replace function public.marcar_retiro_pagado(p_retiro uuid, p_operacion text default null, p_comprobante text default null)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  yo uuid := auth.uid();
+  r record;
+begin
+  if yo is not null and not public.es_admin() then return jsonb_build_object('ok', false, 'error', 'Solo el administrador'); end if;
+  select * into r from public.retiros where id = p_retiro for update;
+  if r.id is null then return jsonb_build_object('ok', false, 'error', 'El pago no existe'); end if;
+  if r.estado = 'pagado' then return jsonb_build_object('ok', true, 'estado', 'pagado'); end if;
+  update public.retiros set estado = 'pagado', pagado_en = now(), pagado_por = yo, n_operacion = nullif(p_operacion, ''), comprobante_url = nullif(p_comprobante, ''), actualizado = now() where id = r.id;
+  perform public.notificar(r.usuario_id, 'retiro_pagado', 'Te pagamos S/ ' || to_char(r.monto, 'FM999990.00'),
+    'Depósito de tus ventas (' || array_length(r.ordenes, 1) || ' ' || case when array_length(r.ordenes, 1) = 1 then 'orden' else 'órdenes' end || ')'
+      || case when nullif(p_operacion, '') is not null then ' · operación ' || p_operacion else '' end
+      || '. Revisa tu Yape/Plin o cuenta' || case when nullif(p_comprobante, '') is not null then '; el comprobante está en Mis ventas → Mi saldo → movimientos.' else '.' end,
+    '/app/ventas', jsonb_build_object('retiro_id', r.id, 'comprobante', nullif(p_comprobante, '') is not null), '{app,correo,whatsapp}');
+  return jsonb_build_object('ok', true, 'estado', 'pagado');
+end;
+$$;
+grant execute on function public.marcar_retiro_pagado(uuid, text, text) to authenticated;   -- la función exige es_admin()

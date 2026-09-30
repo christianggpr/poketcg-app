@@ -16,6 +16,7 @@ const requireProyecto = createRequire(import.meta.url); // dependencias del proy
 
 const APP = 'http://127.0.0.1:3000';
 const MOCK = 'http://127.0.0.1:54321';
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'anon-de-prueba';
 const CAPTURAS = '/tmp/e2e';
 fs.mkdirSync(CAPTURAS, { recursive: true });
 let paso = 0;
@@ -698,16 +699,49 @@ try {
   await page.reload();
   await page.waitForSelector('[data-testid=admin-retiro]:has-text("@vendedora_lima") [data-testid=btn-pagado]');
   await page.click('[data-testid=admin-retiro]:has-text("@vendedora_lima") [data-testid=btn-pagado]');
+  await page.waitForSelector('[data-testid=btn-confirmar-pagado]');
+  await page.fill('[data-testid=input-operacion-pago]', 'YP-555');
+  await page.setInputFiles('[data-testid=input-comprobante-pago]', '/tmp/foto-carta.png');   // captura del Yape (se comprime y se guarda en privado)
+  await page.waitForSelector('.sheet img[alt="Comprobante"]');
+  await foto(page, 'admin-pagar');
+  await page.click('[data-testid=btn-confirmar-pagado]');
   await page.waitForSelector('.toast:has-text("vendedores avisados")');
-  if (sql(`select estado from public.retiros where usuario_id = '${LUCIA}'`) !== 'pagado') throw new Error('el pago no quedó marcado');
-  if (!(await correos()).some(c => /Te pagamos S\/ 118\.61/.test(c.subject))) throw new Error('la vendedora no recibió el correo del pago');
+  const retiroId = sql(`select id from public.retiros where usuario_id = '${LUCIA}'`);
+  const retiroPagado = sql(`select estado || '|' || coalesce(n_operacion, '') || '|' || coalesce(comprobante_url, '') from public.retiros where id = '${retiroId}'`);
+  if (retiroPagado !== `pagado|YP-555|${LUCIA}/pago-${retiroId}.jpg`) throw new Error('el pago no quedó marcado con operación y comprobante: ' + retiroPagado);
+  if (!(await (await fetch(MOCK + '/__objetos')).json()).includes(`comprobantes/${LUCIA}/pago-${retiroId}.jpg`)) throw new Error('el comprobante del pago no se guardó en el bucket privado');
+  const correoPago = (await correos()).find(c => /Te pagamos S\/ 118\.61/.test(c.subject));
+  if (!correoPago || !/YP-555/.test(correoPago.html) || !/comprobante/.test(correoPago.html)) throw new Error('la vendedora no recibió el correo del pago con la operación y el comprobante');
   await page.click('[data-testid=admin-tabs] >> text=WhatsApp');
   await page.waitForSelector('[data-testid=admin-wsp]:has-text("Te pagamos")');
   await pageL2.goto(APP + '/app/ventas');
   await pageL2.waitForSelector('[data-testid=mi-saldo]');
   if (!/ya pagado/.test(await pageL2.textContent('[data-testid=mi-saldo]')) || !/S\/ 118\.61/.test(await pageL2.textContent('[data-testid=mi-saldo] .stat .box >> nth=2'))) throw new Error('Mi saldo no muestra el pago realizado');
+  await pageL2.click('[data-testid=mi-saldo] >> text=Ver movimientos');
+  await pageL2.waitForSelector('[data-testid=retiro]:has-text("pagado") [data-testid=btn-ver-comprobante]');
+  // el comprobante se abre con una URL firmada (bucket privado): solo la vendedora y el administrador pueden verlo
+  const [popup] = await Promise.all([ctxL2.waitForEvent('page'), pageL2.click('[data-testid=btn-ver-comprobante]')]);
+  await popup.waitForLoadState();
+  if (!/\/object\/sign\/comprobantes\//.test(popup.url())) throw new Error('el comprobante no se abrió con URL firmada: ' + popup.url());
+  const imgResp = await ctxL2.request.get(popup.url());
+  if (!imgResp.ok() || !/^image\//.test(imgResp.headers()['content-type'] || '')) throw new Error('el comprobante firmado no se puede descargar: ' + imgResp.status());
+  await popup.close();
+  const sesionTienda = await (await fetch(MOCK + '/auth/v1/token?grant_type=password', { method: 'POST', headers: { apikey: ANON_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'tienda@correo.pe', password: 'clave-tienda' }) })).json();
+  const ajeno = await fetch(`${MOCK}/storage/v1/object/sign/comprobantes/${LUCIA}/pago-${retiroId}.jpg`, { method: 'POST', headers: { apikey: ANON_KEY, Authorization: 'Bearer ' + sesionTienda.access_token, 'Content-Type': 'application/json' }, body: JSON.stringify({ expiresIn: 60 }) });
+  if (ajeno.status === 200) throw new Error('otro usuario pudo firmar el comprobante ajeno');
   await ctxL2.close();
-  log('pago marcado como realizado: vendedora avisada por correo y WhatsApp; Mi saldo → ya pagado S/ 118.61');
+  log('pago marcado (op. YP-555 + captura privada): vendedora avisada por correo y WhatsApp; Mi saldo → ya pagado S/ 118.61 con su comprobante; otro usuario no puede verlo');
+
+  // ---------- Fase 3 · D: textos legales con las cifras vigentes (comisión, plazos, días de pago)
+  await page.goto(APP + '/terminos');
+  await page.waitForSelector('[data-testid=terminos]');
+  const terminos = await page.textContent('[data-testid=terminos]');
+  for (const frase of ['intermediario', 'comisión del 5 %', '30 minutos', '3 días', 'todos los días', 'código de retiro de 6 dígitos', 'sábado de esa misma semana', 'Libro de Reclamaciones']) if (!terminos.includes(frase)) throw new Error('los términos no mencionan: ' + frase);
+  await page.goto(APP + '/privacidad');
+  await page.waitForSelector('[data-testid=privacidad]');
+  const privacidad = await page.textContent('[data-testid=privacidad]');
+  for (const frase of ['Ley N.º 29733', 'cifrados', 'nombre de usuario', 'Las tiendas aliadas', 'São Paulo']) if (!privacidad.includes(frase)) throw new Error('la política de privacidad no menciona: ' + frase);
+  log('términos y política de privacidad con comisión 5 %, plazos y días de pago vigentes');
 
   // ---------- álbum automático
   await page.goto(APP + '/app/album');

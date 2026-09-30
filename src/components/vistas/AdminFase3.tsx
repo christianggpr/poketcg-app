@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { DIAS, DIAS_CORTOS, ETIQUETA_ORDEN, fechaDia, fechaHora, type Tienda } from '@/lib/compras';
+import { DIAS, DIAS_CORTOS, ETIQUETA_ORDEN, fechaDia, fechaHora, urlVoucher, type Tienda } from '@/lib/compras';
+import { comprimirImagen } from '@/lib/fotos';
 import { fmtPen } from '@/lib/precios-core';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { useCatalogoOpcional } from '../CatalogoProvider';
@@ -274,7 +275,7 @@ export function AdminOrdenes() {
   );
 }
 
-type RetiroAdmin = { id: string; numero: number; usuario_id: string; monto: number; bruto: number; comision: number; ordenes_numeros: number[]; estado: string; n_operacion: string | null; excel_generado_en: string | null; pagado_en: string | null; creado: string;
+type RetiroAdmin = { id: string; numero: number; usuario_id: string; monto: number; bruto: number; comision: number; ordenes_numeros: number[]; estado: string; n_operacion: string | null; comprobante_url: string | null; excel_generado_en: string | null; pagado_en: string | null; creado: string;
   perfil: { username: string; nombres: string; apellidos: string; dni: string | null; telefono: string | null } | null; cobro: { metodo: string; titular: string; banco: string; numero: string; cuenta: string; cci: string } | null };
 
 /** Pagos a vendedores: pendientes con sus datos de cobro, Excel y marcar pagados. */
@@ -285,14 +286,28 @@ export function AdminRetiros() {
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [operacion, setOperacion] = useState('');
   const [ocupado, setOcupado] = useState(false);
+  const [pagando, setPagando] = useState<RetiroAdmin | null>(null);   // hoja "Pagado" de un solo pago (n.º de operación + captura)
+  const [comprobante, setComprobante] = useState<{ dataUrl: string; nombre: string } | null>(null);
   const cargar = useCallback(async () => { const r = await fetch('/api/admin/retiros?estado=' + estado).then(x => x.json()).catch(() => null); setLista(r?.ok ? r.retiros : []); setSel(new Set()); }, [estado]);
   useEffect(() => { cargar(); }, [cargar]);
-  async function pagar(ids: string[]) {
+  async function pagar(ids: string[], conComprobante?: string | null) {
     if (!ids.length) return;
     setOcupado(true);
-    const r = await post('/api/admin/retiros', { accion: 'pagado', ids, n_operacion: operacion.trim() || null });
+    const r = await post('/api/admin/retiros', { accion: 'pagado', ids, n_operacion: operacion.trim() || null, comprobante: conComprobante || null });
     setOcupado(false);
-    if (r.ok) { toast(`${r.pagados} ${r.pagados === 1 ? 'pago marcado' : 'pagos marcados'} como realizados: vendedores avisados`, 'ok', 3500); setOperacion(''); cargar(); } else toast(r.error || 'No se pudo', 'danger');
+    if (r.ok) { toast(`${r.pagados} ${r.pagados === 1 ? 'pago marcado' : 'pagos marcados'} como realizados: vendedores avisados`, 'ok', 3500); setOperacion(''); setPagando(null); setComprobante(null); cargar(); } else toast(r.error || 'No se pudo', 'danger');
+  }
+  async function elegirComprobante(f: File | undefined) {
+    if (!f) return;
+    try {
+      const blob = await comprimirImagen(f, 1400, 0.82);
+      const dataUrl = await new Promise<string>((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = () => rej(new Error('No se pudo leer la imagen')); fr.readAsDataURL(blob); });
+      setComprobante({ dataUrl, nombre: f.name });
+    } catch (e) { toast((e as Error).message, 'danger'); }
+  }
+  async function verComprobante(r: RetiroAdmin) {
+    const url = await urlVoucher(r.comprobante_url);
+    if (url) window.open(url, '_blank', 'noopener'); else toast('No se pudo abrir el comprobante', 'danger');
   }
   async function liberar() { setOcupado(true); const r = await post('/api/admin/retiros', { accion: 'liberar' }); setOcupado(false); if (r.ok) { toast(`Saldos liberados: ${r.liberadas}`, 'ok'); cargar(); } }
   const metodo = (c: RetiroAdmin['cobro']) => !c ? 'SIN DATOS DE COBRO' : c.metodo === 'banco' ? `${c.banco} · cta ${c.cuenta} · CCI ${c.cci}` : `${c.metodo === 'yape' ? 'Yape' : 'Plin'} ${c.numero}`;
@@ -318,9 +333,24 @@ export function AdminRetiros() {
             <div className="card-name">Pago #{r.numero} · <b>{fmtPen(r.monto)}</b> a @{r.perfil?.username} <span className="small muted">({r.perfil?.nombres} {r.perfil?.apellidos} · DNI {r.perfil?.dni || '—'} · {r.perfil?.telefono})</span> <span className={`pill ${r.estado === 'pagado' ? 'ok' : r.cobro ? 'warn' : 'danger'}`}>{r.estado === 'pagado' ? 'pagado' : r.cobro ? 'por pagar' : 'sin datos de cobro'}</span></div>
             <div className="card-set"><b>{metodo(r.cobro)}</b>{r.cobro ? ` · titular ${r.cobro.titular}` : ''} · órdenes {r.ordenes_numeros.map(n => '#' + n).join(', ')} · bruto {fmtPen(r.bruto)} − comisión {fmtPen(r.comision)}{r.excel_generado_en ? ` · en Excel del ${fechaDia(r.excel_generado_en.slice(0, 10))}` : ''}{r.pagado_en ? ` · pagado ${fechaHora(r.pagado_en)}${r.n_operacion ? ' · op. ' + r.n_operacion : ''}` : ''}</div>
           </div>
-          {r.estado !== 'pagado' && r.cobro ? <div className="card-side"><button className="btn sm primary" disabled={ocupado} onClick={() => pagar([r.id])} data-testid="btn-pagado">Pagado ✔</button></div> : null}
+          {r.estado !== 'pagado' && r.cobro ? <div className="card-side"><button className="btn sm primary" disabled={ocupado} onClick={() => { setPagando(r); setComprobante(null); setOperacion(r.n_operacion || ''); }} data-testid="btn-pagado">Pagado ✔</button></div> : null}
+          {r.estado === 'pagado' && r.comprobante_url ? <div className="card-side"><button className="btn sm ghost" onClick={() => verComprobante(r)}>Comprobante</button></div> : null}
         </div>
       ))}
+      {pagando ? (
+        <Sheet titulo={`Pago #${pagando.numero} · ${fmtPen(pagando.monto)} a @${pagando.perfil?.username}`} onClose={() => setPagando(null)} pie={<><button className="btn" onClick={() => setPagando(null)}>Cancelar</button><button className="btn primary" disabled={ocupado} onClick={() => pagar([pagando.id], comprobante?.dataUrl)} data-testid="btn-confirmar-pagado">{ocupado ? 'Guardando…' : 'Confirmar pago'}</button></>}>
+          <p className="small muted">Paga por {metodo(pagando.cobro)} a nombre de <b>{pagando.cobro?.titular}</b> y confirma aquí. El vendedor recibirá el aviso (app, correo y WhatsApp) con el n.º de operación y podrá ver la captura del comprobante si la adjuntas.</p>
+          <Campo label="N.º de operación (opcional)">{id => <input id={id} className="input" value={operacion} onChange={e => setOperacion(e.target.value)} placeholder="Ej. 01234567" data-testid="input-operacion-pago" />}</Campo>
+          <div className="field">
+            <label>Captura del comprobante (opcional)</label>
+            <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <label className="btn sm">📷 Elegir imagen<input type="file" accept="image/*" hidden onChange={e => { elegirComprobante(e.target.files?.[0]); e.target.value = ''; }} data-testid="input-comprobante-pago" /></label>
+              {comprobante ? <span className="small">{comprobante.nombre} <button className="btn sm ghost" onClick={() => setComprobante(null)}>Quitar</button></span> : <span className="small muted">Solo la verán el vendedor y tú.</span>}
+            </div>
+            {comprobante ? <img src={comprobante.dataUrl} alt="Comprobante" style={{ maxWidth: '100%', maxHeight: 220, borderRadius: 8, marginTop: 6 }} /> : null}
+          </div>
+        </Sheet>
+      ) : null}
       {sel.size ? <div className="barra-seleccion"><span className="small"><b>{sel.size}</b> seleccionados</span><input className="input sm" style={{ maxWidth: 200 }} placeholder="N.º de operación (opcional)" value={operacion} onChange={e => setOperacion(e.target.value)} /><span className="grow" /><button className="btn sm primary" disabled={ocupado} onClick={() => pagar([...sel])}>Marcar {sel.size} como pagados</button></div> : null}
     </div>
   );

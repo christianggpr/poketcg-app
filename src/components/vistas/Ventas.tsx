@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { fechaHora } from '@/lib/compras';
+import { fechaHora, urlVoucher } from '@/lib/compras';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
 import type { Entrada, Publicacion } from '@/lib/coleccion';
@@ -127,10 +127,11 @@ export function Ventas() {
 }
 
 type Saldo = { en_curso: number; por_liberar: number; por_pagar: number; sin_datos: boolean; pagado: number; ordenes_vendidas: number };
-type RetiroMio = { id: string; numero: number; monto: number; ordenes: string[]; estado: string; n_operacion: string | null; pagado_en: string | null; creado: string };
+type RetiroMio = { id: string; numero: number; monto: number; ordenes: string[]; estado: string; n_operacion: string | null; comprobante_url: string | null; pagado_en: string | null; creado: string };
 
 /** Mi saldo: ganancias en curso, por pagar y pagadas (los pagos se hacen cada día a tus datos de cobro). */
 function MiSaldo() {
+  const toast = useToast();
   const [saldo, setSaldo] = useState<Saldo | null>(null);
   const [retiros, setRetiros] = useState<RetiroMio[]>([]);
   const [abrir, setAbrir] = useState(false);
@@ -139,6 +140,10 @@ function MiSaldo() {
     sb.rpc('mi_saldo').then(({ data }) => { if (data) setSaldo({ ...data, en_curso: Number(data.en_curso), por_liberar: Number(data.por_liberar), por_pagar: Number(data.por_pagar), pagado: Number(data.pagado) }); });
     sb.from('retiros').select('*').order('creado', { ascending: false }).limit(50).then(({ data }) => setRetiros(((data || []) as RetiroMio[]).map(r => ({ ...r, monto: Number(r.monto) }))));
   }, []);
+  async function verComprobante(r: RetiroMio) {
+    const url = await urlVoucher(r.comprobante_url);
+    if (url) window.open(url, '_blank', 'noopener'); else toast('No se pudo abrir el comprobante', 'danger');
+  }
   if (!saldo || (!saldo.ordenes_vendidas && !saldo.en_curso && !saldo.por_pagar)) return null;
   return (
     <div className="panel" data-testid="mi-saldo">
@@ -151,7 +156,7 @@ function MiSaldo() {
       {saldo.sin_datos ? <div className="notice warn small" style={{ marginTop: 8 }}>Para pagarte, registra tus datos de cobro en <Link href="/app/ajustes">Ajustes</Link>.</div> : <p className="small muted" style={{ marginTop: 6 }}>Cada entrega confirmada se paga a tus datos de cobro en el siguiente día de pago (todos los días).</p>}
       {abrir ? (
         <div className="card-list" style={{ marginTop: 8 }}>
-          {retiros.map(r => <div key={r.id} className="card-row" style={{ cursor: 'default' }} data-testid="retiro"><div className="card-main"><div className="card-name">Pago #{r.numero} · {fmtPen(r.monto)} <span className={`pill ${r.estado === 'pagado' ? 'ok' : r.estado === 'sin_datos' ? 'warn' : 'primary'}`}>{r.estado === 'pagado' ? 'pagado' : r.estado === 'sin_datos' ? 'faltan datos de cobro' : 'por pagar'}</span></div><div className="card-set">{r.ordenes.length} {r.ordenes.length === 1 ? 'orden' : 'órdenes'} · {fechaHora(r.creado)}{r.pagado_en ? ` · pagado ${fechaHora(r.pagado_en)}` : ''}{r.n_operacion ? ` · operación ${r.n_operacion}` : ''}</div></div></div>)}
+          {retiros.map(r => <div key={r.id} className="card-row" style={{ cursor: 'default' }} data-testid="retiro"><div className="card-main"><div className="card-name">Pago #{r.numero} · {fmtPen(r.monto)} <span className={`pill ${r.estado === 'pagado' ? 'ok' : r.estado === 'sin_datos' ? 'warn' : 'primary'}`}>{r.estado === 'pagado' ? 'pagado' : r.estado === 'sin_datos' ? 'faltan datos de cobro' : 'por pagar'}</span></div><div className="card-set">{r.ordenes.length} {r.ordenes.length === 1 ? 'orden' : 'órdenes'} · {fechaHora(r.creado)}{r.pagado_en ? ` · pagado ${fechaHora(r.pagado_en)}` : ''}{r.n_operacion ? ` · operación ${r.n_operacion}` : ''}</div></div>{r.comprobante_url ? <div className="card-side"><button className="btn sm ghost" onClick={() => verComprobante(r)} data-testid="btn-ver-comprobante">Comprobante</button></div> : null}</div>)}
           {!retiros.length ? <p className="small muted">Sin movimientos todavía.</p> : null}
         </div>
       ) : null}

@@ -297,3 +297,64 @@ test('saldos: al entregarse, la ganancia se libera y se acumula en un pago pendi
   assert.deepEqual([saldo2.por_pagar, saldo2.pagado], [0, 47.5]);
   await q(`delete from public.datos_cobro where usuario_id = $1`, [ids.vendedor]);
 });
+
+test('recordatorios al vendedor: el día anterior y el día de la entrega (desde las 8:00), una vez al día; pagar con comprobante lo menciona', async t => {
+  if (!conBase(t)) return;
+  const a = await comprarYConfirmar('tst2-1', 2, 8, 1);
+  const hoy = (await q<{ d: string }>(`select ((now() at time zone 'America/Lima')::date)::text as d`))[0].d;
+  const cuenta = async () => (await q<{ n: number }>(`select count(*)::int as n from public.notificaciones where usuario_id = $1 and tipo = 'recordatorio_vendedor' and (datos->>'orden_id') = $2`, [ids.vendedor, a.orden.id]))[0].n;
+  // la entrega es pasado mañana: todavía no toca avisar
+  await q(`update public.ordenes set fecha_entrega = $2::date + 2, fecha_limite = $2::date + 2 where id = $1`, [a.orden.id, hoy]);
+  let m = (await q<{ r: Record<string, number> }>(`select public.mantenimiento_ordenes(9) as r`))[0].r;
+  assert.equal(await cuenta(), 0);
+  // la entrega es mañana: aviso "Mañana entregas", solo desde las 8:00 y una sola vez al día
+  await q(`update public.ordenes set fecha_entrega = $2::date + 1, fecha_limite = $2::date + 1 where id = $1`, [a.orden.id, hoy]);
+  m = (await q<{ r: Record<string, number> }>(`select public.mantenimiento_ordenes(6) as r`))[0].r;
+  assert.equal(await cuenta(), 0, 'antes de las 8:00 no se avisa');
+  m = (await q<{ r: Record<string, number> }>(`select public.mantenimiento_ordenes(9) as r`))[0].r;
+  assert.ok(m.recordatorios_vendedor >= 1);
+  assert.equal(await cuenta(), 1);
+  const av = (await q<{ titulo: string; cuerpo: string }>(`select titulo, cuerpo from public.notificaciones where usuario_id = $1 and tipo = 'recordatorio_vendedor' order by id desc limit 1`, [ids.vendedor]))[0];
+  assert.match(av.titulo, /^Mañana entregas/); assert.match(av.cuerpo, /Tienda F3 \(Av\. Larco 123\)/);
+  await q(`select public.mantenimiento_ordenes(15)`);
+  assert.equal(await cuenta(), 1, 'el mismo día no se repite');
+  // el día de la entrega: "Hoy entregas" (simulado retrocediendo el último recordatorio un día)
+  await q(`update public.ordenes set fecha_entrega = $2::date, fecha_limite = $2::date, recordatorio_vendedor = $2::date - 1 where id = $1`, [a.orden.id, hoy]);
+  await q(`select public.mantenimiento_ordenes(9)`);
+  assert.equal(await cuenta(), 2);
+  assert.match((await q<{ titulo: string }>(`select titulo from public.notificaciones where usuario_id = $1 and tipo = 'recordatorio_vendedor' order by id desc limit 1`, [ids.vendedor]))[0].titulo, /^Hoy entregas/);
+  // la orden ya está en la tienda: no más recordatorios al vendedor
+  assert.equal((await rpc(ids.vendedor, 'marcar_en_tienda', [a.orden.id, 'https://x/a.jpg'])).ok, true);
+  await q(`update public.ordenes set recordatorio_vendedor = null where id = $1`, [a.orden.id]);
+  await q(`select public.mantenimiento_ordenes(9)`);
+  assert.equal(await cuenta(), 2);
+  // pago con comprobante: el aviso dice dónde verlo
+  assert.equal((await rpc(ids.comprador, 'marcar_entregada', [a.orden.id, null, null])).ok, true);
+  await q(`select public.liberar_saldos()`);
+  const retiroId = (await q<{ id: string }>(`select id from public.retiros where usuario_id = $1 and estado in ('pendiente', 'sin_datos') order by creado desc limit 1`, [ids.vendedor]))[0].id;
+  assert.equal((await rpc(ids.admin, 'marcar_retiro_pagado', [retiroId, 'OP-9', `${ids.vendedor}/pago-${retiroId}.jpg`])).ok, true);
+  const pago = (await q<{ cuerpo: string; datos: { comprobante: boolean }; comprobante_url: string }>(`select n.cuerpo, n.datos, r.comprobante_url from public.notificaciones n join public.retiros r on r.id = $2 where n.usuario_id = $1 and n.tipo = 'retiro_pagado' order by n.id desc limit 1`, [ids.vendedor, retiroId]))[0];
+  assert.match(pago.cuerpo, /comprobante está en Mis ventas/); assert.equal(pago.datos.comprobante, true); assert.equal(pago.comprobante_url, `${ids.vendedor}/pago-${retiroId}.jpg`);
+});
+
+test('tarea diaria: si el precio por defecto sube de S/ 50 sin foto, la publicación se pausa y se avisa al vendedor una vez', async t => {
+  if (!conBase(t)) return;
+  const { pub, caja } = await publicar('tst2-2', 1, 5);
+  await q(`update public.publicaciones set tipo_precio = 'defecto' where id = $1`, [pub]);   // con precio de mercado sin datos → piso (S/ 1)
+  assert.equal((await q<{ estado: string }>(`select estado from public.publicaciones where id = $1`, [pub]))[0].estado, 'activa');
+  const antes = (await q<{ n: number }>(`select count(*)::int as n from public.notificaciones where usuario_id = $1 and tipo = 'necesita_foto'`, [ids.vendedor]))[0].n;
+  // el mercado sube a US$ 40 (> S/ 50 con cualquier tipo de cambio razonable)
+  await q(`insert into public.precios (carta_id, datos, actualizado_en) values ('tst2-2', '{"ok":true,"tp":{"normal":40},"cm":null,"missing":false}', now()) on conflict (carta_id) do update set datos = excluded.datos, actualizado_en = excluded.actualizado_en`);
+  const r = (await q<{ r: Record<string, number> }>(`select public.recalcular_publicaciones() as r`))[0].r;
+  assert.ok(r.vendedores_avisados >= 1, JSON.stringify(r));
+  const p = (await q<{ estado: string; motivo_pausa: string; precio_pen: number }>(`select estado, motivo_pausa, precio_pen from public.publicaciones where id = $1`, [pub]))[0];
+  assert.equal(p.estado, 'pausada'); assert.equal(p.motivo_pausa, 'foto'); assert.ok(p.precio_pen > 50, String(p.precio_pen));
+  const avisos = await q<{ titulo: string; cuerpo: string }>(`select titulo, cuerpo from public.notificaciones where usuario_id = $1 and tipo = 'necesita_foto' order by id desc`, [ids.vendedor]);
+  assert.equal(avisos.length, antes + 1);
+  assert.match(avisos[0].titulo, /superó S\/ 50/); assert.match(avisos[0].cuerpo, /Bibarel \(TS2 2\) a S\/ \d+\.\d\d/);
+  // al día siguiente sigue pausada: no se vuelve a avisar
+  const r2 = (await q<{ r: Record<string, number> }>(`select public.recalcular_publicaciones() as r`))[0].r;
+  assert.equal(r2.vendedores_avisados, 0);
+  await q(`delete from public.precios where carta_id = 'tst2-2'`);
+  await q(`delete from public.cajas where id = $1`, [caja]);
+});
