@@ -2,6 +2,7 @@
 # Reconstruye la app con el entorno de prueba y (re)inicia mock + servidor.
 cd "$(dirname "$0")/.."
 source test/env-prueba.sh
+service postgresql status >/dev/null 2>&1 || service postgresql start >/dev/null 2>&1
 for p in $(pgrep -f "next-serve[r]" ; pgrep -f "mock-supabas[e].mjs"); do kill $p 2>/dev/null; done
 sleep 1
 npx next build > /tmp/build.log 2>&1 || { echo "BUILD FALLÓ"; tail -30 /tmp/build.log; exit 1; }

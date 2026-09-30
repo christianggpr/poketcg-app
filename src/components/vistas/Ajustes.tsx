@@ -12,6 +12,7 @@ import { useUbicador } from '../useUbicador';
 import { Sheet } from '../Sheet';
 import { useToast } from '../Toast';
 import { Campo, Aviso } from '../ui';
+import { Reconocimiento } from './Reconocimiento';
 
 export function Ajustes() {
   const { perfil, setPerfil } = usePerfil();
@@ -51,6 +52,8 @@ export function Ajustes() {
           <div className="row"><button className="btn primary" type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar perfil'}</button></div>
         </form>
       </div>
+
+      <Reconocimiento />
 
       <Respaldo />
 

@@ -8,9 +8,9 @@ import { usePerfil } from './PerfilProvider';
 import { totalCartas } from '@/lib/coleccion';
 import { Aviso, Cargando } from './ui';
 
-const TABS = [
+const TABS: { href: string; label: string; ico: string; soon?: boolean }[] = [
   { href: '/app', label: 'Buscar', ico: '🔍' },
-  { href: '/app/escanear', label: 'Escanear', ico: '📷', soon: true },
+  { href: '/app/escanear', label: 'Escanear', ico: '📷' },
   { href: '/app/album', label: 'Álbum', ico: '📒' },
   { href: '/app/cajas', label: 'Cajas', ico: '📦' },
   { href: '/app/ajustes', label: 'Ajustes', ico: '⚙️' }
