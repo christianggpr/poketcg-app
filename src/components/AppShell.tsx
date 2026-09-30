@@ -21,7 +21,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { cat, estado, error } = useCatalogoOpcional();
   const col = useColeccion();
   const { perfil } = usePerfil();
-  const activo = (href: string) => (href === '/app' ? ruta === '/app' || ruta.startsWith('/app/carta') : ruta.startsWith(href));
+  const activo = (href: string) => (href === '/app' ? ruta === '/app' || ruta.startsWith('/app/carta') : href === '/app/cajas' ? ruta.startsWith(href) || ruta.startsWith('/app/ventas') : ruta.startsWith(href));
   const sub = col.cargado ? `${totalCartas(col.entradas).toLocaleString('es-PE')} cartas · ${col.cajas.length} ${col.cajas.length === 1 ? 'caja' : 'cajas'}` : perfil.username;
   return (
     <div id="app">

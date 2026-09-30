@@ -9,9 +9,33 @@ export type Caja = {
   orden: number;
   modo: 'auto' | 'manual';
   orden_colecciones: 'asc' | 'desc';
+  en_venta: boolean;          // Fase 2: las cartas de la caja se publican solas en el mercado
+  preguntar_venta: boolean;   // Fase 2: ¿preguntar al añadir cartas si se suben al mercado?
   creado_en: string;
   actualizado_en: string;
 };
+
+export type EstadoPublicacion = 'activa' | 'pausada' | 'reservada' | 'vendida' | 'retirada';
+export type Publicacion = {
+  id: string;
+  usuario_id: string;
+  entrada_id: string | null;
+  carta_id: string | null;
+  cantidad: number;
+  tipo_precio: 'defecto' | 'manual';
+  precio_pen: number;
+  precio_mercado_pen: number | null;
+  fotos: string[];
+  estado: EstadoPublicacion;
+  motivo_pausa: string | null;
+  aviso: string | null;
+  acabado: string;
+  idioma: string;
+  condicion: string;
+  creada: string;
+  actualizada: string;
+};
+export const PUBLICACION_VIVA = new Set<EstadoPublicacion>(['activa', 'pausada', 'reservada']);
 
 export type Personalizada = { nombre?: string; coleccion?: string; numero?: string };
 

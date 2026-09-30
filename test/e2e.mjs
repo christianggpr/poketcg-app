@@ -9,6 +9,7 @@ import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 const require = createRequire(process.env.PLAYWRIGHT_MODULES || '/opt/node-tools/node_modules/');
 const { chromium } = require('playwright');
 
@@ -21,6 +22,16 @@ const log = (...a) => console.log(`[${++paso}]`, ...a);
 async function foto(page, nombre) { await page.screenshot({ path: path.join(CAPTURAS, `${String(paso).padStart(2, '0')}-${nombre}.png`), fullPage: false }); }
 const sql = q => execSync(`su postgres -c "psql -At -d poketcg_test -c \\"${q.replace(/"/g, '\\"')}\\""`).toString().trim();
 const correos = async () => (await fetch(MOCK + '/__correos')).json();
+const num = q => parseInt(sql(q), 10);
+/** PNG mínimo (w×h, un color) para simular la foto de una carta. */
+function png(w, h, rgb) {
+  const fila = w * 3 + 1, raw = Buffer.alloc(fila * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) raw.set(rgb, y * fila + 1 + x * 3);
+  const crc = b => { let c = ~0; for (const x of b) { c ^= x; for (let k = 0; k < 8; k++) c = c & 1 ? (c >>> 1) ^ 0xedb88320 : c >>> 1; } return (~c) >>> 0; };
+  const chunk = (t, d) => { const len = Buffer.alloc(4); len.writeUInt32BE(d.length); const td = Buffer.concat([Buffer.from(t), d]); const c = Buffer.alloc(4); c.writeUInt32BE(crc(td)); return Buffer.concat([len, td, c]); };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2;
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
 const ctx = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE', acceptDownloads: true });
@@ -101,13 +112,20 @@ try {
   await page.click('text=+ Nueva caja');
   await page.fill('.sheet input.input', 'Caja 1');
   await page.click('.sheet-foot >> text=Crear caja');
+  // Fase 2: al crear la caja se pregunta si se sube a la nube para vender
+  await page.waitForSelector('[data-testid=pregunta-venta]');
+  await page.click('[data-testid=pregunta-venta] button:has-text("Elegir cuáles")');
   await page.waitForSelector('.box-card >> text=Caja 1');
   await page.click('text=+ Nueva caja');
   await page.fill('.sheet input.input', 'Caja 2');
   await page.click('.sheet-foot >> text=Crear caja');
+  await page.waitForSelector('[data-testid=pregunta-venta]');
+  await page.click('[data-testid=pregunta-venta] button:has-text("Elegir cuáles")');
   await page.waitForSelector('.box-card >> text=Caja 2');
+  await page.waitForSelector('.sheet', { state: 'detached' });
   await foto(page, 'cajas');
-  log('dos cajas creadas');
+  if (sql("select count(*) from public.cajas where en_venta") !== '0') throw new Error('las cajas no debían quedar en venta');
+  log('dos cajas creadas (pregunta de venta respondida: elegir cuáles)');
 
   // ---------- guardar cartas desde Buscar
   async function guardar(q, idCarta, esperado) {
@@ -166,6 +184,139 @@ try {
   await page.waitForFunction(() => document.querySelectorAll('.entry-row').length === 2);
   log('Charizard ex movido a Caja 2');
 
+  // ---------- Fase 2 · B: caja en venta, publicaciones automáticas, precio manual, fotos, Mis ventas
+  // Caja 1 (Pikachu ×2 y Pikachu reverse) → "Caja en venta": se publican con el precio por defecto.
+  // Con los precios del mock (Pikachu normal S/ 73.30, reverse S/ 183.30) superan S/ 50 → pausadas hasta tener foto.
+  await page.click('[data-testid=switch-venta]');
+  await page.click('.sheet-foot button:has-text("Poner en venta")');
+  await page.waitForSelector('.toast:has-text("Caja en venta")');
+  await page.waitForFunction(() => document.querySelectorAll('.entry-row .pill.warn').length === 2, null, { timeout: 15000 });
+  let pubs = sql("select p.estado || ':' || p.motivo_pausa || ':' || p.cantidad || ':' || p.precio_pen from public.publicaciones p join public.entradas e on e.id = p.entrada_id where e.carta_id = 'sv03.5-025' order by e.acabado");
+  if (pubs.split('\n').sort().join(',') !== 'pausada:foto:1:183.30,pausada:foto:2:73.30') throw new Error('publicaciones inesperadas al poner la caja en venta: ' + pubs);
+  if (sql("select en_venta::text || '/' || preguntar_venta::text from public.cajas where nombre = 'Caja 1'") !== 'true/false') throw new Error('la caja no quedó en venta');
+  await foto(page, 'caja-en-venta');
+  log('Caja 1 en venta: 2 publicaciones con precio por defecto, pausadas por falta de foto (> S/ 50)');
+
+  // carta nueva en la caja en venta → se publica sola y queda activa (Bulbasaur S/ 15.06 < S/ 50)
+  await page.goto(APP + '/app');
+  await page.fill('.search-wrap input', 'bulbasaur 151');
+  await page.waitForSelector('.card-row');
+  await page.locator('.card-row', { hasText: '001/165' }).first().locator('text=+ Guardar en una caja').click();
+  await page.waitForSelector('.sheet');
+  await page.click('.sheet .chipbtn:has-text("Caja 1")');
+  await page.click('.sheet-foot >> text=Guardar');
+  await page.waitForSelector('[data-testid=publicada]', { timeout: 15000 });
+  const txtPub = await page.textContent('[data-testid=publicada]');
+  if (!/en venta S\/ 15\.06/.test(txtPub)) throw new Error('la carta nueva no se publicó sola: ' + txtPub);
+  await foto(page, 'publicada-sola');
+  await page.click('.sheet-foot >> text=Listo');
+  if (sql("select estado || ':' || precio_pen || ':' || tipo_precio from public.publicaciones where carta_id = 'sv03.5-001'") !== 'activa:15.06:defecto') throw new Error('publicación automática incorrecta');
+  log('carta nueva en caja en venta → publicada sola y activa a S/ 15.06');
+
+  // Caja 2 (no en venta) → al guardar pregunta; "Solo esta carta"
+  await page.goto(APP + '/app');
+  await page.fill('.search-wrap input', 'charmander 151');
+  await page.waitForSelector('.card-row');
+  await page.locator('.card-row', { hasText: '004/165' }).first().locator('text=+ Guardar en una caja').click();
+  await page.waitForSelector('.sheet');
+  await page.click('.sheet .chipbtn:has-text("Caja 2")');
+  await page.click('.sheet-foot >> text=Guardar');
+  await page.waitForSelector('[data-testid=pregunta-venta]');
+  await foto(page, 'pregunta-venta');
+  await page.click('[data-testid=pregunta-venta] button:has-text("Solo esta carta")');
+  await page.waitForSelector('[data-testid=publicada]', { timeout: 15000 });
+  await page.click('.sheet-foot >> text=Listo');
+  if (sql("select estado || ':' || precio_pen from public.publicaciones where carta_id = 'sv03.5-004'") !== 'activa:16.54') throw new Error('"Solo esta carta" no publicó');
+  if (num("select count(*) from public.publicaciones where estado = 'activa'") !== 2) throw new Error('debía haber 2 publicaciones activas');
+  log('pregunta al guardar en caja no en venta → "Solo esta carta" publicada a S/ 16.54');
+
+  // precio manual 80 sin foto → pausada; con foto → activa; volver al precio por defecto
+  await page.goto(APP + '/app/cajas');
+  await page.click('.box-card >> text=Caja 2');
+  await page.waitForSelector('.entry-row');
+  await page.click('.entry-row:has-text("004/165")');
+  await page.waitForSelector('[data-testid=mercado-entrada]');
+  await page.click('[data-testid=mercado-entrada] button');
+  await page.waitForSelector('.sheet:has-text("Tu publicación")');
+  await page.check('.sheet label.check:has-text("Precio manual") input');
+  await page.fill('.sheet input[inputmode=decimal]', '80');
+  await page.waitForSelector('.sheet:has-text("por encima del valor de mercado")');
+  const recibes = await page.textContent('.sheet:has-text("Tu publicación") >> text=/Recibirás/');
+  if (!/S\/ 76\.00/.test(recibes)) throw new Error('neto del vendedor incorrecto (80 − 5 %): ' + recibes);
+  await page.click('.sheet:has-text("Tu publicación") .sheet-foot >> text=Guardar cambios');
+  await page.waitForSelector('.toast:has-text("pausada")');
+  if (sql("select estado || ':' || motivo_pausa || ':' || precio_pen from public.publicaciones where carta_id = 'sv03.5-004'") !== 'pausada:foto:80.00') throw new Error('precio > 50 sin foto debía pausar');
+  await foto(page, 'pausada-sin-foto');
+  fs.writeFileSync('/tmp/foto-carta.png', png(1800, 2500, [200, 40, 40]));
+  await page.setInputFiles('.sheet input[type=file]', '/tmp/foto-carta.png');
+  await page.waitForSelector('.toast:has-text("Foto agregada: publicación activa")', { timeout: 20000 });
+  await page.waitForSelector('.sheet img[src*="fotos-publicaciones"]');
+  const urlFoto = await page.getAttribute('.sheet img[src*="fotos-publicaciones"]', 'src');
+  const rFoto = await fetch(urlFoto);
+  if (!rFoto.ok || !(rFoto.headers.get('content-type') || '').startsWith('image/')) throw new Error('la foto no se puede ver públicamente: ' + rFoto.status);
+  if ((await rFoto.arrayBuffer()).byteLength > 900 * 1024) throw new Error('la foto no se comprimió');
+  if (sql("select estado || ':' || coalesce(motivo_pausa, '') || ':' || array_length(fotos, 1) from public.publicaciones where carta_id = 'sv03.5-004'") !== 'activa::1') throw new Error('con foto debía activarse');
+  await foto(page, 'activa-con-foto');
+  await page.click('.sheet button:has-text("Volver al precio por defecto")');
+  await page.click('.sheet:has-text("Tu publicación") .sheet-foot >> text=Guardar cambios');
+  await page.waitForSelector('.toast:has-text("Publicación actualizada")');
+  if (sql("select tipo_precio || ':' || precio_pen from public.publicaciones where carta_id = 'sv03.5-004'") !== 'defecto:16.54') throw new Error('no volvió al precio por defecto');
+  log('precio manual S/ 80 sin foto → pausada; foto comprimida y pública → activa; vuelta al precio por defecto S/ 16.54');
+
+  // cantidad de la entrada → la publicación se ajusta sola
+  await page.goto(APP + '/app/cajas');
+  await page.click('.box-card >> text=Caja 1');
+  await page.waitForSelector('.entry-row');
+  await page.click('.entry-row:has-text("025/165") >> nth=0');
+  await page.waitForSelector('.sheet');
+  await page.click('.sheet .stepper button >> nth=0');   // 2 → 1
+  await page.click('text=Guardar cambios');
+  await page.waitForSelector('.toast:has-text("Guardado")');
+  if (sql("select p.cantidad from public.publicaciones p join public.entradas e on e.id = p.entrada_id where e.carta_id = 'sv03.5-025' and e.acabado = ''") !== '1') throw new Error('la publicación no siguió a la cantidad de la entrada');
+  log('cantidad de la entrada 2 → 1: la publicación se ajustó sola');
+
+  // Mis ventas: lista, aviso de fotos, pausar/activar en bloque, retirar (borra la foto)
+  await page.goto(APP + '/app/ventas');
+  await page.waitForSelector('[data-testid=fila-venta]');
+  if ((await page.$$('[data-testid=fila-venta]')).length !== 4) throw new Error('Mis ventas debía listar 4 publicaciones');
+  if (!/2 publicaciones están pausadas/.test(await page.textContent('[data-testid=aviso-fotos]'))) throw new Error('sin aviso de fotos pendientes');
+  await foto(page, 'mis-ventas');
+  await page.click('text=Seleccionar todas');
+  await page.click('[data-testid=barra-ventas] button:has-text("Pausar 2")');
+  await page.waitForSelector('.toast:has-text("2 publicaciones pausadas")');
+  if (num("select count(*) from public.publicaciones where estado = 'pausada'") !== 4) throw new Error('pausar en bloque falló');
+  await page.click('text=Seleccionar todas');
+  await page.click('[data-testid=barra-ventas] button:has-text("Activar 2")');   // las pausadas por foto no se pueden activar a mano
+  await page.waitForSelector('.toast:has-text("2 publicaciones activadas")');
+  if (num("select count(*) from public.publicaciones where estado = 'activa'") !== 2) throw new Error('activar en bloque falló');
+  await page.click('[data-testid=fila-venta]:has-text("004/165") input[type=checkbox]');
+  await page.click('[data-testid=barra-ventas] button:has-text("Retirar 1")');
+  await page.click('.sheet-foot >> text=Retirar');
+  await page.waitForSelector('.toast:has-text("1 publicación retirada")');
+  if (sql("select estado || ':' || coalesce(array_length(fotos, 1), 0) from public.publicaciones where carta_id = 'sv03.5-004'") !== 'retirada:0') throw new Error('retirar no limpió la publicación');
+  if ((await (await fetch(MOCK + '/__objetos')).json()).length !== 0) throw new Error('la foto no se borró del almacenamiento al retirar');
+  if ((await page.$$('[data-testid=fila-venta]')).length !== 3) throw new Error('la retirada sigue en la lista');
+  log('Mis ventas: pausar/activar en bloque y retirar (foto borrada del almacenamiento)');
+
+  // mercado público: otro usuario (anónimo) solo ve publicaciones activas y el nombre de usuario del vendedor
+  const rMercado = await fetch(MOCK + '/rest/v1/mercado?select=*&order=precio_pen', { headers: { apikey: 'anon-de-prueba', Authorization: 'Bearer anon-de-prueba' } });
+  const mercado = await rMercado.json();
+  if (!Array.isArray(mercado) || mercado.length !== 1 || mercado[0].carta_id !== 'sv03.5-001' || mercado[0].vendedor !== 'chris_tcg') throw new Error('vista mercado inesperada: ' + JSON.stringify(mercado).slice(0, 300));
+  for (const k of ['dni', 'telefono', 'nombres', 'apellidos', 'email', 'usuario_id']) if (k in mercado[0]) throw new Error('la vista mercado expone ' + k);
+  log('vista pública del mercado: 1 activa, solo @vendedor, sin datos personales');
+
+  // borrar la entrada → la publicación desaparece
+  await page.goto(APP + '/app/cajas');
+  await page.click('.box-card >> text=Caja 1');
+  await page.waitForSelector('.entry-row');
+  await page.click('.entry-row:has-text("001/165")');
+  await page.waitForSelector('.sheet');
+  await page.click('.sheet-foot >> text=Eliminar');
+  await page.click('.sheet:has-text("Eliminar carta") .sheet-foot >> text=Eliminar');
+  await page.waitForSelector('.toast:has-text("eliminada")');
+  if (num("select count(*) from public.publicaciones where carta_id = 'sv03.5-001'") !== 0) throw new Error('la publicación no se borró con la entrada');
+  log('entrada eliminada → publicación eliminada');
+
   // ---------- álbum automático
   await page.goto(APP + '/app/album');
   await page.waitForSelector('.album-card');
@@ -175,7 +326,7 @@ try {
   await page.waitForSelector('.album-cell');
   const total = await page.$$eval('.album-cell', els => els.length);
   const faltan = await page.$$eval('.album-cell.missing', els => els.length);
-  if (total !== 207 || faltan !== 205) throw new Error(`álbum 151: ${total} celdas, ${faltan} faltan`);
+  if (total !== 207 || faltan !== 204) throw new Error(`álbum 151: ${total} celdas, ${faltan} faltan`);   // tengo 025, 006 y 004
   await page.click('text=Consultar el precio de las que faltan');
   await page.waitForFunction(() => /para completar/.test(document.querySelector('.stat')?.textContent || ''));
   await foto(page, 'album-151');
@@ -228,14 +379,14 @@ try {
   const resImp = await page.textContent('.notice.ok');
   const nCajas = parseInt(sql('select count(*) from public.cajas'), 10);
   const nEnt = parseInt(sql('select count(*) from public.entradas'), 10);
-  if (nCajas !== 3 || nEnt !== 8) throw new Error(`importación: ${nCajas} cajas, ${nEnt} entradas (${resImp})`);
+  if (nCajas !== 3 || nEnt !== 9) throw new Error(`importación: ${nCajas} cajas, ${nEnt} entradas (${resImp})`);   // 5 propias + 4 importadas
   await foto(page, 'ajustes');
   log('importación v1:', resImp.trim());
 
   // exportar JSON
   const [descarga] = await Promise.all([page.waitForEvent('download'), page.click('text=Exportar respaldo (.json)')]);
   const exportado = JSON.parse(fs.readFileSync(await descarga.path(), 'utf8'));
-  if (exportado.entradas.length !== 8) throw new Error('exportación incompleta');
+  if (exportado.entradas.length !== 9) throw new Error('exportación incompleta');
   log('exportación JSON:', exportado.entradas.length, 'entradas');
 
   // ---------- cerrar sesión, ingresar por usuario, recuperar contraseña

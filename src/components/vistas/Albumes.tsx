@@ -17,6 +17,7 @@ import { Thumb } from '../Thumb';
 import { LocChip } from '../Ubicacion';
 import { FilterBar, type Filtro } from '../FilterBar';
 import { usePedirPrecios } from '../Precio';
+import { Confirmar } from '../Sheet';
 import { AddEntrySheet } from '../AddEntrySheet';
 import { Sheet } from '../Sheet';
 import { useToast } from '../Toast';
@@ -131,6 +132,7 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   const [consultarFaltan, setConsultarFaltan] = useState(false);
   const [idiomaNuevo, setIdiomaNuevo] = useState('ES');
   const [asignando, setAsignando] = useState(false);
+  const [confirmarVenta, setConfirmarVenta] = useState(false);
   const toast = useToast();
   const set = cat.coleccion(setId);
   const idioma = perfil.idioma_nombres;
@@ -167,6 +169,13 @@ export function AlbumColeccion({ setId }: { setId: string }) {
     toast(`${n} ${n === 1 ? 'carta marcada' : 'cartas marcadas'} como ${idiomaNuevo}`, 'ok');
     router.replace(`/app/album/${encodeURIComponent(set!.id)}?idioma=${encodeURIComponent(idiomaNuevo)}`);
   }
+  const sinPublicar = [...propias.values()].flat().filter(e => !col.publicacionDe(e.id));
+  async function ponerEnVenta() {
+    setAsignando(true);
+    const n = await col.publicarVarias(sinPublicar.map(e => e.id));
+    setAsignando(false);
+    if (n) toast(`${n} ${n === 1 ? 'carta publicada' : 'cartas publicadas'} con el precio por defecto`, 'ok', 3500); else toast('No se publicó ninguna carta', 'danger');
+  }
   const total = cartas.filter(c => !c.sd).length;
   const pct = total ? Math.round((idsPropias.length / total) * 100) : 0;
   const priceOf = (c: Carta) => precios.precioDefecto(c, propias.get(c.id)?.[0]?.acabado || '').pen;
@@ -197,6 +206,10 @@ export function AlbumColeccion({ setId }: { setId: string }) {
           </div>
         </div>
       ) : null}
+      {idsPropias.length ? <div className="row" style={{ gap: 6, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        {sinPublicar.length ? <button className="btn sm" disabled={asignando} onClick={() => setConfirmarVenta(true)}>🏷️ Poner en venta lo que tengo de esta colección ({sinPublicar.length})</button> : <span className="small muted">🏷️ Todo lo que tienes de esta colección está en el mercado.</span>}
+        <Link href="/app/ventas" className="btn sm ghost">Mis ventas</Link>
+      </div> : null}
       <FilterBar f={f} onChange={setF} sorts={['set', 'name', 'type', 'value', 'dex']} extra={<div className="seg"><button className={modo === 'todas' ? 'active' : ''} onClick={() => setModo('todas')}>Todas</button><button className={modo === 'tengo' ? 'active' : ''} onClick={() => setModo('tengo')}>Tengo</button><button className={modo === 'faltan' ? 'active' : ''} onClick={() => setModo('faltan')}>Faltan</button></div>} />
       <div className="album-cells">
         {lista.map(c => {
@@ -205,7 +218,7 @@ export function AlbumColeccion({ setId }: { setId: string }) {
           const d = c.sd ? null : precios.precioDefecto(c, es[0]?.acabado || '');
           return (
             <div key={c.id} className={`album-cell ${qty ? '' : 'missing'}`} role="button" tabIndex={0} onClick={() => { if (qty) router.push(`/app/carta/${encodeURIComponent(c.id)}`); else setAgregar(c); }}>
-              <div className="album-img"><Thumb carta={c} set={set} className="album" />{qty ? <span className="album-qty">×{qty}</span> : null}</div>
+              <div className="album-img"><Thumb carta={c} set={set} className="album" />{qty ? <span className="album-qty">×{qty}</span> : null}{es.some(e => col.publicacionDe(e.id)?.estado === 'activa') ? <span className="album-venta" title="En venta en el mercado">🏷️</span> : null}</div>
               <div className="album-num">{c.l}{c.sd ? ' · sin datos' : ''}</div>
               <div className="album-name">{nombreCarta(c, idioma)}</div>
               <div className="album-foot">{qty ? <span className="album-loc"><LocChip loc={ubicador.ubicacion(es[0])} corto /></span> : <span className="album-miss">falta</span>}{d ? <span className={`price ${d.origen === 'piso' ? 'piso' : ''}`}>{fmtPen(d.pen)}</span> : null}</div>
@@ -214,6 +227,7 @@ export function AlbumColeccion({ setId }: { setId: string }) {
         })}
       </div>
       {agregar ? <AddEntrySheet carta={agregar} idiomaInicial={idiomaAlb !== '—' ? idiomaAlb : ''} onClose={() => setAgregar(null)} /> : null}
+      {confirmarVenta ? <Confirmar titulo="Poner en venta" texto={`Se publicarán en el mercado ${sinPublicar.length} ${sinPublicar.length === 1 ? 'carta' : 'cartas'} de ${nombreColeccion(set, idioma, true)} con el precio por defecto (el mayor entre el piso y el valor de mercado). Podrás cambiar precios, pausar o retirar cuando quieras; las de más de S/ 50 quedan pausadas hasta que les agregues una foto.`} okLabel="Publicar" onOk={() => { setConfirmarVenta(false); ponerEnVenta(); }} onClose={() => setConfirmarVenta(false)} /> : null}
     </div>
   );
 }

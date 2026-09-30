@@ -16,11 +16,14 @@ const DB = process.env.DATABASE_URL || 'postgresql://postgres:test@127.0.0.1:543
 const ANON_KEY = process.env.MOCK_ANON_KEY || 'anon-de-prueba';
 const SERVICE_KEY = process.env.MOCK_SERVICE_KEY || 'service-de-prueba';
 const CORREOS = process.env.MOCK_CORREOS || '/tmp/mock-correos.jsonl';
+// Como PostgREST: numeric e int8 llegan como números JSON, no como texto
+pg.types.setTypeParser(1700, v => (v == null ? null : parseFloat(v)));
+pg.types.setTypeParser(20, v => (v == null ? null : parseInt(v, 10)));
 const pool = new pg.Pool({ connectionString: DB, max: 8 });
 
 // FK conocidas para incrustar recursos (select=alias:tabla(cols))
 const FK = { cartas: { colecciones_tcg: 'coleccion_id' } };
-const PK = { perfiles: ['id'], colecciones_tcg: ['id'], cartas: ['id'], precios: ['carta_id'], ajustes_globales: ['clave'], cajas: ['id'], entradas: ['id'], albumes: ['id'], album_casillas: ['album_id', 'indice'] };
+const PK = { perfiles: ['id'], colecciones_tcg: ['id'], cartas: ['id'], precios: ['carta_id'], ajustes_globales: ['clave'], cajas: ['id'], entradas: ['id'], albumes: ['id'], album_casillas: ['album_id', 'indice'], publicaciones: ['id'], tareas_programadas: ['id'] };
 
 const b64url = s => Buffer.from(s).toString('base64url');
 function jwt(user) {
@@ -279,6 +282,45 @@ async function rpc(req, res, url, body) {
   } finally { cliente.release(); }
 }
 
+// ---------------------------------------------------------------- Storage simulado (fotos de publicaciones)
+// Objetos en memoria: "bucket/ruta" → { bytes, tipo }. Regla como en producción: cada usuario solo
+// escribe/borra dentro de su carpeta (<uid>/...); la lectura de fotos es pública.
+const objetos = new Map();
+const BUCKETS = new Set(['fotos-publicaciones']);
+const leerBytes = req => new Promise(resolve => { const partes = []; req.on('data', c => partes.push(c)); req.on('end', () => resolve(Buffer.concat(partes))); });
+async function storage(req, res, url) {
+  const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  const c = bearer && bearer !== ANON_KEY && bearer !== SERVICE_KEY ? claims(bearer) : null;
+  const sub = bearer === SERVICE_KEY ? 'service' : c?.sub || null;
+  const pub = /^\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/.exec(url.pathname);
+  if (pub && req.method === 'GET') {
+    const o = objetos.get(`${pub[1]}/${decodeURIComponent(pub[2])}`);
+    if (!o) return send(res, 404, { statusCode: '404', error: 'not_found', message: 'Object not found' });
+    res.writeHead(200, { 'Content-Type': o.tipo, 'Content-Length': o.bytes.length, 'Access-Control-Allow-Origin': '*' }); return res.end(o.bytes);
+  }
+  const m = /^\/storage\/v1\/object\/([^/]+)(?:\/(.+))?$/.exec(url.pathname);
+  if (!m || !BUCKETS.has(m[1])) { await leerBytes(req); return send(res, 404, { statusCode: '404', error: 'Bucket not found', message: 'Bucket not found' }); }
+  const bucket = m[1], ruta = m[2] ? decodeURIComponent(m[2]) : '';
+  const propia = r => sub === 'service' || (sub && r.split('/')[0] === sub);
+  if (req.method === 'POST' || req.method === 'PUT') {
+    const bytes = await leerBytes(req);
+    if (!propia(ruta)) return send(res, 403, { statusCode: '403', error: 'Unauthorized', message: 'new row violates row-level security policy' });
+    if (objetos.has(`${bucket}/${ruta}`) && req.headers['x-upsert'] !== 'true') return send(res, 409, { statusCode: '409', error: 'Duplicate', message: 'The resource already exists' });
+    const tipo = (req.headers['content-type'] || '').startsWith('multipart/') ? 'image/jpeg' : req.headers['content-type'] || 'application/octet-stream';
+    if (bytes.length > 3 * 1024 * 1024) return send(res, 413, { statusCode: '413', error: 'Payload too large', message: 'The object exceeded the maximum allowed size' });
+    objetos.set(`${bucket}/${ruta}`, { bytes, tipo });
+    return send(res, 200, { Key: `${bucket}/${ruta}`, Id: crypto.randomUUID() });
+  }
+  if (req.method === 'DELETE') {
+    const body = JSON.parse((await leerBytes(req)).toString('utf8') || '{}');
+    const borrados = [];
+    for (const r of body.prefixes || []) { const k = `${bucket}/${r}`; if (objetos.has(k) && propia(r)) { objetos.delete(k); borrados.push({ name: r, bucket_id: bucket }); } }
+    return send(res, 200, borrados);
+  }
+  await leerBytes(req);
+  return send(res, 405, { message: 'método no simulado en storage' });
+}
+
 // ---------------------------------------------------------------- servicios externos simulados
 function tcgdex(res, url) {
   const id = url.pathname.split('/').pop();
@@ -292,6 +334,7 @@ function tcgdex(res, url) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
   if (req.method === 'OPTIONS') { res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' }); return res.end(); }
+  if (url.pathname.startsWith('/storage/v1/')) { try { return await storage(req, res, url); } catch (e) { return send(res, 500, { message: e.message }); } }
   const body = ['POST', 'PUT', 'PATCH'].includes(req.method) ? await readBody(req) : null;
   try {
     if (url.pathname.startsWith('/auth/v1/')) return await auth(req, res, url, body);
@@ -302,9 +345,11 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/fx') return send(res, 200, { base_code: 'USD', rates: { USD: 1, PEN: 3.7, EUR: 0.9 } });
     if (url.pathname.startsWith('/realtime/')) { res.writeHead(404); return res.end(); }
     if (url.pathname === '/__reset' && req.method === 'POST') {
-      await pool.query('delete from public.entradas; delete from public.album_casillas; delete from public.albumes; delete from public.cajas; delete from public.perfiles; delete from auth.mock_tokens; delete from auth.mock_refresh; delete from auth.users;');
+      await pool.query('delete from public.publicaciones; delete from public.entradas; delete from public.album_casillas; delete from public.albumes; delete from public.cajas; delete from public.perfiles; delete from auth.mock_tokens; delete from auth.mock_refresh; delete from auth.users;');
+      objetos.clear();
       return send(res, 200, { ok: true });
     }
+    if (url.pathname === '/__objetos') return send(res, 200, [...objetos.keys()]);
     if (url.pathname === '/__correos') { return send(res, 200, fs.existsSync(CORREOS) ? fs.readFileSync(CORREOS, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)) : []); }
     send(res, 404, { message: 'ruta no simulada: ' + url.pathname });
   } catch (e) {

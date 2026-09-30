@@ -14,6 +14,7 @@ import { Colocacion } from './Ubicacion';
 import { Precio } from './Precio';
 import { useToast } from './Toast';
 import { Campo } from './ui';
+import { EstadoPub, PublicarSheet } from './PublicarSheet';
 
 /** Detalle de una carta física: editar cantidad/acabado/idioma, mover de caja, eliminar. */
 export function EntryDetailSheet({ entrada, onClose }: { entrada: Entrada; onClose: () => void }) {
@@ -27,9 +28,11 @@ export function EntryDetailSheet({ entrada, onClose }: { entrada: Entrada; onClo
   const [d, setD] = useState({ cantidad: entrada.cantidad, acabado: entrada.acabado, idioma: entrada.idioma, condicion: entrada.condicion, nota: entrada.nota, caja_id: entrada.caja_id, posicion: entrada.posicion });
   const [confirmar, setConfirmar] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [vender, setVender] = useState(false);
   const actual = col.entradas.find(e => e.id === entrada.id) || entrada;
   const loc = ubicador.ubicacion(actual);
   const caja = col.cajas.find(c => c.id === actual.caja_id);
+  const pub = col.publicacionDe(actual.id);
 
   async function guardar() {
     setGuardando(true);
@@ -54,6 +57,12 @@ export function EntryDetailSheet({ entrada, onClose }: { entrada: Entrada; onClo
           </div>
         </div>
         <Colocacion entrada={actual} loc={loc} compacta />
+        {carta && !carta.sd ? (
+          <div className={`notice ${pub ? (pub.estado === 'activa' ? 'ok' : 'warn') : 'info'} small`} style={{ marginTop: 10 }} data-testid="mercado-entrada">
+            {pub ? <><EstadoPub pub={pub} /> {pub.cantidad} {pub.cantidad === 1 ? 'copia' : 'copias'} · {pub.tipo_precio === 'manual' ? 'precio manual' : 'precio por defecto'}{pub.estado === 'pausada' && pub.motivo_pausa === 'foto' ? ' · falta la foto (precio mayor a S/ 50)' : ''} </> : <>No está en venta. </>}
+            <button className={`btn sm ${pub ? '' : 'primary'}`} style={{ marginLeft: 4 }} onClick={() => setVender(true)}>{pub ? 'Ver o editar publicación' : '🏷️ Vender en el mercado'}</button>
+          </div>
+        ) : null}
         <div className="row wrap" style={{ marginTop: 12 }}>
           <div className="field"><label>Cantidad</label><div className="stepper"><button onClick={() => setD(x => ({ ...x, cantidad: Math.max(1, x.cantidad - 1) }))}>−</button><input type="number" min={1} value={d.cantidad} onChange={e => setD(x => ({ ...x, cantidad: Math.max(1, parseInt(e.target.value, 10) || 1) }))} /><button onClick={() => setD(x => ({ ...x, cantidad: x.cantidad + 1 }))}>+</button></div></div>
           <Campo label="Acabado">{id => <select id={id} className="input" value={d.acabado} onChange={e => setD(x => ({ ...x, acabado: e.target.value }))}>{ACABADOS.map(a => <option key={a} value={a}>{a || '—'}</option>)}</select>}</Campo>
@@ -68,7 +77,8 @@ export function EntryDetailSheet({ entrada, onClose }: { entrada: Entrada; onClo
           {caja && caja.modo === 'manual' ? <div className="field"><label>Posición (orden manual)</label><input className="input" type="number" min={1} value={d.posicion || ''} onChange={e => setD(x => ({ ...x, posicion: parseInt(e.target.value, 10) || null }))} /></div> : null}
         </div>
       </Sheet>
-      {confirmar ? <Confirmar titulo="Eliminar carta" texto={`Se quitará de tu colección (${actual.cantidad} ${actual.cantidad === 1 ? 'unidad' : 'unidades'}). Esta acción no se puede deshacer.`} okLabel="Eliminar" peligro onOk={eliminar} onClose={() => setConfirmar(false)} /> : null}
+      {confirmar ? <Confirmar titulo="Eliminar carta" texto={`Se quitará de tu colección (${actual.cantidad} ${actual.cantidad === 1 ? 'unidad' : 'unidades'})${pub ? ' y su publicación en el mercado se retirará' : ''}. Esta acción no se puede deshacer.`} okLabel="Eliminar" peligro onOk={eliminar} onClose={() => setConfirmar(false)} /> : null}
+      {vender ? <PublicarSheet entrada={actual} onClose={() => setVender(false)} /> : null}
     </>
   );
 }

@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useMemo, useRef, useState } from 'react';
 import { APP_NAME, APP_VERSION, IDIOMAS_CARTA } from '@/lib/config';
 import { CATALOGO_VERSION, nombreCarta, rarezaLabel } from '@/lib/catalogo';
@@ -51,6 +52,12 @@ export function Ajustes() {
           <Campo label="Idioma principal de los nombres de las cartas" ayuda="Los demás idiomas se muestran en pequeño.">{id => <select id={id} className="input" value={d.idioma_nombres} onChange={e => setD(x => ({ ...x, idioma_nombres: e.target.value as 'es' | 'en' | 'ja' }))}><option value="es">Español</option><option value="en">Inglés</option><option value="ja">Japonés</option></select>}</Campo>
           <div className="row"><button className="btn primary" type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar perfil'}</button></div>
         </form>
+      </div>
+
+      <div className="panel">
+        <h3>Mercado</h3>
+        <p className="small muted">Tus publicaciones, precios, fotos y estados se administran desde «Mis ventas». Los compradores solo ven tu nombre de usuario (@{perfil.username}).</p>
+        <Link href="/app/ventas" className="btn sm">🏷️ Ir a Mis ventas{col.publicaciones.length ? ` (${col.publicaciones.length})` : ''}</Link>
       </div>
 
       <Reconocimiento />

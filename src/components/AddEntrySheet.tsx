@@ -13,6 +13,8 @@ import { Thumb } from './Thumb';
 import { Colocacion, LocChip } from './Ubicacion';
 import { useToast } from './Toast';
 import { Campo } from './ui';
+import { fmtPen } from '@/lib/precios-core';
+import { EstadoPub, PreguntaVenta, PublicarSheet } from './PublicarSheet';
 
 type Props = { carta?: Carta | null; personalizada?: Personalizada | null; idiomaInicial?: string; cajaInicial?: string | null; onClose: () => void; onGuardada?: (e: Entrada) => void };
 
@@ -34,6 +36,8 @@ export function AddEntrySheet({ carta, personalizada, idiomaInicial, cajaInicial
   const [nuevaCaja, setNuevaCaja] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [resultado, setResultado] = useState<{ entrada: Entrada; fusionada: boolean } | null>(null);
+  const [vender, setVender] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
 
   const propias = carta ? col.entradas.filter(e => e.carta_id === carta.id) : [];
 
@@ -53,12 +57,51 @@ export function AddEntrySheet({ carta, personalizada, idiomaInicial, cajaInicial
 
   if (resultado) {
     // La colección ya está actualizada: el ubicador se recalculó con la carta nueva
-    const loc = ubicador.ubicacion(resultado.entrada);
+    const entradaRes = col.entradas.find(e => e.id === resultado.entrada.id) || resultado.entrada;
+    const loc = ubicador.ubicacion(entradaRes);
+    const cajaRes = col.cajas.find(c => c.id === entradaRes.caja_id);
+    const pub = col.publicacionDe(entradaRes.id);
+    const esCatalogo = !!entradaRes.carta_id && !!carta && !carta.sd;
+    const todas = async () => {
+      if (!cajaRes) return;
+      setOcupado(true);
+      const ok = await col.editarCaja(cajaRes.id, { en_venta: true });
+      setOcupado(false);
+      if (ok) toast('Caja en venta: sus cartas se publicaron con el precio por defecto', 'ok', 3500); else toast('No se pudo activar la venta', 'danger');
+    };
+    const soloEsta = async () => {
+      setOcupado(true);
+      const r = await col.publicar(entradaRes.id);
+      setOcupado(false);
+      if (!r) { toast('No se pudo publicar', 'danger'); return; }
+      if (r.estado === 'pausada' && r.motivo_pausa === 'foto') { toast('Publicada pero pausada: agrega una foto para activarla', '', 4000); setVender(true); }
+      else toast(`Publicada a ${fmtPen(r.precio_pen)}`, 'ok');
+    };
+    const noPorAhora = async () => {
+      if (!cajaRes) return;
+      setOcupado(true);
+      await col.editarCaja(cajaRes.id, { preguntar_venta: false });
+      setOcupado(false);
+      toast('No volveremos a preguntar por esta caja. Puedes activar "Caja en venta" cuando quieras.', '', 3500);
+    };
     return (
-      <Sheet titulo={resultado.fusionada ? 'Cantidad actualizada' : 'Carta guardada'} onClose={onClose} pie={<button className="btn primary block" onClick={onClose}>Listo</button>}>
-        <Colocacion entrada={resultado.entrada} loc={loc} />
-        {resultado.fusionada ? <p className="small muted" style={{ marginTop: 8 }}>Ya tenías esta carta con el mismo acabado e idioma en esa caja: ahora hay {resultado.entrada.cantidad}.</p> : null}
-      </Sheet>
+      <>
+        <Sheet titulo={resultado.fusionada ? 'Cantidad actualizada' : 'Carta guardada'} onClose={onClose} pie={<button className="btn primary block" onClick={onClose}>Listo</button>}>
+          <Colocacion entrada={entradaRes} loc={loc} />
+          {resultado.fusionada ? <p className="small muted" style={{ marginTop: 8 }}>Ya tenías esta carta con el mismo acabado e idioma en esa caja: ahora hay {entradaRes.cantidad}.</p> : null}
+          {esCatalogo && cajaRes ? (
+            pub ? (
+              <div className="notice ok small" style={{ marginTop: 12 }} data-testid="publicada">
+                <EstadoPub pub={pub} /> {pub.cantidad} {pub.cantidad === 1 ? 'copia' : 'copias'} en el mercado{pub.estado === 'pausada' && pub.motivo_pausa === 'foto' ? ' · pausada hasta que agregues una foto (precio mayor a S/ 50)' : ''}.
+                <div style={{ marginTop: 6 }}><button className="btn sm" onClick={() => setVender(true)}>Ver o editar la publicación</button></div>
+              </div>
+            ) : cajaRes.en_venta ? null
+            : cajaRes.preguntar_venta !== false ? <PreguntaVenta ocupado={ocupado} onTodas={todas} soloEsta={soloEsta} onNo={noPorAhora} />
+            : <div className="row" style={{ marginTop: 12 }}><button className="btn sm" onClick={() => setVender(true)}>🏷️ Vender esta carta en el mercado</button></div>
+          ) : null}
+        </Sheet>
+        {vender ? <PublicarSheet entrada={entradaRes} onClose={() => setVender(false)} /> : null}
+      </>
     );
   }
 

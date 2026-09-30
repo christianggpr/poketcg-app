@@ -14,6 +14,7 @@ import { Thumb } from '../Thumb';
 import { LocChip } from '../Ubicacion';
 import { AddEntrySheet } from '../AddEntrySheet';
 import { EntryDetailSheet } from '../EntryDetailSheet';
+import { EstadoPub } from '../PublicarSheet';
 import { haceCuanto } from '../ui';
 
 export function CartaDetalle({ id }: { id: string }) {
@@ -72,7 +73,7 @@ export function CartaDetalle({ id }: { id: string }) {
                 {propias.map(e => (
                   <div className="card-row" key={e.id} role="button" tabIndex={0} onClick={() => setEditar(e)}>
                     <div className="card-main">
-                      <div className="card-name">×{e.cantidad} {e.acabado ? <span className="pill">{e.acabado}</span> : null} {e.idioma ? <span className="pill">{e.idioma}</span> : null} {e.condicion ? <span className="pill">{e.condicion}</span> : null}</div>
+                      <div className="card-name">×{e.cantidad} {e.acabado ? <span className="pill">{e.acabado}</span> : null} {e.idioma ? <span className="pill">{e.idioma}</span> : null} {e.condicion ? <span className="pill">{e.condicion}</span> : null} <EstadoPub pub={col.publicacionDe(e.id)} /></div>
                       <div className="card-set"><LocChip loc={ubicador.ubicacion(e)} /> <span className="faint">· añadida {haceCuanto(e.creado_en)}</span>{e.nota ? <div className="small muted">{e.nota}</div> : null}</div>
                     </div>
                     <div className="card-side">{(() => { const dd = precios.precioDefecto(carta, e.acabado); return <span className={`price ${dd.origen === 'piso' ? 'piso' : ''}`}>{fmtPen(dd.pen * e.cantidad)}</span>; })()}</div>
