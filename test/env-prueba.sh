@@ -10,3 +10,4 @@ export FX_API_USD=http://127.0.0.1:54321/fx
 export CRON_SECRET=secreto-de-prueba-123
 export NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000
 export NEXT_TELEMETRY_DISABLED=1
+export LIMITLESS_BASE=http://127.0.0.1:54321/limitless

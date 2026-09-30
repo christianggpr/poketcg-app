@@ -22,6 +22,13 @@ const log = (...a) => console.log(`[${++paso}]`, ...a);
 async function foto(page, nombre) { await page.screenshot({ path: path.join(CAPTURAS, `${String(paso).padStart(2, '0')}-${nombre}.png`), fullPage: false }); }
 const sql = q => { fs.writeFileSync('/tmp/e2e-consulta.sql', q); return execSync('su postgres -c "psql -At -q -d poketcg_test -f /tmp/e2e-consulta.sql"').toString().trim(); };
 const correos = async () => (await fetch(MOCK + '/__correos')).json();
+const cabecerasCron = { Authorization: 'Bearer secreto-de-prueba-123' };
+/** Ejecuta la tarea diaria completa (tipo de cambio, precios, publicaciones, mercado, mazos). */
+const correrTarea = async () => {
+  let r = await (await fetch(APP + '/api/tareas/tick?forzar=1', { headers: cabecerasCron })).json();
+  for (let i = 0; i < 6 && r.pendiente; i++) r = await (await fetch(APP + '/api/tareas/tick', { headers: cabecerasCron })).json();
+  return r;
+};
 const num = q => parseInt(sql(q), 10);
 /** PNG mínimo (w×h, un color) para simular la foto de una carta. */
 function png(w, h, rgb) {
@@ -106,6 +113,10 @@ try {
   const nCartas = parseInt(sql('select count(*) from public.cartas'), 10);
   if (nCartas < 34000) throw new Error('catálogo incompleto: ' + nCartas);
   log('catálogo cargado en la base:', nCartas, 'cartas');
+  // tarea diaria: deja el tipo de cambio del mock (US$1 = S/ 3.70) para que los precios sean deterministas
+  const t1 = await correrTarea();
+  if (t1.tarea?.estado !== 'ok' || t1.tarea?.detalle?.fx?.usd_pen !== 3.7) throw new Error('la tarea diaria no fijó el tipo de cambio: ' + JSON.stringify(t1).slice(0, 300));
+  log('tarea diaria ejecutada: tipo de cambio US$1 = S/ 3.70');
 
   // ---------- cajas
   await page.goto(APP + '/app/cajas');
@@ -410,6 +421,47 @@ try {
   if (!/2 en venta/.test(await page.textContent('[data-testid=faltan-mercado]'))) throw new Error('el botón "las que faltan" no cuenta las ofertas');
   await foto(page, 'album-mercado');
   log('carrito vaciado (copias liberadas); álbum 151 marca 2 faltantes en venta');
+
+  // ---------- Fase 2 · D: mazos meta (Limitless simulado en el mock) y "Comprar lo que me falta"
+  let tarea = await correrTarea();
+  if (tarea.tarea?.estado !== 'ok' || !/mazos actualizados/.test(tarea.hecho.join(' | '))) throw new Error('la tarea diaria no actualizó los mazos: ' + JSON.stringify(tarea).slice(0, 400));
+  if (num('select count(*) from public.mazos_arquetipos') !== 3 || num('select count(*) from public.mazos_listas') !== 5) throw new Error('mazos incompletos en la base');
+  const variantes = sql("select nombre || ':' || n_listas || ':' || mejor_puesto from public.mazos_variantes where arquetipo_id = 284 order by orden");
+  if (variantes !== 'Dragapult ex:2:1\nDragapult Dusknoir:1:3') throw new Error('variantes inesperadas: ' + variantes);
+  // segunda corrida: no vuelve a descargar listas ya guardadas
+  tarea = await correrTarea();
+  if (tarea.tarea?.detalle?.mazos?.nuevas !== 0) throw new Error('la segunda corrida volvió a descargar listas: ' + JSON.stringify(tarea.tarea?.detalle?.mazos));
+  // Limitless caído: la tarea termina bien y se conserva la versión anterior
+  await fetch(MOCK + '/__limitless?caido=1');
+  tarea = await correrTarea();
+  await fetch(MOCK + '/__limitless?caido=0');
+  if (tarea.tarea?.estado !== 'ok' || !/se conserva/.test(tarea.hecho.join(' | ')) || num('select count(*) from public.mazos_variantes') !== 4) throw new Error('con Limitless caído debía conservarse la versión anterior: ' + JSON.stringify(tarea).slice(0, 300));
+  log('tarea diaria: 3 arquetipos, 5 listas, 2 variantes de Dragapult (≥ 90 %); sin descargas repetidas; Limitless caído → se conserva');
+
+  await page.goto(APP + '/app/mazos');
+  await page.waitForSelector('[data-testid=fila-mazo]');
+  if ((await page.$$('[data-testid=fila-mazo]')).length !== 3) throw new Error('la página de mazos debía listar 3 arquetipos');
+  const filaDrag = await page.textContent('[data-testid=fila-mazo] >> nth=0');
+  if (!/Dragapult ex/.test(filaDrag) || !/Tienes el \d+ %/.test(filaDrag) || !/2 variantes/.test(filaDrag)) throw new Error('fila de mazo inesperada: ' + filaDrag);
+  await foto(page, 'mazos');
+  await page.click('[data-testid=fila-mazo] >> nth=0');
+  await page.waitForSelector('[data-testid=variante]');
+  if ((await page.$$('[data-testid=variante]')).length !== 2) throw new Error('Dragapult debía mostrar 2 variantes');
+  if (!(await page.textContent('body')).includes('la más completa para ti')) throw new Error('no se resalta la variante más completa');
+  const resumenV = await page.textContent('[data-testid=resumen-variante]');
+  if (!/tienes \d+ de 60/.test(resumenV) || !/costo aprox/.test(resumenV)) throw new Error('resumen de variante inesperado: ' + resumenV);
+  // "Comprar lo que me falta": Lucía vende Bulbasaur ×3, Charmander reverse ×1 y Caterpie ×2 (mi propia oferta de Charmander no cuenta)
+  await page.waitForSelector('[data-testid=btn-comprar-faltantes]:not([disabled])', { timeout: 15000 });
+  const etiqueta = await page.textContent('[data-testid=btn-comprar-faltantes]');
+  if (!/\(3 de \d+ en venta\)/.test(etiqueta)) throw new Error('botón de compra inesperado: ' + etiqueta);
+  await page.click('[data-testid=btn-comprar-faltantes]');
+  await page.waitForSelector('[data-testid=resultado-compra]', { timeout: 30000 });
+  const resCompra = await page.textContent('[data-testid=resultado-compra]');
+  if (!/6 copias agregadas/.test(resCompra)) throw new Error('resultado de compra inesperado: ' + resCompra);
+  await page.waitForSelector('[data-testid=chip-carrito]:has-text("6")');
+  if (num("select count(*) from public.reservas where estado = 'activa' and comprador_id = (select id from public.perfiles where username = 'chris_tcg')") !== 3) throw new Error('debía haber 3 reservas activas');
+  await foto(page, 'mazo-detalle');
+  log('mazos: lista con % que tengo, detalle con variantes y "Comprar lo que me falta" → 6 copias (3 reservas) en el carrito');
 
   // ---------- álbum automático
   await page.goto(APP + '/app/album');

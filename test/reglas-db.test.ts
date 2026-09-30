@@ -14,6 +14,7 @@ pg.types.setTypeParser(1700, v => (v == null ? null : parseFloat(v)));
 pg.types.setTypeParser(20, v => (v == null ? null : parseInt(v, 10)));
 
 let pool: pg.Pool | null = null;
+let ajustesPrevios: { clave: string; valor: unknown }[] = [];
 const ids = { u1: '11111111-1111-4111-8111-111111111111', u2: '22222222-2222-4222-8222-222222222222', u3: '33333333-3333-4333-8333-333333333333' };
 
 async function q<T = Record<string, unknown>>(sql: string, vals: unknown[] = []): Promise<T[]> {
@@ -49,6 +50,7 @@ before(async () => {
     ('tst1-2', 'tst1', '2', 'Bidoof', 'Rare Holo', false),
     ('tst1-3', 'tst1', '3', 'Gardevoir ex', 'Double Rare', false)
     on conflict (id) do update set nombre = excluded.nombre, rareza = excluded.rareza`);
+  ajustesPrevios = await q(`select clave, valor from public.ajustes_globales where clave in ('fx', 'pisos')`);
   await q(`insert into public.ajustes_globales (clave, valor, actualizado_en) values ('fx', '{"usd_pen":3.5,"eur_pen":4.0}', now()), ('pisos', '{"normal":1,"especial":2}', now()) on conflict (clave) do update set valor = excluded.valor`);
   // precios: 1 → US$ 0.11 (S/ 0.385 → piso 1), 2 → holofoil US$ 0.43 (S/ 1.505 → piso 2), 3 → US$ 20 (S/ 70 → foto obligatoria)
   await q(`insert into public.precios (carta_id, datos, actualizado_en) values
@@ -57,7 +59,16 @@ before(async () => {
     ('tst1-3', '{"ok":true,"tp":{"holofoil":20},"cm":null,"missing":false}', now())
     on conflict (carta_id) do update set datos = excluded.datos, actualizado_en = excluded.actualizado_en`);
 });
-after(async () => { if (pool) { await q(`delete from auth.users where id in ($1, $2, $3)`, [ids.u1, ids.u2, ids.u3]); await pool.end(); } });
+after(async () => {
+  if (!pool) return;
+  // se deja la base como estaba: usuarios, cartas de prueba y ajustes
+  await q(`delete from auth.users where id in ($1, $2, $3)`, [ids.u1, ids.u2, ids.u3]);
+  await q(`delete from public.precios where carta_id like 'tst1-%'`);
+  await q(`delete from public.colecciones_tcg where id = 'tst1'`);
+  for (const a of ajustesPrevios) await q(`update public.ajustes_globales set valor = $2 where clave = $1`, [a.clave, JSON.stringify(a.valor)]);
+  if (!ajustesPrevios.some(a => a.clave === 'fx')) await q(`delete from public.ajustes_globales where clave = 'fx'`);
+  await pool.end();
+});
 
 const soloConBase = (t: { skip: (m?: string) => void }) => { if (!pool) { t.skip('sin PostgreSQL local (ejecuta test/db/reiniciar.sh)'); return false; } return true; };
 

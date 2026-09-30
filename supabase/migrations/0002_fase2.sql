@@ -581,3 +581,53 @@ begin
     begin alter publication supabase_realtime add table public.mercado_eventos; exception when duplicate_object then null; end;
   end if;
 end $$;
+
+-- ----------------------------------------------------------------------------
+-- D. Mazos meta (Limitless): arquetipos, listas y variantes. Los llena la tarea diaria (servidor).
+-- ----------------------------------------------------------------------------
+create table if not exists public.mazos_arquetipos (
+  id          int primary key,                         -- id del arquetipo en Limitless
+  nombre      text not null,
+  iconos      text[] not null default '{}',            -- pokémon del icono (dragapult, dusknoir…)
+  orden       int not null default 0,                  -- puesto en el meta
+  puntos      int,
+  cuota       numeric(6,2),                            -- % de presencia
+  formato     text not null default 'standard',
+  actualizado timestamptz not null default now()
+);
+create table if not exists public.mazos_listas (
+  id           int primary key,                        -- id de la lista en Limitless
+  arquetipo_id int not null references public.mazos_arquetipos (id) on delete cascade,
+  jugador      text,
+  torneo       text,
+  puesto       int,
+  fecha        date,
+  iconos       text[] not null default '{}',
+  cartas       jsonb not null,                         -- [{set, num, n, nombre, cat}]
+  creada       timestamptz not null default now()
+);
+create table if not exists public.mazos_variantes (
+  id           text primary key,                       -- '<arquetipo>-<n>'
+  arquetipo_id int not null references public.mazos_arquetipos (id) on delete cascade,
+  nombre       text not null,
+  lista_id     int references public.mazos_listas (id) on delete set null,
+  n_listas     int not null default 1,
+  mejor_puesto int,
+  cartas       jsonb not null,
+  orden        int not null default 0,
+  jugador      text,
+  torneo       text,
+  actualizado  timestamptz not null default now()
+);
+create index if not exists mazos_variantes_por_arquetipo on public.mazos_variantes (arquetipo_id, orden);
+create index if not exists mazos_listas_por_arquetipo on public.mazos_listas (arquetipo_id);
+alter table public.mazos_arquetipos enable row level security;
+alter table public.mazos_listas enable row level security;
+alter table public.mazos_variantes enable row level security;
+drop policy if exists "mazos: ver" on public.mazos_arquetipos;
+create policy "mazos: ver" on public.mazos_arquetipos for select using (true);
+drop policy if exists "mazos listas: ver" on public.mazos_listas;
+create policy "mazos listas: ver" on public.mazos_listas for select using (true);
+drop policy if exists "mazos variantes: ver" on public.mazos_variantes;
+create policy "mazos variantes: ver" on public.mazos_variantes for select using (true);
+-- (sin políticas de escritura: solo el servidor con service_role)

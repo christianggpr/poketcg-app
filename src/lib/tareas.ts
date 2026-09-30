@@ -4,6 +4,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { renovarTipoCambio } from './ajustes';
 import { preciosDe } from './tcgdex';
+import { actualizarMazos, type CursorMazos } from './mazos';
 
 export type Tarea = {
   id: number;
@@ -94,9 +95,26 @@ export async function tick(admin: SupabaseClient, presupuestoMs = 50000, opts: {
       const { data, error } = await admin.rpc('mantenimiento_mercado');
       if (error && !/function .* does not exist/i.test(error.message)) throw new Error('mantenimiento_mercado: ' + error.message);
       if (!error) (detalle as Record<string, unknown>).mercado = data;
-      detalle.fase = 'fin';
+      detalle.fase = 'mazos';
       hecho.push('mercado: reservas vencidas liberadas');
       await guardar();
+    }
+    // 7) mazos meta (Fase 2 · D): Limitless por lotes; si falla se conserva la última versión
+    if (detalle.fase === 'mazos' && quedaTiempo()) {
+      const cursor = (tarea.cursor?.mazos as CursorMazos | undefined) || null;
+      try {
+        const r = await actualizarMazos(admin, Math.max(5000, presupuestoMs - (Date.now() - t0) - 3000), cursor);
+        (detalle as Record<string, unknown>).mazos = r.detalle;
+        if (r.hecho) { detalle.fase = 'fin'; hecho.push(`mazos actualizados (${r.detalle.arquetipos} arquetipos, ${r.detalle.listas} listas)`); }
+        else hecho.push(`mazos: ${r.detalle.procesados}/${r.detalle.arquetipos} arquetipos, continúa`);
+        tarea.cursor = { ...(tarea.cursor || {}), mazos: r.hecho ? null : r.cursor };
+        await guardar({ cursor: tarea.cursor });
+      } catch (e) {
+        (detalle as Record<string, unknown>).mazos = { error: e instanceof Error ? e.message : String(e), conservada: true };
+        detalle.fase = 'fin';
+        hecho.push('mazos: Limitless no respondió, se conserva la versión anterior');
+        await guardar({ cursor: { ...(tarea.cursor || {}), mazos: null } });
+      }
     }
     if (detalle.fase === 'fin') {
       await guardar({ estado: 'ok', fin: new Date().toISOString(), bloqueo_hasta: null });

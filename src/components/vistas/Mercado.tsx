@@ -75,6 +75,7 @@ export function Mercado() {
         <h2 style={{ margin: 0 }}>🛒 Mercado</h2>
         <div className="row" style={{ gap: 6 }}>
           <Link href="/app/carrito" className="btn sm" data-testid="btn-carrito">🛒 Carrito{mercado.unidades ? ` (${mercado.unidades})` : ''}</Link>
+          <Link href="/app/mazos" className="btn sm ghost">🃏 Mazos meta</Link>
           <Link href="/app/ventas" className="btn sm ghost">🏷️ Mis ventas</Link>
         </div>
       </div>

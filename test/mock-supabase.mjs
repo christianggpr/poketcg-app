@@ -10,6 +10,7 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import pg from 'pg';
+import { paginaArquetipo, paginaDecks, paginaLista } from './fixtures/limitless.mjs';
 
 const PORT = parseInt(process.env.MOCK_PORT || '54321', 10);
 const DB = process.env.DATABASE_URL || 'postgresql://postgres:test@127.0.0.1:5432/poketcg_test';
@@ -181,6 +182,20 @@ function parseSelect(tabla, sel) {
   }
   return cols.join(', ');
 }
+// Tipos de columna por tabla (para serializar json/jsonb como texto y dejar los arrays como arrays)
+const tiposCache = new Map();
+async function tiposDe(cliente, tabla) {
+  if (!tiposCache.has(tabla)) {
+    const r = await cliente.query(`select column_name, data_type from information_schema.columns where table_schema = 'public' and table_name = $1`, [tabla]);
+    tiposCache.set(tabla, new Map(r.rows.map(x => [x.column_name, x.data_type])));
+  }
+  return tiposCache.get(tabla);
+}
+const serializar = (tipos, c, v) => {
+  const t = tipos.get(c);
+  if (t === 'json' || t === 'jsonb') return v === undefined ? null : JSON.stringify(v);
+  return v !== null && typeof v === 'object' && !Array.isArray(v) ? JSON.stringify(v) : v;
+};
 async function rest(req, res, url, body) {
   if (url.pathname.startsWith('/rest/v1/rpc/')) return rpc(req, res, url, body);
   const tabla = url.pathname.replace(/^\/rest\/v1\//, '').split('/')[0];
@@ -213,8 +228,9 @@ async function rest(req, res, url, body) {
       if (!filas.length) rows = [];
       else {
         const cols = [...new Set(filas.flatMap(r => Object.keys(r)))];
+        const tipos = await tiposDe(cliente, tabla);
         const vals = []; const tuplas = [];
-        for (const r of filas) tuplas.push('(' + cols.map(c => { if (!(c in r)) return 'default'; vals.push(r[c] !== null && typeof r[c] === 'object' && !Array.isArray(r[c]) ? JSON.stringify(r[c]) : r[c]); return '$' + vals.length; }).join(', ') + ')');
+        for (const r of filas) tuplas.push('(' + cols.map(c => { if (!(c in r)) return 'default'; vals.push(serializar(tipos, c, r[c])); return '$' + vals.length; }).join(', ') + ')');
         let sql = `insert into ${t} (${cols.map(ident).join(', ')}) values ${tuplas.join(', ')}`;
         if (prefer.includes('resolution=merge-duplicates')) {
           const conflicto = (url.searchParams.get('on_conflict') || PK[tabla].join(',')).split(',').map(x => ident(x.trim()));
@@ -226,8 +242,9 @@ async function rest(req, res, url, body) {
       }
     } else if (req.method === 'PATCH') {
       const cols = Object.keys(body || {});
+      const tipos = await tiposDe(cliente, tabla);
       const vals = [...f.vals];
-      const sets = cols.map(c => { const v = body[c]; vals.push(v !== null && typeof v === 'object' && !Array.isArray(v) ? JSON.stringify(v) : v); return `${ident(c)} = $${vals.length}`; });
+      const sets = cols.map(c => { vals.push(serializar(tipos, c, body[c])); return `${ident(c)} = $${vals.length}`; });
       rows = cols.length ? (await cliente.query(`update ${t} set ${sets.join(', ')}${f.sql} returning *`, vals)).rows : [];
     } else if (req.method === 'DELETE') {
       rows = (await cliente.query(`delete from ${t}${f.sql} returning *`, f.vals)).rows;
@@ -286,6 +303,7 @@ async function rpc(req, res, url, body) {
 // Objetos en memoria: "bucket/ruta" → { bytes, tipo }. Regla como en producción: cada usuario solo
 // escribe/borra dentro de su carpeta (<uid>/...); la lectura de fotos es pública.
 const objetos = new Map();
+let limitlessCaido = false;   // /__limitless?caido=1 simula que Limitless no responde
 const BUCKETS = new Set(['fotos-publicaciones']);
 const leerBytes = req => new Promise(resolve => { const partes = []; req.on('data', c => partes.push(c)); req.on('end', () => resolve(Buffer.concat(partes))); });
 async function storage(req, res, url) {
@@ -341,15 +359,25 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/rest/v1/')) return await rest(req, res, url, body);
     if (url.pathname === '/emails' && req.method === 'POST') { fs.appendFileSync(CORREOS, JSON.stringify({ t: new Date().toISOString(), ...body }) + '\n'); return send(res, 200, { id: crypto.randomUUID() }); }
     if (url.pathname.startsWith('/tcgdex/')) return tcgdex(res, url);
+    // Limitless simulado (mazos meta): /limitless/decks, /limitless/decks/<id>, /limitless/decks/list/<id>
+    if (url.pathname.startsWith('/limitless/')) {
+      if (limitlessCaido) return send(res, 503, 'caído');
+      const html = (r => { res.writeHead(r ? 200 : 404, { 'Content-Type': 'text/html' }); res.end(r || 'no encontrado'); })(
+        url.pathname === '/limitless/decks' ? paginaDecks()
+        : /^\/limitless\/decks\/list\/(\d+)$/.test(url.pathname) ? paginaLista(parseInt(url.pathname.split('/').pop(), 10))
+        : /^\/limitless\/decks\/(\d+)$/.test(url.pathname) ? paginaArquetipo(parseInt(url.pathname.split('/').pop(), 10)) : null);
+      return html;
+    }
     if (url.pathname === '/fx-eur') return send(res, 200, { base_code: 'EUR', rates: { USD: 1.1 } });
     if (url.pathname === '/fx') return send(res, 200, { base_code: 'USD', rates: { USD: 1, PEN: 3.7, EUR: 0.9 } });
     if (url.pathname.startsWith('/realtime/')) { res.writeHead(404); return res.end(); }
     if (url.pathname === '/__reset' && req.method === 'POST') {
-      await pool.query('delete from public.publicaciones; delete from public.entradas; delete from public.album_casillas; delete from public.albumes; delete from public.cajas; delete from public.perfiles; delete from auth.mock_tokens; delete from auth.mock_refresh; delete from auth.users;');
+      await pool.query('delete from public.precios; delete from public.tareas_programadas; delete from public.mazos_arquetipos; delete from public.publicaciones; delete from public.entradas; delete from public.album_casillas; delete from public.albumes; delete from public.cajas; delete from public.perfiles; delete from auth.mock_tokens; delete from auth.mock_refresh; delete from auth.users;');
       objetos.clear();
       return send(res, 200, { ok: true });
     }
     if (url.pathname === '/__objetos') return send(res, 200, [...objetos.keys()]);
+    if (url.pathname === '/__limitless') { limitlessCaido = url.searchParams.get('caido') === '1'; return send(res, 200, { caido: limitlessCaido }); }
     if (url.pathname === '/__correos') { return send(res, 200, fs.existsSync(CORREOS) ? fs.readFileSync(CORREOS, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l)) : []); }
     send(res, 404, { message: 'ruta no simulada: ' + url.pathname });
   } catch (e) {
