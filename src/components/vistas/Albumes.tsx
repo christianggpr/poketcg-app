@@ -6,6 +6,7 @@ import type { Carta, Coleccion } from '@/lib/catalogo';
 import { matchesType, nombreCarta, nombreColeccion, ordenarCartas } from '@/lib/catalogo';
 import type { Entrada } from '@/lib/coleccion';
 import { fmtUsd } from '@/lib/precios-core';
+import { IDIOMAS_CARTA } from '@/lib/config';
 import { useCatalogo } from '../CatalogoProvider';
 import { useColeccion } from '../ColeccionProvider';
 import { usePerfil } from '../PerfilProvider';
@@ -42,7 +43,7 @@ function useAlbumesAuto(): AlbumAuto[] {
       const idioma = idiomaAlbum(e, set);
       const key = set.id + '|' + idioma;
       let a = m.get(key);
-      if (!a) { a = { set, idioma, entradas: [], distintas: 0, total: cat.cartasDe(set.id).length, portada: undefined }; m.set(key, a); }
+      if (!a) { a = { set, idioma, entradas: [], distintas: 0, total: cat.cartasDe(set.id).filter(c => !c.sd).length, portada: undefined }; m.set(key, a); }
       a.entradas.push(e);
     }
     for (const a of m.values()) {
@@ -91,7 +92,7 @@ export function Albumes() {
             <Link key={a.set.id + a.idioma} href={`/app/album/${encodeURIComponent(a.set.id)}?idioma=${encodeURIComponent(a.idioma)}`} className="album-card" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className="album-cover"><Thumb carta={a.portada} set={a.set} className="lg" /></div>
               <div className="album-body">
-                <div className="album-title"><SimboloSet setId={a.set.id} /> {nombreColeccion(a.set, idioma)} {a.idioma !== '—' && !(a.idioma === 'JP' && a.set.rg === 'ja') ? <span className="pill">{a.idioma}</span> : null}</div>
+                <div className="album-title"><SimboloSet setId={a.set.id} /> {nombreColeccion(a.set, idioma)} {a.idioma === '—' ? <span className="pill" title="Cartas registradas sin idioma">sin idioma</span> : !(a.idioma === 'JP' && a.set.rg === 'ja') ? <span className="pill">{a.idioma}</span> : null}</div>
                 <div className="small muted">{a.distintas} de {a.total} · {pct} %</div>
                 <div className="bar" style={{ marginTop: 6 }}><div style={{ width: pct + '%' }} /></div>
               </div>
@@ -128,6 +129,9 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   const [modo, setModo] = useState<'todas' | 'tengo' | 'faltan'>('todas');
   const [agregar, setAgregar] = useState<Carta | null>(null);
   const [consultarFaltan, setConsultarFaltan] = useState(false);
+  const [idiomaNuevo, setIdiomaNuevo] = useState('ES');
+  const [asignando, setAsignando] = useState(false);
+  const toast = useToast();
   const set = cat.coleccion(setId);
   const idioma = perfil.idioma_nombres;
   const cartas = useMemo(() => (set ? cat.cartasDe(set.id) : []), [cat, set]);
@@ -155,6 +159,14 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   }, [propias, idsFaltan, cat, precios.version, precios.fx]);
 
   if (!set) return <div className="empty">Esa colección no existe. <Link href="/app/album">Volver</Link></div>;
+  const sinIdioma = idiomaAlb === '—' ? [...propias.values()].flat() : [];
+  async function asignarIdioma() {
+    setAsignando(true);
+    const n = await col.editarVarias(sinIdioma.map(e => e.id), { idioma: idiomaNuevo });
+    setAsignando(false);
+    toast(`${n} ${n === 1 ? 'carta marcada' : 'cartas marcadas'} como ${idiomaNuevo}`, 'ok');
+    router.replace(`/app/album/${encodeURIComponent(set!.id)}?idioma=${encodeURIComponent(idiomaNuevo)}`);
+  }
   const total = cartas.filter(c => !c.sd).length;
   const pct = total ? Math.round((idsPropias.length / total) * 100) : 0;
   const priceOf = (c: Carta) => { const v = precios.valor(c, propias.get(c.id)?.[0]?.acabado || ''); return v ? v.usd : null; };
@@ -176,6 +188,15 @@ export function AlbumColeccion({ setId }: { setId: string }) {
         <div className="box"><b>{consultarFaltan ? fmtUsd(stats.faltaUsd) : '—'}</b><span>{consultarFaltan ? `para completar (${stats.faltaConPrecio} con precio)` : <button className="link" onClick={() => setConsultarFaltan(true)}>Consultar el precio de las que faltan</button>}</span></div>
       </div>
       <div className="bar" style={{ marginBottom: 10 }}><div style={{ width: pct + '%' }} /></div>
+      {sinIdioma.length ? (
+        <div className="notice info" style={{ marginBottom: 10 }}>
+          Estas {sinIdioma.length} {sinIdioma.length === 1 ? 'carta no tiene' : 'cartas no tienen'} idioma registrado. Si todas son del mismo idioma, márcalo aquí y este álbum se unirá con el de ese idioma:
+          <div className="row" style={{ marginTop: 6, gap: 6 }}>
+            <select className="input sm" value={idiomaNuevo} onChange={e => setIdiomaNuevo(e.target.value)}>{IDIOMAS_CARTA.map(l => <option key={l} value={l}>{l}</option>)}</select>
+            <button className="btn sm primary" disabled={asignando} onClick={asignarIdioma}>{asignando ? 'Guardando…' : `Marcar todas como ${idiomaNuevo}`}</button>
+          </div>
+        </div>
+      ) : null}
       <FilterBar f={f} onChange={setF} sorts={['set', 'name', 'type', 'value', 'dex']} extra={<div className="seg"><button className={modo === 'todas' ? 'active' : ''} onClick={() => setModo('todas')}>Todas</button><button className={modo === 'tengo' ? 'active' : ''} onClick={() => setModo('tengo')}>Tengo</button><button className={modo === 'faltan' ? 'active' : ''} onClick={() => setModo('faltan')}>Faltan</button></div>} />
       <div className="album-cells">
         {lista.map(c => {

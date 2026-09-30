@@ -22,6 +22,7 @@ type Ctx = {
   eliminarCaja: (id: string, conCartas: boolean) => Promise<boolean>;
   agregarEntrada: (d: NuevaEntrada) => Promise<{ entrada: Entrada; fusionada: boolean } | null>;
   editarEntrada: (id: string, datos: Partial<Pick<Entrada, 'cantidad' | 'acabado' | 'idioma' | 'condicion' | 'nota' | 'caja_id' | 'posicion'>>) => Promise<boolean>;
+  editarVarias: (ids: string[], datos: Partial<Pick<Entrada, 'idioma' | 'acabado' | 'condicion' | 'caja_id'>>) => Promise<number>;
   eliminarEntrada: (id: string) => Promise<boolean>;
   crearAlbum: (d: { nombre: string; descripcion?: string; paginas: number; columnas: number; filas: number }) => Promise<Album | null>;
   editarAlbum: (id: string, d: Partial<Pick<Album, 'nombre' | 'descripcion' | 'paginas' | 'columnas' | 'filas'>>) => Promise<boolean>;
@@ -138,6 +139,19 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
       if (error) { setError(error.message); return false; }
       setEntradas(x => upsert(x, data as Entrada));
       return true;
+    },
+    async editarVarias(ids, d) {
+      const sb = supabaseBrowser();
+      let n = 0;
+      for (let i = 0; i < ids.length; i += 200) {
+        const lote = ids.slice(i, i + 200);
+        const { data, error } = await sb.from('entradas').update(d).in('id', lote).select('*');
+        if (error) { setError(error.message); break; }
+        const filas = data as Entrada[];
+        n += filas.length;
+        setEntradas(x => { let y = x; for (const f of filas) y = upsert(y, f); return y; });
+      }
+      return n;
     },
     async eliminarEntrada(id) {
       const { error } = await supabaseBrowser().from('entradas').delete().eq('id', id);

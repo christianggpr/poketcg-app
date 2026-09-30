@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useRef, useState } from 'react';
-import { APP_NAME, APP_VERSION } from '@/lib/config';
+import { APP_NAME, APP_VERSION, IDIOMAS_CARTA } from '@/lib/config';
 import { CATALOGO_VERSION, nombreCarta, rarezaLabel } from '@/lib/catalogo';
 import { cajasOrdenadas, nombreEntrada, numeroEntrada, coleccionEntrada } from '@/lib/coleccion';
 import { ocultarDni, validarPerfil } from '@/lib/validar';
@@ -55,6 +55,8 @@ export function Ajustes() {
 
       <Reconocimiento />
 
+      <IdiomaCartas />
+
       <Respaldo />
 
       <div className="panel">
@@ -63,6 +65,27 @@ export function Ajustes() {
         <form action="/api/auth/salir" method="post"><button className="btn">Cerrar sesión</button></form>
       </div>
       <p className="small muted">{APP_NAME} {APP_VERSION} · catálogo {CATALOGO_VERSION} · {col.entradas.length} entradas.</p>
+    </div>
+  );
+}
+
+function IdiomaCartas() {
+  const cat = useCatalogo();
+  const col = useColeccion();
+  const toast = useToast();
+  const [idioma, setIdioma] = useState('ES');
+  const [guardando, setGuardando] = useState(false);
+  const sinIdioma = col.entradas.filter(e => { const c = cat.carta(e.carta_id); return !e.idioma && !(c && cat.setOf(c)?.rg === 'ja'); });
+  if (!sinIdioma.length) return null;
+  const unidades = sinIdioma.reduce((n, e) => n + e.cantidad, 0);
+  return (
+    <div className="panel">
+      <h3>Idioma de las cartas</h3>
+      <p className="small muted">{unidades} {unidades === 1 ? 'carta no tiene' : 'cartas no tienen'} idioma registrado ({sinIdioma.length} {sinIdioma.length === 1 ? 'entrada' : 'entradas'}). Los álbumes se separan por idioma, así que conviene marcarlo. Si toda tu colección es del mismo idioma, hazlo aquí de una vez; si mezclas idiomas, mejor desde cada álbum (Álbum → colección "sin idioma").</p>
+      <div className="row" style={{ gap: 6 }}>
+        <select className="input sm" value={idioma} onChange={e => setIdioma(e.target.value)}>{IDIOMAS_CARTA.filter(l => l !== 'JP').map(l => <option key={l} value={l}>{l}</option>)}</select>
+        <button className="btn sm primary" disabled={guardando} onClick={async () => { setGuardando(true); const n = await col.editarVarias(sinIdioma.map(e => e.id), { idioma }); setGuardando(false); toast(`${n} entradas marcadas como ${idioma}`, 'ok'); }}>{guardando ? 'Guardando…' : `Marcar todas como ${idioma}`}</button>
+      </div>
     </div>
   );
 }
