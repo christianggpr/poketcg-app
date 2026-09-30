@@ -1,6 +1,7 @@
 // Huellas visuales ("firmas") de las cartas para identificar por imagen: se calculan una vez por
 // colección a partir de las imágenes de TCGdex y se guardan en IndexedDB de este dispositivo.
 import type { Catalogo, Carta, Coleccion } from './catalogo';
+import { urlLimitlessJa } from './catalogo';
 import { cargarVision, type VisionApi, type VisionIndex } from './vision';
 
 const DB_NOMBRE = 'poketcg-huellas';
@@ -56,8 +57,10 @@ export function urlsHuella(c: Carta, s: Coleccion | undefined): string[] {
   if (!s || c.sd) return [];
   const lang = s.rg === 'ja' ? 'ja' : 'en';
   const base = `https://assets.tcgdex.net/${lang}/${s.s}/${s.tid || s.id}/`;
-  const urls = [base + c.l + '/low.webp', base + c.l + '/low.png', base + c.l + '/high.webp'];
+  const urls = c.sinTcgdex ? [] : [base + c.l + '/low.webp', base + c.l + '/low.png', base + c.l + '/high.webp'];
   if (c.p) { const i = c.p.indexOf('-'); urls.push(`https://images.pokemontcg.io/${c.p.slice(0, i)}/${c.p.slice(i + 1)}.png`); }
+  const lim = urlLimitlessJa(c, s);
+  if (lim) urls.push(lim);
   return urls;
 }
 

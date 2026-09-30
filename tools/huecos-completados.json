@@ -1,0 +1,1040 @@
+{
+ "ecard2-103": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "n": "Porygon",
+  "hp": 40,
+  "il": "Masako Yamashita",
+  "r": "Common",
+  "p": "ecard2-103",
+  "sinTcgdex": true
+ },
+ "ecard2-50": {
+  "c": "P",
+  "t": [
+   "Water"
+  ],
+  "n": "Golduck",
+  "hp": 70,
+  "il": "Sumiyoshi Kizuki",
+  "r": "Uncommon",
+  "p": "ecard2-50",
+  "sinTcgdex": true
+ },
+ "ecard2-74": {
+  "c": "P",
+  "t": [
+   "Psychic"
+  ],
+  "n": "Drowzee",
+  "hp": 50,
+  "il": "Hisao Nakamura",
+  "r": "Common",
+  "p": "ecard2-74",
+  "sinTcgdex": true
+ },
+ "ecard2-95": {
+  "c": "P",
+  "t": [
+   "Psychic"
+  ],
+  "n": "Mr. Mime",
+  "hp": 50,
+  "il": "Yukiko Baba",
+  "r": "Common",
+  "p": "ecard2-95",
+  "sinTcgdex": true
+ },
+ "jp-M-P-052": {
+  "n": "Poké Pad",
+  "nj": "ポケパッド",
+  "c": "T",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-077": {
+  "n": "Jumbo Ice Cream",
+  "nj": "ジャンボアイス",
+  "c": "T",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-078": {
+  "n": "Ultra Ball",
+  "nj": "ハイパーボール",
+  "c": "T",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-079": {
+  "n": "Rare Candy",
+  "nj": "ふしぎなアメ",
+  "c": "T",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-080": {
+  "n": "Pokégear 3.0",
+  "nj": "ポケギア3.0",
+  "c": "T",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-081": {
+  "n": "Air Balloon",
+  "nj": "ふうせん",
+  "c": "T",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-082": {
+  "n": "Waitress",
+  "nj": "ウエートレス",
+  "c": "T",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-083": {
+  "n": "Brock's Scouting",
+  "nj": "タケシのスカウト",
+  "c": "T",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-084": {
+  "n": "Boss's Orders",
+  "nj": "ボスの指令",
+  "c": "T",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-135": {
+  "c": "T",
+  "nj": "ポケパッド",
+  "n": "Poké Pad",
+  "il": "Studio Bora Inc.",
+  "rm": "J",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-136": {
+  "c": "T",
+  "nj": "ガイ",
+  "n": "ガイ",
+  "il": "Teeziro",
+  "rm": "J",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-145": {
+  "c": "T",
+  "nj": "リーリエの決心",
+  "n": "Lillie's Determination",
+  "il": "Atsushi Furusawa",
+  "rm": "I",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-146": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   531
+  ],
+  "n": "Mega Audino ex",
+  "nj": "メガタブンネex",
+  "hp": 270,
+  "il": "5ban Graphics",
+  "rm": "J",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-147": {
+  "c": "T",
+  "nj": "おいわいファンファーレ",
+  "n": "Celebratory Fanfare",
+  "il": "Yuu Nishida",
+  "rm": "J",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-148": {
+  "c": "P",
+  "t": [
+   "Grass"
+  ],
+  "dex": [
+   103
+  ],
+  "n": "Alolan Exeggutor",
+  "nj": "アローラ ナッシー",
+  "hp": 150,
+  "il": "yuu",
+  "rm": "J",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-149": {
+  "c": "P",
+  "t": [
+   "Fire"
+  ],
+  "dex": [
+   146
+  ],
+  "n": "Moltres",
+  "nj": "ファイヤー",
+  "hp": 120,
+  "il": "Krgc",
+  "rm": "J",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-150": {
+  "c": "P",
+  "t": [
+   "Water"
+  ],
+  "dex": [
+   144
+  ],
+  "n": "Articuno",
+  "nj": "フリーザー",
+  "hp": 120,
+  "il": "Taira Akitsu",
+  "rm": "J",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-151": {
+  "c": "P",
+  "t": [
+   "Water"
+  ],
+  "dex": [
+   658
+  ],
+  "n": "Greninja ex",
+  "nj": "ゲッコウガex",
+  "hp": 300,
+  "il": "5ban Graphics",
+  "rm": "J",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-152": {
+  "c": "P",
+  "t": [
+   "Lightning"
+  ],
+  "dex": [
+   145
+  ],
+  "n": "Zapdos",
+  "nj": "サンダー",
+  "hp": 120,
+  "il": "SIE NANAHARA",
+  "rm": "J",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-153": {
+  "c": "P",
+  "t": [
+   "Psychic"
+  ],
+  "dex": [
+   700
+  ],
+  "n": "Sylveon ex",
+  "nj": "ニンフィアex",
+  "hp": 270,
+  "il": "5ban Graphics",
+  "rm": "J",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-154": {
+  "c": "P",
+  "t": [
+   "Fighting"
+  ],
+  "dex": [
+   448
+  ],
+  "n": "Lucario",
+  "nj": "ルカリオ",
+  "hp": 120,
+  "il": "Taiga Kasai",
+  "rm": "J",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-156": {
+  "c": "E",
+  "nj": "基本草エネルギー",
+  "n": "Grass Energy",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-157": {
+  "c": "E",
+  "nj": "基本炎エネルギー",
+  "n": "Fire Energy",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-158": {
+  "c": "E",
+  "nj": "基本水エネルギー",
+  "n": "Water Energy",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-159": {
+  "c": "E",
+  "nj": "基本雷エネルギー",
+  "n": "Lightning Energy",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-160": {
+  "c": "E",
+  "nj": "基本超エネルギー",
+  "n": "Psychic Energy",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-161": {
+  "c": "E",
+  "nj": "基本闘エネルギー",
+  "n": "Fighting Energy",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-162": {
+  "c": "E",
+  "nj": "基本悪エネルギー",
+  "n": "Darkness Energy",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-M-P-163": {
+  "c": "E",
+  "nj": "基本鋼エネルギー",
+  "n": "Metal Energy",
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "jp-S12a-251": {
+  "n": "Grass Energy",
+  "nj": "基本草エネルギー",
+  "c": "E",
+  "r": "Ultra Rare",
+  "rm": "F",
+  "sinTcgdex": true
+ },
+ "jp-S12a-252": {
+  "n": "Fire Energy",
+  "nj": "基本炎エネルギー",
+  "c": "E",
+  "r": "Ultra Rare",
+  "rm": "F",
+  "sinTcgdex": true
+ },
+ "jp-S12a-253": {
+  "n": "Water Energy",
+  "nj": "基本水エネルギー",
+  "c": "E",
+  "r": "Ultra Rare",
+  "rm": "F",
+  "sinTcgdex": true
+ },
+ "jp-S12a-254": {
+  "n": "Lightning Energy",
+  "nj": "基本雷エネルギー",
+  "c": "E",
+  "r": "Ultra Rare",
+  "rm": "F",
+  "sinTcgdex": true
+ },
+ "jp-SV-P-147": {
+  "n": "Morty's Conviction",
+  "nj": "マツバの確信",
+  "c": "T",
+  "r": "Promo",
+  "rm": "H",
+  "sinTcgdex": true
+ },
+ "jp-SV-P-154": {
+  "n": "Nemona",
+  "nj": "ネモ",
+  "c": "T",
+  "r": "Promo",
+  "rm": "H",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-127": {
+  "c": "P",
+  "t": [
+   "Darkness"
+  ],
+  "dex": [
+   944
+  ],
+  "n": "Shroodle",
+  "nj": "シルシュルー",
+  "hp": 50,
+  "il": "Akira Komayama",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-128": {
+  "c": "P",
+  "t": [
+   "Darkness"
+  ],
+  "dex": [
+   945
+  ],
+  "n": "Grafaiai",
+  "nj": "タギングル",
+  "hp": 90,
+  "il": "Souichirou Gunjima",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-129": {
+  "c": "P",
+  "t": [
+   "Metal"
+  ],
+  "dex": [
+   212
+  ],
+  "n": "Scizor",
+  "nj": "ハッサム",
+  "hp": 140,
+  "il": "otumami",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-130": {
+  "c": "P",
+  "t": [
+   "Metal"
+  ],
+  "dex": [
+   965
+  ],
+  "n": "Varoom",
+  "nj": "ブロロン",
+  "hp": 60,
+  "il": "Tetsu Kayama",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-131": {
+  "c": "P",
+  "t": [
+   "Metal"
+  ],
+  "dex": [
+   966
+  ],
+  "n": "Revavroom",
+  "nj": "ブロロローム",
+  "hp": 140,
+  "il": "DOM",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-132": {
+  "c": "P",
+  "t": [
+   "Metal"
+  ],
+  "dex": [
+   990
+  ],
+  "n": "Iron Treads ex",
+  "nj": "テツノワダチex",
+  "hp": 220,
+  "il": "toriyufu",
+  "rm": "G",
+  "r": "Double rare",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-133": {
+  "c": "P",
+  "t": [
+   "Metal"
+  ],
+  "dex": [
+   1000
+  ],
+  "n": "Gholdengo",
+  "nj": "サーフゴー",
+  "hp": 130,
+  "il": "Mitsuhiro Arita",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-134": {
+  "c": "P",
+  "t": [
+   "Dragon"
+  ],
+  "dex": [
+   714
+  ],
+  "n": "Noibat",
+  "nj": "オンバット",
+  "hp": 70,
+  "il": "chibi",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-135": {
+  "c": "P",
+  "t": [
+   "Dragon"
+  ],
+  "dex": [
+   715
+  ],
+  "n": "Noivern ex",
+  "nj": "オンバーンex",
+  "hp": 260,
+  "il": "Nisota Niso",
+  "rm": "G",
+  "r": "Double rare",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-136": {
+  "c": "P",
+  "t": [
+   "Dragon"
+  ],
+  "dex": [
+   967
+  ],
+  "n": "Cyclizar",
+  "nj": "モトトカゲ",
+  "hp": 120,
+  "il": "GIDORA",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-137": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   16
+  ],
+  "n": "Pidgey",
+  "nj": "ポッポ",
+  "hp": 50,
+  "il": "Oswaldo KATO",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-138": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   17
+  ],
+  "n": "Pidgeotto",
+  "nj": "ピジョン",
+  "hp": 80,
+  "il": "Oswaldo KATO",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-139": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   18
+  ],
+  "n": "Pidgeot ex",
+  "nj": "ピジョットex",
+  "hp": 280,
+  "il": "takuyoa",
+  "rm": "G",
+  "r": "Double rare",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-140": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   39
+  ],
+  "n": "Jigglypuff",
+  "nj": "プリン",
+  "hp": 70,
+  "il": "saino misaki",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-141": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   40
+  ],
+  "n": "Wigglytuff ex",
+  "nj": "プクリンex",
+  "hp": 250,
+  "il": "Saki Hayashiro",
+  "rm": "G",
+  "r": "Double rare",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-142": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   84
+  ],
+  "n": "Doduo",
+  "nj": "ドードー",
+  "hp": 70,
+  "il": "Anesaki Dynamic",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-143": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   85
+  ],
+  "n": "Dodrio",
+  "nj": "ドードリオ",
+  "hp": 100,
+  "il": "Anesaki Dynamic",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-144": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   132
+  ],
+  "n": "Ditto",
+  "nj": "メタモン",
+  "hp": 60,
+  "il": "KIYOTAKA OSHIYAMA",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-145": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   143
+  ],
+  "n": "Snorlax",
+  "nj": "カビゴン",
+  "hp": 150,
+  "il": "HYOGONOSUKE",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-146": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   278
+  ],
+  "n": "Wingull",
+  "nj": "キャモメ",
+  "hp": 70,
+  "il": "Kouki Saitou",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-148": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   819
+  ],
+  "n": "Skwovet",
+  "nj": "ホシガリス",
+  "hp": 60,
+  "il": "HYOGONOSUKE",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-149": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   820
+  ],
+  "n": "Greedent",
+  "nj": "ヨクバリス",
+  "hp": 120,
+  "il": "kantaro",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-150": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   915
+  ],
+  "n": "Lechonk",
+  "nj": "グルトン",
+  "hp": 70,
+  "il": "Mina Nakai",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-151": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   916
+  ],
+  "n": "Oinkologne",
+  "nj": "パフュートン",
+  "hp": 130,
+  "il": "Akira Komayama",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-152": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   924
+  ],
+  "n": "Tandemaus",
+  "nj": "ワッカネズミ",
+  "hp": 30,
+  "il": "Oswaldo KATO",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-153": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   925
+  ],
+  "n": "Maushold",
+  "nj": "イッカネズミ",
+  "hp": 70,
+  "il": "KIYOTAKA OSHIYAMA",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-154": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   931
+  ],
+  "n": "Squawkabilly ex",
+  "nj": "イキリンコex",
+  "hp": 160,
+  "il": "PLANETA Mochizuki",
+  "rm": "G",
+  "r": "Double rare",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-155": {
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "dex": [
+   973
+  ],
+  "n": "Flamigo",
+  "nj": "カラミンゴ",
+  "hp": 110,
+  "il": "nagimiso",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-156": {
+  "c": "T",
+  "nj": "エレキジェネレーター",
+  "n": "Electric Generator",
+  "il": "Toyste Beach",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-157": {
+  "c": "T",
+  "nj": "スーパーエネルギー回収",
+  "n": "Superior Energy Retrieval",
+  "il": "Studio Bora Inc.",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-158": {
+  "c": "T",
+  "nj": "すごいつりざお",
+  "n": "Super Rod",
+  "il": "Toyste Beach",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-159": {
+  "c": "T",
+  "nj": "ネストボール",
+  "n": "Nest Ball",
+  "il": "Toyste Beach",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-160": {
+  "c": "T",
+  "nj": "ネモのリュック",
+  "n": "Nemona's Backpack",
+  "il": "AYUMI ODASHIMA",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-161": {
+  "c": "T",
+  "nj": "ハイパーボール",
+  "n": "Ultra Ball",
+  "il": "Ayaka Yoshida",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-162": {
+  "c": "T",
+  "nj": "はげましのてがみ",
+  "n": "Letter of Encouragement",
+  "il": "Toyste Beach",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-163": {
+  "c": "T",
+  "nj": "ふしぎなアメ",
+  "n": "Rare Candy",
+  "il": "Studio Bora Inc.",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-164": {
+  "c": "T",
+  "nj": "岩のむねあて",
+  "n": "Rock Chestplate",
+  "il": "Toyste Beach",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-165": {
+  "c": "T",
+  "nj": "大きなふうせん",
+  "n": "Big Air Balloon",
+  "il": "Toyste Beach",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-166": {
+  "c": "T",
+  "nj": "ガチガチバンド",
+  "n": "Hard Charm",
+  "il": "Toyste Beach",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-SV4a-167": {
+  "c": "T",
+  "nj": "たべのこし",
+  "n": "Leftovers",
+  "il": "Studio Bora Inc.",
+  "rm": "G",
+  "sinTcgdex": true
+ },
+ "jp-VS1-077": {
+  "n": "Will's Slowking",
+  "nj": "イツキのヤドキング",
+  "c": "P",
+  "t": [
+   "Psychic"
+  ],
+  "hp": 70,
+  "dex": [
+   199
+  ],
+  "r": "Common",
+  "il": "Kagemaru Himeno",
+  "sinTcgdex": true
+ },
+ "jp-VS1-142": {
+  "n": "Rocket's Tyranitar",
+  "nj": "R団のバンギラス",
+  "c": "P",
+  "t": [
+   "Darkness"
+  ],
+  "hp": 80,
+  "dex": [
+   248
+  ],
+  "r": "Rare Holo",
+  "sinTcgdex": true
+ },
+ "jp-web1-039": {
+  "n": "Team Rocket's Meowth",
+  "nj": "ロケット団のニャース",
+  "c": "P",
+  "t": [
+   "Colorless"
+  ],
+  "hp": 40,
+  "dex": [
+   52
+  ],
+  "r": "Rare",
+  "sinTcgdex": true
+ },
+ "mep-111": {
+  "n": "Masquerain",
+  "c": "P",
+  "t": [
+   "Grass"
+  ],
+  "hp": 110,
+  "dex": [
+   284
+  ],
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "mep-112": {
+  "n": "Magmortar",
+  "c": "P",
+  "t": [
+   "Fire"
+  ],
+  "hp": 140,
+  "dex": [
+   467
+  ],
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "mep-113": {
+  "n": "Enamorus",
+  "c": "P",
+  "t": [
+   "Psychic"
+  ],
+  "hp": 120,
+  "dex": [
+   905
+  ],
+  "r": "Promo",
+  "il": "Anesaki Dynamic",
+  "sinTcgdex": true
+ },
+ "mep-114": {
+  "n": "Kommo-o",
+  "c": "P",
+  "t": [
+   "Dragon"
+  ],
+  "hp": 160,
+  "dex": [
+   784
+  ],
+  "r": "Promo",
+  "sinTcgdex": true
+ },
+ "mep-115": {
+  "n": "Spritzee",
+  "c": "P",
+  "t": [
+   "Psychic"
+  ],
+  "hp": 70,
+  "dex": [
+   682
+  ],
+  "r": "Promo",
+  "il": "Pani Kobayashi",
+  "sinTcgdex": true
+ },
+ "mep-116": {
+  "n": "Seel",
+  "c": "P",
+  "t": [
+   "Water"
+  ],
+  "hp": 80,
+  "dex": [
+   86
+  ],
+  "r": "Promo",
+  "il": "Kanami Ogata",
+  "sinTcgdex": true
+ },
+ "mep-117": {
+  "n": "Kyogre",
+  "c": "P",
+  "t": [
+   "Water"
+  ],
+  "hp": 150,
+  "dex": [
+   382
+  ],
+  "r": "Promo",
+  "il": "Anderson",
+  "sinTcgdex": true
+ }
+}

@@ -1,10 +1,10 @@
 jp-neo4: 116 huecos de 229, numeración especial, no se rellena
-jp-VS1 (ポケモンカード★VS): 8 sin datos → 77, 142, 145–150
-jp-web1 (ポケモンカード★web): 1 sin datos → 39
-ecard2 (Aquapolis): 4 sin datos → 50, 74, 95, 103
-jp-SV-P (SV Promo): 2 sin datos → 147, 154
-jp-S12a (VSTAR Universe): 4 sin datos → 251–254
+jp-VS1 (ポケモンカード★VS): 2 huecos, 2 completados a mano
+jp-web1 (ポケモンカード★web): 1 huecos, 1 completados a mano
+ecard2 (Aquapolis): 4 huecos, 4 completados a mano
+jp-SV-P (SV Promo): 2 huecos, 2 completados a mano
+jp-S12a (VSTAR Universe): 4 huecos, 4 completados a mano
 svp: 274 huecos de 500, numeración especial, no se rellena
-jp-SV4a (Shiny Treasure ex): 40 sin datos → 127–146, 148–167
-jp-M-P (Mega Promo): 32 sin datos → 52, 77–84, 128–130, 135–136, 145–154, 156–163
-mep (MEP Black Star Promos): 9 sin datos → 111–119
+jp-SV4a (Shiny Treasure ex): 40 huecos, 40 completados a mano
+jp-M-P (Mega Promo): 32 huecos, 29 completados a mano, sin datos → 128–130
+mep (MEP Black Star Promos): 9 huecos, 7 completados a mano, sin datos → 118–119

@@ -32,6 +32,11 @@ const dex = cargarScript(rutaDex, 'DEX_DB');
 // Colecciones en las que NO conviene rellenar huecos: kits de entrenador (dos mitades numeradas
 // sobre el mismo total) y colecciones cuya numeración no es numérica (Unown A–Z, etc.).
 const SIN_RELLENO = new Set(['tk']);
+// Números que no corresponden a cartas reales (numeración propia de TCGdex para las energías de VS).
+const SIN_RELLENO_NUMEROS = { 'jp-VS1': new Set([145, 146, 147, 148, 149, 150]) };
+// Datos recogidos a mano para las casillas que faltaban (tools/completar-huecos.mjs)
+const rutaCompletados = path.join(here, 'huecos-completados.json');
+const completados = fs.existsSync(rutaCompletados) ? JSON.parse(fs.readFileSync(rutaCompletados, 'utf8')) : {};
 
 function numero(l) {
   const m = /^0*(\d+)$/.exec(String(l || '').trim());
@@ -55,19 +60,24 @@ for (const s of db.sets) {
   // Si la mayoría de las cartas no tiene número simple, la numeración es especial: no se rellena.
   if (numericas.length < cartas.length * 0.5) continue;
   const presentes = new Set(numericas);
+  const excluidos = SIN_RELLENO_NUMEROS[s.id] || new Set();
   const faltan = [];
-  for (let i = 1; i <= max; i++) if (!presentes.has(i)) faltan.push(i);
+  for (let i = 1; i <= max; i++) if (!presentes.has(i) && !excluidos.has(i)) faltan.push(i);
   if (!faltan.length) continue;
   // Huecos enormes (más de la mitad) indican otra numeración, no datos faltantes.
   if (faltan.length > max * 0.5) { informe.push(`${s.id}: ${faltan.length} huecos de ${max}, numeración especial, no se rellena`); continue; }
   // Se respeta el estilo de numeración de la colección: "001" (con ceros) o "1" (sin ceros).
   const conCeros = cartas.some(c => /^0\d+$/.test(c.l));
   const ancho = conCeros ? Math.max(...cartas.map(c => (/^\d+$/.test(c.l) ? c.l.length : 0))) : 0;
+  const pendientes = [];
   for (const n of faltan) {
     const l = ancho > 1 ? String(n).padStart(ancho, '0') : String(n);
-    rellenos.push({ id: `${s.id}-${l}`, s: s.id, l, n: `Carta N.º ${n}`, ns: `Carta N.º ${n}`, c: '?', sd: true, ...(s.rg ? { rg: s.rg } : {}) });
+    const id = `${s.id}-${l}`;
+    const datos = completados[id];
+    if (datos) rellenos.push({ id, s: s.id, l, ...datos, ...(s.rg ? { rg: s.rg } : {}) });
+    else { rellenos.push({ id, s: s.id, l, n: `Carta N.º ${n}`, ns: `Carta N.º ${n}`, c: '?', sd: true, ...(s.rg ? { rg: s.rg } : {}) }); pendientes.push(n); }
   }
-  informe.push(`${s.id} (${s.n}): ${faltan.length} sin datos → ${resumen(faltan)}`);
+  informe.push(`${s.id} (${s.n}): ${faltan.length} huecos, ${faltan.length - pendientes.length} completados a mano${pendientes.length ? `, sin datos → ${resumen(pendientes)}` : ''}`);
 }
 
 function resumen(nums) {
@@ -85,7 +95,7 @@ function resumen(nums) {
 for (const c of db.cards) if (c.dex) c.dex = c.dex.map(d => Math.floor(Number(d))).filter(d => Number.isInteger(d));
 const ids = new Set(db.cards.map(c => c.id));
 const nuevos = rellenos.filter(r => !ids.has(r.id));
-const version = new Date().toISOString().slice(0, 10) + '.1';
+const version = process.env.CATALOGO_VERSION || new Date().toISOString().slice(0, 10) + '.1';
 const catalogo = {
   version,
   generated: new Date().toISOString(),
@@ -96,9 +106,10 @@ const catalogo = {
 
 fs.mkdirSync(path.join(raiz, 'public', 'data'), { recursive: true });
 fs.writeFileSync(path.join(raiz, 'public', 'data', 'catalogo.json'), JSON.stringify(catalogo));
-fs.writeFileSync(path.join(raiz, 'public', 'data', 'version.json'), JSON.stringify({ version, sets: catalogo.sets.length, cards: catalogo.cards.length, sinDatos: nuevos.length }, null, 2) + '\n');
+const sinDatos = nuevos.filter(c => c.sd).length;
+fs.writeFileSync(path.join(raiz, 'public', 'data', 'version.json'), JSON.stringify({ version, sets: catalogo.sets.length, cards: catalogo.cards.length, sinDatos }, null, 2) + '\n');
 fs.writeFileSync(path.join(raiz, 'tools', 'informe-huecos.txt'), informe.join('\n') + '\n');
-fs.writeFileSync(path.join(raiz, 'src', 'lib', 'catalogo-version.ts'), `// Generado por tools/generar-catalogo.mjs — no editar a mano.\nexport const CATALOGO_VERSION = '${version}';\nexport const CATALOGO_RESUMEN = { sets: ${catalogo.sets.length}, cards: ${catalogo.cards.length}, sinDatos: ${nuevos.length} };\n`);
+fs.writeFileSync(path.join(raiz, 'src', 'lib', 'catalogo-version.ts'), `// Generado por tools/generar-catalogo.mjs — no editar a mano.\nexport const CATALOGO_VERSION = '${version}';\nexport const CATALOGO_RESUMEN = { sets: ${catalogo.sets.length}, cards: ${catalogo.cards.length}, sinDatos: ${sinDatos} };\n`);
 
-console.log(`Catálogo ${version}: ${catalogo.sets.length} colecciones, ${db.cards.length} cartas + ${nuevos.length} casillas sin datos (${catalogo.cards.length} en total), ${dex.length} especies.`);
+console.log(`Catálogo ${version}: ${catalogo.sets.length} colecciones, ${db.cards.length} cartas + ${nuevos.length - sinDatos} completadas a mano + ${sinDatos} casillas sin datos (${catalogo.cards.length} en total), ${dex.length} especies.`);
 console.log(`Informe de huecos: tools/informe-huecos.txt (${informe.length} colecciones)`);

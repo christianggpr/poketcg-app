@@ -25,9 +25,11 @@ test('el catálogo carga con índices coherentes', () => {
   assert.equal(cat.setOf(pika!)?.ab, 'MEW');
   assert.equal(cat.cartasDe('sv03.5').length, 207);
   assert.equal(cat.especie(25)?.[2], 'Pikachu');
-  // casillas sin datos generadas
-  const sd = cat.carta('jp-SV4a-127');
-  assert.ok(sd && sd.sd === true && sd.n === 'Carta N.º 127');
+  // casillas sin datos generadas (las que aún no tienen fuente) y huecos completados a mano
+  const sd = cat.carta('mep-118');
+  assert.ok(sd && sd.sd === true && sd.n === 'Carta N.º 118');
+  const completada = cat.carta('jp-SV4a-127');
+  assert.ok(completada && !completada.sd && completada.n === 'Shroodle' && completada.nj === 'シルシュルー' && completada.dex?.[0] === 944);
 });
 
 test('claves de número', () => {
@@ -106,7 +108,7 @@ test('imágenes: internacional, japonesa y sin datos', () => {
   assert.ok(urlsImagen(c, cat.setOf(c))[0].includes('assets.tcgdex.net/en/sv/sv03.5/025/low.webp'));
   const j = cat.carta('jp-SV2a-025')!;
   assert.ok(urlsImagen(j, cat.setOf(j))[0].includes('/ja/SV/SV2a/025/low.webp'));
-  assert.equal(urlsImagen(cat.carta('jp-SV4a-127')!, cat.setOf(cat.carta('jp-SV4a-127')!)).length, 0);
+  assert.equal(urlsImagen(cat.carta('mep-118')!, cat.setOf(cat.carta('mep-118')!)).length, 0);
 });
 
 test('validación del registro', () => {

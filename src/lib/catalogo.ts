@@ -38,6 +38,7 @@ export type Carta = {
   p?: string;         // id en pokemontcg.io
   rg?: 'ja';
   sd?: boolean;       // "sin datos": casilla creada a partir del total oficial
+  sinTcgdex?: boolean; // completada a mano: no existe en TCGdex (imagen y precio desde otras fuentes)
 };
 
 export type Especie = [number, string, string, string]; // [n.º, inglés, español, japonés]
@@ -176,12 +177,20 @@ export function numLabel(c: Carta, s?: Coleccion): string {
 function tcgdexBase(s: Coleccion, lang: string): string {
   return `https://assets.tcgdex.net/${lang}/${s.s}/${s.tid || s.id}/`;
 }
+/** Imagen de respaldo en Limitless para cartas japonesas que TCGdex no tiene (código sin guiones: SV-P → SVP). */
+export function urlLimitlessJa(c: Carta, s: Coleccion): string | null {
+  if (s.rg !== 'ja' || !s.tid || !/^\d+$/.test(c.l)) return null;
+  const code = s.tid.replace(/-/g, '');
+  return `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpc/${code}/${code}_${c.l}_R_JP_LG.png`;
+}
 /** URLs candidatas de la imagen pequeña de una carta (se prueban en orden). */
 export function urlsImagen(c: Carta, s: Coleccion | undefined, imgLang: 'auto' | 'es' | 'en' = 'auto'): string[] {
   const urls: string[] = [];
   if (!s || c.sd) return urls;
   if (s.rg === 'ja') {
     urls.push(tcgdexBase(s, 'ja') + c.l + '/low.webp', tcgdexBase(s, 'ja') + c.l + '/low.png');
+    const lim = urlLimitlessJa(c, s);
+    if (lim) urls.push(lim);
     return urls;
   }
   if (imgLang === 'es') urls.push(tcgdexBase(s, 'es') + c.l + '/low.webp');
@@ -194,7 +203,7 @@ export function urlsImagen(c: Carta, s: Coleccion | undefined, imgLang: 'auto' |
 }
 export function urlImagenGrande(c: Carta, s: Coleccion | undefined): string | null {
   if (!s || c.sd) return null;
-  if (s.rg === 'ja') return tcgdexBase(s, 'ja') + c.l + '/high.webp';
+  if (s.rg === 'ja') return c.sinTcgdex ? urlLimitlessJa(c, s) : tcgdexBase(s, 'ja') + c.l + '/high.webp';
   if (c.p) { const i = c.p.indexOf('-'); return `https://images.pokemontcg.io/${c.p.slice(0, i)}/${c.p.slice(i + 1)}_hires.png`; }
   return tcgdexBase(s, 'en') + c.l + '/high.webp';
 }

@@ -28,7 +28,7 @@ const PREF: Record<string, string[]> = {
 const num = (v: unknown): number | null => (typeof v === 'number' && isFinite(v) && v > 0 ? v : null);
 
 export function urlPrecio(card: Carta, set: Coleccion | undefined): string | null {
-  if (!set || card.sd) return null;
+  if (!set || card.sd || card.sinTcgdex) return null;
   if (set.rg === 'ja') return `${API_TCGDEX}/ja/cards/${set.tid || set.id.replace(/^jp-/, '')}-${card.l}`;
   return `${API_TCGDEX}/en/cards/${card.id}`;
 }

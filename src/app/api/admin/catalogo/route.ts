@@ -24,6 +24,15 @@ export async function POST(req: Request) {
     return json({ ok: false, error: (e as Error).message }, 500);
   }
   const b = await leerJson(req);
+  if (b.limpiar === true) {
+    // borra las casillas "sin datos" que el catálogo actual ya no trae (p. ej. números que no eran cartas reales)
+    const conservar = new Set(Array.isArray(b.conservar) ? (b.conservar as string[]) : []);
+    const { data } = await admin.from('cartas').select('id').eq('sin_datos', true);
+    const sobran = (data || []).map(r => r.id).filter(id => !conservar.has(id));
+    let borradas = 0;
+    for (const id of sobran) { const { error } = await admin.from('cartas').delete().eq('id', id); if (!error) borradas++; }
+    return json({ ok: true, borradas, sobran: sobran.length });
+  }
   const sets = Array.isArray(b.sets) ? (b.sets as Coleccion[]) : [];
   const cards = Array.isArray(b.cards) ? (b.cards as Carta[]) : [];
   if (sets.length > 500 || cards.length > 2000) return json({ ok: false, error: 'Lote demasiado grande.' }, 400);
