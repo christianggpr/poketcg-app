@@ -17,10 +17,10 @@ import { Campo } from './ui';
 import { fmtPen } from '@/lib/precios-core';
 import { EstadoPub, PreguntaVenta, PublicarSheet } from './PublicarSheet';
 
-type Props = { carta?: Carta | null; personalizada?: Personalizada | null; idiomaInicial?: string; cajaInicial?: string | null; onClose: () => void; onGuardada?: (e: Entrada) => void };
+type Props = { carta?: Carta | null; personalizada?: Personalizada | null; idiomaInicial?: string; cajaInicial?: string | null; acabadoInicial?: string; condicionInicial?: string; cantidadInicial?: number; onClose: () => void; onGuardada?: (e: Entrada) => void };
 
 /** Hoja "Guardar en una caja": elige caja, cantidad, acabado, idioma… y muestra dónde colocarla. */
-export function AddEntrySheet({ carta, personalizada, idiomaInicial, cajaInicial, onClose, onGuardada }: Props) {
+export function AddEntrySheet({ carta, personalizada, idiomaInicial, cajaInicial, acabadoInicial, condicionInicial, cantidadInicial, onClose, onGuardada }: Props) {
   const cat = useCatalogo();
   const col = useColeccion();
   const { perfil } = usePerfil();
@@ -30,10 +30,10 @@ export function AddEntrySheet({ carta, personalizada, idiomaInicial, cajaInicial
   const cajas = cajasOrdenadas(col.cajas);
   const set = carta ? cat.setOf(carta) : undefined;
   const [cajaId, setCajaId] = useState<string | null>(cajaInicial && cajas.some(c => c.id === cajaInicial) ? cajaInicial : col.ultimaCajaId && cajas.some(c => c.id === col.ultimaCajaId) ? col.ultimaCajaId : cajas[0]?.id || null);
-  const [cantidad, setCantidad] = useState(1);
-  const [acabado, setAcabado] = useState('');
+  const [cantidad, setCantidad] = useState(Math.max(1, cantidadInicial || 1));
+  const [acabado, setAcabado] = useState(acabadoInicial && (ACABADOS as readonly string[]).includes(acabadoInicial) ? acabadoInicial : '');
   const [idioma, setIdioma] = useState(set?.rg === 'ja' ? 'JP' : idiomaInicial && (IDIOMAS_CARTA as readonly string[]).includes(idiomaInicial) ? idiomaInicial : '');
-  const [condicion, setCondicion] = useState('');
+  const [condicion, setCondicion] = useState(condicionInicial && (CONDICIONES as readonly string[]).includes(condicionInicial) ? condicionInicial : '');
   const [nota, setNota] = useState('');
   const [nuevaCaja, setNuevaCaja] = useState('');
   const [guardando, setGuardando] = useState(false);

@@ -99,6 +99,14 @@ export async function tick(admin: SupabaseClient, presupuestoMs = 50000, opts: {
       hecho.push('mercado: reservas vencidas liberadas');
       await guardar();
     }
+    // 6b) órdenes (Fase 3 · B): recordatorios, confirmación automática y vencidas
+    if (detalle.fase === 'mazos' && !(detalle as Record<string, unknown>).ordenes && quedaTiempo()) {
+      const { data, error } = await admin.rpc('mantenimiento_ordenes');
+      if (error && !/function .* does not exist/i.test(error.message)) throw new Error('mantenimiento_ordenes: ' + error.message);
+      (detalle as Record<string, unknown>).ordenes = error ? { omitido: true } : data;
+      hecho.push('órdenes: recordatorios, confirmaciones automáticas y vencidas');
+      await guardar();
+    }
     // 7) mazos meta (Fase 2 · D): Limitless por lotes; si falla se conserva la última versión
     if (detalle.fase === 'mazos' && quedaTiempo()) {
       const cursor = (tarea.cursor?.mazos as CursorMazos | undefined) || null;

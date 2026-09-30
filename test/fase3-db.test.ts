@@ -10,6 +10,7 @@ const DB = process.env.DATABASE_URL || 'postgresql://postgres:test@127.0.0.1:543
 pg.types.setTypeParser(1700, v => (v == null ? null : parseFloat(v)));
 pg.types.setTypeParser(20, v => (v == null ? null : parseInt(v, 10)));
 pg.types.setTypeParser(1082, v => v);   // date como texto AAAA-MM-DD
+pg.types.setTypeParser(1182, v => v.replace(/^\{|\}$/g, '').split(',').filter(Boolean));   // date[]
 
 let pool: pg.Pool | null = null;
 const ids = { vendedor: '55555555-5555-4555-8555-555555555555', comprador: '66666666-6666-4666-8666-666666666666', otro: '77777777-7777-4777-8777-777777777777', admin: '88888888-8888-4888-8888-888888888888', tienda: '99999999-9999-4999-8999-999999999999' };
@@ -179,4 +180,88 @@ test('sin comprobante a tiempo: la compra vence y las copias vuelven al mercado'
   assert.ok(v.vencidos >= 1);
   assert.equal((await q<{ estado: string }>(`select estado from public.ordenes where pago_id = $1`, [pago2.pago_id]))[0].estado, 'cancelada');
   assert.equal((await q<{ disponibles: number }>(`select disponibles from public.mercado where id = $1`, [pub]))[0].disponibles, 1);
+});
+
+/** Compra completa hasta pago confirmado: devuelve la orden. */
+async function comprarYConfirmar(carta: string, copias: number, precio: number, cantidad: number, comprador = ids.comprador) {
+  const { pub, entrada } = await publicar(carta, copias, precio);
+  assert.equal((await rpc(comprador, 'reservar_copia', [pub, cantidad])).ok, true);
+  const pago = await rpc(comprador, 'crear_pago', [tienda]);
+  assert.equal(pago.ok, true, JSON.stringify(pago));
+  assert.equal((await rpc(comprador, 'subir_comprobante', [pago.pago_id, 'https://x/v.jpg', 'OP' + Date.now()])).ok, true);
+  assert.equal((await rpc(ids.admin, 'revisar_pago', [pago.pago_id, 'confirmar', null])).ok, true);
+  const orden = (await q<{ id: string; codigo_retiro: string; fecha_limite: string; pago_id: string }>(`select id, codigo_retiro, fecha_limite::text, pago_id from public.ordenes where pago_id = $1`, [pago.pago_id]))[0];
+  return { pub, entrada, orden, pagoId: pago.pago_id as string };
+}
+
+test('vendedor: fecha de entrega dentro del plazo y en día que abre la tienda; recibido en tienda con foto si la sede no tiene cuenta', async t => {
+  if (!conBase(t)) return;
+  const { orden } = await comprarYConfirmar('tst2-1', 3, 20, 2);
+  const fechas = (await como(ids.vendedor, async c => (await c.query(`select public.fechas_entrega_posibles($1) as f`, [orden.id])).rows[0].f)) as string[];
+  assert.ok(fechas.length >= 1 && fechas[fechas.length - 1] === orden.fecha_limite, JSON.stringify(fechas));
+  assert.ok(fechas.every(f => new Date(f + 'T12:00:00Z').getUTCDay() !== 0), 'la tienda no abre los domingos');
+  const mal = await rpc(ids.vendedor, 'elegir_fecha_entrega', [orden.id, '2030-01-01']);
+  assert.equal(mal.ok, false);
+  const ok = await rpc(ids.vendedor, 'elegir_fecha_entrega', [orden.id, orden.fecha_limite]);
+  assert.equal(ok.ok, true, JSON.stringify(ok));
+  assert.equal((await q(`select 1 from public.notificaciones where usuario_id = $1 and tipo = 'fecha_entrega'`, [ids.comprador])).length, 1);
+  // el comprador no puede marcar "recibido"; el vendedor sí (la sede no tiene cuenta) pero con foto
+  assert.equal((await rpc(ids.comprador, 'marcar_en_tienda', [orden.id, null])).ok, false);
+  assert.equal((await rpc(ids.vendedor, 'marcar_en_tienda', [orden.id, null])).ok, false);
+  const rec = await rpc(ids.vendedor, 'marcar_en_tienda', [orden.id, 'https://x/entrega.jpg']);
+  assert.deepEqual([rec.ok, rec.estado, rec.por], [true, 'en_tienda', 'vendedor']);
+  const aviso = (await q<{ cuerpo: string; canales: string[] }>(`select cuerpo, canales from public.notificaciones where usuario_id = $1 and tipo = 'en_tienda' order by id desc limit 1`, [ids.comprador]))[0];
+  assert.match(aviso.cuerpo, new RegExp(orden.codigo_retiro)); assert.ok(aviso.canales.includes('whatsapp'));
+  // el comprador confirma "Entregado": stock y colección del vendedor descontados (quedaba 1 copia)
+  const ent = await rpc(ids.comprador, 'marcar_entregada', [orden.id, null, null]);
+  assert.deepEqual([ent.ok, ent.por], [true, 'comprador']);
+  const p = (await q<{ cantidad: number; vendidas: number; estado: string }>(`select cantidad, vendidas, estado from public.publicaciones where id = (select publicacion_id from public.orden_items where orden_id = $1)`, [orden.id]))[0];
+  assert.deepEqual([p.cantidad, p.vendidas, p.estado], [1, 0, 'activa']);
+  assert.equal((await q<{ cantidad: number }>(`select cantidad from public.entradas where id = (select entrada_id from public.orden_items where orden_id = $1)`, [orden.id]))[0].cantidad, 1);
+  assert.match((await q<{ cuerpo: string }>(`select cuerpo from public.notificaciones where usuario_id = $1 and tipo = 'entregada' order by id desc limit 1`, [ids.vendedor]))[0].cuerpo, /38\.00/);
+});
+
+test('tienda con cuenta: "recibido" lo marca la sede y "retirado" exige el código; la última copia deja la publicación vendida', async t => {
+  if (!conBase(t)) return;
+  await q(`update public.perfiles set rol = 'tienda', tienda_id = $2 where id = $1`, [ids.otro, tienda]);
+  try {
+    const { orden, entrada, pub } = await comprarYConfirmar('tst2-2', 1, 12.5, 1);
+    assert.equal((await rpc(ids.vendedor, 'marcar_en_tienda', [orden.id, 'https://x/f.jpg'])).ok, false, 'si la sede tiene cuenta, el vendedor no marca');
+    const rec = await rpc(ids.otro, 'marcar_en_tienda', [orden.id, 'https://x/mostrador.jpg']);
+    assert.deepEqual([rec.ok, rec.por], [true, 'tienda']);
+    assert.equal((await rpc(ids.otro, 'marcar_entregada', [orden.id, '000000', null])).ok, false);
+    const ok = await rpc(ids.otro, 'marcar_entregada', [orden.id, orden.codigo_retiro, null]);
+    assert.deepEqual([ok.ok, ok.por], [true, 'tienda']);
+    assert.deepEqual((ok.publicaciones_vendidas as string[]), [pub]);
+    assert.equal((await q(`select 1 from public.entradas where id = $1`, [entrada])).length, 0, 'la entrada se borra al vender la última copia');
+    const p = (await q<{ estado: string; entrada_id: string | null; vendidas: number }>(`select estado, entrada_id, vendidas from public.publicaciones where id = $1`, [pub]))[0];
+    assert.deepEqual([p.estado, p.entrada_id, p.vendidas], ['vendida', null, 0]);
+    // la cuenta de tienda ve la orden de su sede pero no datos personales
+    const vista = await como(ids.otro, async c => (await c.query(`select o.estado, o.codigo_retiro from public.ordenes o where o.id = $1`, [orden.id])).rows);
+    assert.equal(vista.length, 1);
+    assert.equal((await como(ids.otro, async c => (await c.query(`select 1 from public.pagos where comprador_id <> $1`, [ids.otro])).rows)).length, 0, 'la tienda no ve pagos ajenos');
+  } finally { await q(`update public.perfiles set rol = 'usuario', tienda_id = null where id = $1`, [ids.otro]); }
+});
+
+test('tarea diaria: recordatorios, confirmación automática a los N días y órdenes vencidas devuelven el stock', async t => {
+  if (!conBase(t)) return;
+  const a = await comprarYConfirmar('tst2-1', 2, 8, 1);
+  await rpc(ids.vendedor, 'marcar_en_tienda', [a.orden.id, 'https://x/a.jpg']);
+  await q(`update public.ordenes set en_tienda_en = now() - interval '26 hours' where id = $1`, [a.orden.id]);
+  let m = (await q<{ r: Record<string, number> }>(`select public.mantenimiento_ordenes() as r`))[0].r;
+  assert.ok(m.recordatorios >= 1);
+  assert.equal((await q<{ recordatorios: number; estado: string }>(`select recordatorios, estado from public.ordenes where id = $1`, [a.orden.id]))[0].recordatorios, 1);
+  await q(`update public.ordenes set en_tienda_en = now() - interval '4 days' where id = $1`, [a.orden.id]);
+  m = (await q<{ r: Record<string, number> }>(`select public.mantenimiento_ordenes() as r`))[0].r;
+  assert.ok(m.confirmadas_auto >= 1);
+  assert.deepEqual((await q<{ estado: string; entregada_por: string }>(`select estado, entregada_por from public.ordenes where id = $1`, [a.orden.id]))[0], { estado: 'entregada', entregada_por: 'automatica' });
+  // vencida: pasó el sábado límite sin entrega → la copia vuelve al vendedor y se avisa al administrador
+  const b = await comprarYConfirmar('tst2-1', 2, 8, 1);
+  await q(`update public.ordenes set fecha_limite = (now() at time zone 'America/Lima')::date - 1 where id = $1`, [b.orden.id]);
+  m = (await q<{ r: Record<string, number> }>(`select public.mantenimiento_ordenes() as r`))[0].r;
+  assert.ok(m.vencidas >= 1);
+  assert.equal((await q<{ estado: string }>(`select estado from public.ordenes where id = $1`, [b.orden.id]))[0].estado, 'vencida');
+  assert.equal((await q<{ vendidas: number }>(`select vendidas from public.publicaciones where id = $1`, [b.pub]))[0].vendidas, 0);
+  assert.equal((await q<{ disponibles: number }>(`select disponibles from public.mercado where id = $1`, [b.pub]))[0].disponibles, 2);
+  assert.match((await q<{ titulo: string }>(`select titulo from public.notificaciones where usuario_id = $1 and tipo = 'orden_vencida' order by id desc limit 1`, [ids.admin]))[0].titulo, /devolver/);
 });

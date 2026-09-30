@@ -229,3 +229,47 @@ export function AdminAjustesPagos() {
   );
 }
 
+
+type OrdenAdmin = { id: string; numero: number; estado: string; subtotal: number; neto_vendedor: number; codigo_retiro: string | null; fecha_limite: string | null; fecha_entrega: string | null; en_tienda_en: string | null; entregada_en: string | null; entregada_por: string | null; motivo: string | null; creada: string; foto_entrega_url: string | null;
+  comprador: { username: string; telefono: string | null } | null; vendedor: { username: string; telefono: string | null } | null; tienda: { nombre: string } | null; orden_items: { carta_id: string; cantidad: number; idioma: string; acabado: string }[] };
+
+/** Órdenes por estado; el administrador puede marcar recibida/entregada si la tienda no puede. */
+export function AdminOrdenes() {
+  const { cat } = useCatalogoOpcional();
+  const toast = useToast();
+  const [estado, setEstado] = useState('activas');
+  const [ordenes, setOrdenes] = useState<OrdenAdmin[] | null>(null);
+  const [ocupado, setOcupado] = useState<string | null>(null);
+  const cargar = useCallback(async () => { const r = await fetch('/api/admin/ordenes?estado=' + estado).then(x => x.json()).catch(() => null); setOrdenes(r?.ok ? r.ordenes : []); }, [estado]);
+  useEffect(() => { cargar(); }, [cargar]);
+  async function accion(o: OrdenAdmin, accion: 'en_tienda' | 'entregada') {
+    setOcupado(o.id);
+    const r = await post('/api/ordenes', { accion, id: o.id });
+    setOcupado(null);
+    if (r.ok) { toast(`Orden #${o.numero} actualizada`, 'ok'); cargar(); } else toast(r.error || 'No se pudo', 'danger', 4000);
+  }
+  return (
+    <div className="panel" data-testid="admin-ordenes">
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+        <h3 style={{ margin: 0 }}>Órdenes</h3>
+        <div className="seg">{[['activas', 'En curso'], ['entregada', 'Entregadas'], ['vencida', 'Vencidas'], ['todas', 'Todas']].map(([v, l]) => <button key={v} className={estado === v ? 'active' : ''} onClick={() => setEstado(v)}>{l}</button>)}</div>
+      </div>
+      {!ordenes ? <p className="small muted"><span className="spinner" /> Cargando…</p> : null}
+      {ordenes && !ordenes.length ? <p className="small muted">Ninguna.</p> : null}
+      {(ordenes || []).map(o => (
+        <div key={o.id} className="card-row" style={{ cursor: 'default', marginBottom: 6, alignItems: 'flex-start' }} data-testid="admin-orden">
+          <div className="card-main">
+            <div className="card-name">Orden #{o.numero} · {fmtPen(o.subtotal)} (neto {fmtPen(o.neto_vendedor)}) <span className="pill">{ETIQUETA_ORDEN[o.estado as keyof typeof ETIQUETA_ORDEN] || o.estado}</span></div>
+            <div className="card-set">vende @{o.vendedor?.username} ({o.vendedor?.telefono}) → compra @{o.comprador?.username} ({o.comprador?.telefono}) · {o.tienda?.nombre || 'sin tienda'} · límite {fechaDia(o.fecha_limite)}{o.fecha_entrega ? ` · programada ${fechaDia(o.fecha_entrega)}` : ''}{o.codigo_retiro ? ` · código ${o.codigo_retiro}` : ''}{o.entregada_en ? ` · entregada ${fechaHora(o.entregada_en)} (${o.entregada_por})` : ''}{o.motivo ? ` · ${o.motivo}` : ''}</div>
+            <div className="small muted">{o.orden_items.map(i => `${i.cantidad}× ${cat?.carta(i.carta_id) ? nombreCarta(cat.carta(i.carta_id)!, 'es') : i.carta_id}${i.idioma ? ' ' + i.idioma : ''}`).join(' · ')}</div>
+            <div className="row" style={{ gap: 6, marginTop: 6 }}>
+              {o.estado === 'pago_confirmado' ? <button className="btn sm" disabled={ocupado === o.id} onClick={() => accion(o, 'en_tienda')}>Marcar recibida en tienda</button> : null}
+              {o.estado === 'en_tienda' || o.estado === 'pago_confirmado' ? <button className="btn sm" disabled={ocupado === o.id} onClick={() => accion(o, 'entregada')}>Marcar entregada</button> : null}
+              {o.foto_entrega_url ? <a className="btn sm ghost" href={o.foto_entrega_url} target="_blank" rel="noreferrer">Foto de entrega</a> : null}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

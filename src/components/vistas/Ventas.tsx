@@ -67,7 +67,7 @@ export function Ventas() {
     <div>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
         <h2 style={{ margin: 0 }}>🏷️ Mis ventas</h2>
-        <Link href="/app/cajas" className="btn sm ghost">📦 Cajas</Link>
+        <div className="row" style={{ gap: 6 }}><Link href="/app/ventas/ordenes" className="btn sm primary" data-testid="btn-ordenes-venta">📦 Órdenes de venta</Link><Link href="/app/cajas" className="btn sm ghost">Cajas</Link></div>
       </div>
       <p className="small muted">Lo que tienes publicado en el mercado. Los compradores solo ven tu nombre de usuario (@{perfil.username}); nunca tu DNI, teléfono ni nombre real. La comisión es del {Math.round(comision * 100)} % sobre el precio de venta.</p>
       <div className="stat" style={{ margin: '10px 0' }}>

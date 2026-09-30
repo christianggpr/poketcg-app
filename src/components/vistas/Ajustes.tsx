@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { APP_NAME, APP_VERSION, IDIOMAS_CARTA } from '@/lib/config';
 import { CATALOGO_VERSION, nombreCarta, rarezaLabel } from '@/lib/catalogo';
 import { cajasOrdenadas, nombreEntrada, numeroEntrada, coleccionEntrada } from '@/lib/coleccion';
@@ -55,6 +55,8 @@ export function Ajustes() {
       </div>
 
       <VerificacionCelular />
+
+      <DatosCobro />
 
       <div className="panel">
         <h3>Mercado</h3>
@@ -225,6 +227,50 @@ function VerificacionCelular() {
           {datos?.url ? <p className="small" style={{ marginTop: 6 }}>Si no se abrió WhatsApp: <a href={datos.url} target="_blank" rel="noreferrer">toca aquí</a> o escribe «{datos.texto}» al {datos.whatsapp}.</p> : null}
         </>
       )}
+    </div>
+  );
+}
+
+/** Datos de cobro del vendedor (Yape, Plin o cuenta bancaria); se guardan cifrados en el servidor. */
+function DatosCobro() {
+  const toast = useToast();
+  const [actual, setActual] = useState<{ metodo: string; titular: string; banco: string; numero: string; cuenta: string; cci: string; actualizado?: string } | null | undefined>(undefined);
+  const [editar, setEditar] = useState(false);
+  const [form, setForm] = useState({ metodo: 'yape', titular: '', banco: '', numero: '', cuenta: '', cci: '' });
+  const [guardando, setGuardando] = useState(false);
+  useEffect(() => { fetch('/api/cobro').then(r => r.json()).then(j => setActual(j.ok ? j.datos : null)).catch(() => setActual(null)); }, []);
+  async function guardar() {
+    setGuardando(true);
+    const r = await fetch('/api/cobro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) }).then(x => x.json()).catch(() => ({ ok: false, error: 'Sin conexión' }));
+    setGuardando(false);
+    if (!r.ok) { toast(r.error || 'No se pudo guardar', 'danger', 4000); return; }
+    toast('Datos de cobro guardados', 'ok'); setEditar(false);
+    const j = await fetch('/api/cobro').then(x => x.json()).catch(() => null); if (j?.ok) setActual(j.datos);
+  }
+  const etiqueta: Record<string, string> = { yape: 'Yape', plin: 'Plin', banco: 'Cuenta bancaria' };
+  return (
+    <div className="panel" data-testid="datos-cobro">
+      <h3>Datos de cobro (para pagarte tus ventas)</h3>
+      <p className="small muted">Aquí te depositamos lo que vendas, apenas el comprador confirme la recepción. Solo el administrador los ve; se guardan cifrados. El titular debe ser tú.</p>
+      {actual === undefined ? <p className="small muted"><span className="spinner" /> Cargando…</p> : null}
+      {actual && !editar ? <p style={{ margin: '4px 0' }}><b>{etiqueta[actual.metodo] || actual.metodo}</b>{actual.metodo === 'banco' ? <> · {actual.banco} · cuenta {actual.cuenta} · CCI {actual.cci}</> : <> · {actual.numero}</>} · titular {actual.titular} <button className="btn sm ghost" onClick={() => { setForm({ metodo: actual.metodo, titular: actual.titular, banco: actual.banco, numero: '', cuenta: '', cci: '' }); setEditar(true); }}>Cambiar</button></p> : null}
+      {actual === null && !editar ? <button className="btn primary sm" onClick={() => setEditar(true)} data-testid="btn-datos-cobro">+ Registrar datos de cobro</button> : null}
+      {editar ? (
+        <div className="stack">
+          <div className="seg">{(['yape', 'plin', 'banco'] as const).map(m => <button key={m} className={form.metodo === m ? 'active' : ''} onClick={() => setForm({ ...form, metodo: m })}>{etiqueta[m]}</button>)}</div>
+          <div className="form-grid">
+            <Campo label="Titular (tu nombre completo)">{id => <input id={id} className="input" value={form.titular} onChange={e => setForm({ ...form, titular: e.target.value })} />}</Campo>
+            {form.metodo !== 'banco' ? <Campo label={`Número de ${etiqueta[form.metodo]}`}>{id => <input id={id} className="input" inputMode="numeric" maxLength={9} value={form.numero} onChange={e => setForm({ ...form, numero: e.target.value.replace(/\D/g, '') })} />}</Campo> : (
+              <>
+                <Campo label="Banco">{id => <input id={id} className="input" value={form.banco} onChange={e => setForm({ ...form, banco: e.target.value })} placeholder="BCP, Interbank, BBVA…" />}</Campo>
+                <Campo label="Número de cuenta">{id => <input id={id} className="input" inputMode="numeric" value={form.cuenta} onChange={e => setForm({ ...form, cuenta: e.target.value.replace(/[^\d-]/g, '') })} />}</Campo>
+                <Campo label="CCI (20 dígitos)">{id => <input id={id} className="input" inputMode="numeric" maxLength={20} value={form.cci} onChange={e => setForm({ ...form, cci: e.target.value.replace(/\D/g, '') })} />}</Campo>
+              </>
+            )}
+          </div>
+          <div className="row" style={{ gap: 6 }}><button className="btn primary" disabled={guardando} onClick={guardar} data-testid="btn-guardar-cobro">{guardando ? 'Guardando…' : 'Guardar'}</button><button className="btn" onClick={() => setEditar(false)}>Cancelar</button></div>
+        </div>
+      ) : null}
     </div>
   );
 }

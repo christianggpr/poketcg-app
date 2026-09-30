@@ -42,6 +42,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="topbar-right">
           <Link className={`chip ${notif.noLeidas ? 'warn' : ''}`} href="/app/notificaciones" title="Notificaciones" data-testid="chip-notificaciones">🔔{notif.noLeidas ? ` ${notif.noLeidas}` : ''}</Link>
           {mercado.unidades ? <Link className="chip ok" href="/app/carrito" title="Carrito" data-testid="chip-carrito">🛒 {mercado.unidades}</Link> : null}
+          {perfil.rol === 'tienda' ? <Link className="chip" href="/app/tienda">🏪 Tienda</Link> : null}
           {perfil.rol === 'admin' ? <Link className="chip" href="/admin">Admin</Link> : null}
           <span className="chip" title={perfil.email}>@{perfil.username}</span>
         </div>

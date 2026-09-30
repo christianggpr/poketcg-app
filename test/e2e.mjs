@@ -48,7 +48,8 @@ page.on('console', m => { if (m.type() === 'error' && !/realtime|websocket|WebSo
 page.on('pageerror', e => erroresConsola.push('pageerror: ' + e.message));
 
 try {
-  await fetch(MOCK + '/__reset', { method: 'POST' });
+  const reset = await fetch(MOCK + '/__reset', { method: 'POST' });
+  if (!reset.ok) throw new Error('no se pudo reiniciar la base de prueba: ' + (await reset.text()));
   try { fs.unlinkSync('/tmp/mock-correos.jsonl'); } catch { /* no existe */ }
 
   // ---------- registro
@@ -562,6 +563,103 @@ try {
   await page.waitForSelector('[data-testid=verificacion-celular]:has-text("verificado ✔")');
   log('celular verificado por WhatsApp: código', codigo, '→ confirmado en /admin');
 
+  // ---------- Fase 3 · B: vendedora (fecha de entrega, datos de cobro), cuenta de tienda (recibido / retirado con código), entrega y carta a la colección
+  sql(`update auth.users set encrypted_password = 'clave-lucia', email_confirmed_at = now() where id = '${LUCIA}'`);
+  const TIENDA_USR = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  sql(`insert into auth.users (id, email, encrypted_password, email_confirmed_at, raw_user_meta_data) values ('${TIENDA_USR}', 'tienda@correo.pe', 'clave-tienda', now(), '{\"username\":\"tienda_lince\",\"nombres\":\"Tienda\",\"apellidos\":\"Lince\",\"telefono\":\"955555555\",\"dni\":\"55555555\",\"acepto_terminos\":true}')`);
+  const entrar = async (pg, usuario, clave) => { await pg.goto(APP + '/ingresar'); await pg.fill('input[autocomplete=username]', usuario); await pg.fill('input[type=password]', clave); await pg.click('button[type=submit]'); await pg.waitForURL(/\/app/, { timeout: 20000 }); await pg.waitForSelector('text=/valor estimado|colección está vacía/', { timeout: 60000 }); };
+  const ctxL = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE' });
+  const pageL = await ctxL.newPage();
+  await entrar(pageL, 'vendedora_lima', 'clave-lucia');
+  // la vendedora ve su orden con la ubicación de las cartas y elige la fecha de entrega (último día = sábado límite)
+  await pageL.goto(APP + '/app/ventas');
+  await pageL.click('[data-testid=btn-ordenes-venta]');
+  await pageL.waitForSelector('[data-testid=fila-orden-venta]');
+  await pageL.click('[data-testid=fila-orden-venta] >> nth=0');
+  await pageL.waitForSelector('[data-testid=entrega-vendedor]');
+  if (!/Caja Lucía/.test(await pageL.textContent('[data-testid=item-venta] >> nth=0'))) throw new Error('la orden no muestra dónde está la carta en la colección de la vendedora');
+  if (!(await pageL.$('[data-testid=btn-foto-entrega]'))) throw new Error('sin cuenta de tienda, la vendedora debía poder subir la foto de la entrega');
+  const opciones = await pageL.$$eval('[data-testid=select-fecha] option', els => els.map(o => o.value));
+  await pageL.selectOption('[data-testid=select-fecha]', opciones[opciones.length - 1]);
+  await pageL.click('[data-testid=btn-fecha]');
+  await pageL.waitForSelector('.toast:has-text("Fecha de entrega guardada")');
+  const ordenId = pageL.url().split('/').pop();
+  if (sql(`select fecha_entrega::text = fecha_limite::text from public.ordenes where id = '${ordenId}'`) !== 't') throw new Error('la fecha de entrega no se guardó');
+  await foto(pageL, 'vendedora-orden');
+  // datos de cobro (cifrados en el servidor)
+  await pageL.goto(APP + '/app/ajustes');
+  await pageL.click('[data-testid=btn-datos-cobro]');
+  await pageL.fill('[data-testid=datos-cobro] input.input >> nth=0', 'Lucía Torres');
+  await pageL.fill('[data-testid=datos-cobro] input.input >> nth=1', '912345678');
+  await pageL.click('[data-testid=btn-guardar-cobro]');
+  await pageL.waitForSelector('.toast:has-text("Datos de cobro guardados")');
+  await pageL.waitForSelector('[data-testid=datos-cobro]:has-text("•••••5678")');
+  if (/912345678/.test(sql(`select cifrado from public.datos_cobro where usuario_id = '${LUCIA}'`))) throw new Error('los datos de cobro no están cifrados');
+  log('vendedora: orden con ubicación (Caja Lucía), fecha de entrega = sábado límite, datos de cobro (Yape) cifrados');
+
+  // el administrador asigna la cuenta de tienda → la vendedora ya no sube foto; la tienda marca "recibido"
+  await page.goto(APP + '/admin?tab=tiendas');
+  await page.waitForSelector('[data-testid=admin-tienda]:has-text("Tienda E2E")');
+  await page.click('[data-testid=admin-tienda]:has-text("Tienda E2E") >> text=asignar cuenta');
+  await page.fill('.sheet input.input', 'tienda_lince');
+  await page.click('.sheet-foot >> text=Asignar');
+  await page.waitForSelector('.toast:has-text("atiende Tienda E2E")');
+  if (sql(`select rol from public.perfiles where id = '${TIENDA_USR}'`) !== 'tienda') throw new Error('la cuenta de tienda no recibió el rol');
+  await pageL.goto(APP + '/app/ventas/ordenes/' + ordenId);
+  await pageL.waitForSelector('[data-testid=entrega-vendedor]');
+  if (await pageL.$('[data-testid=btn-foto-entrega]')) throw new Error('con cuenta de tienda, la vendedora no debe subir la foto');
+  const ctxT = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE' });
+  const pageT = await ctxT.newPage();
+  await entrar(pageT, 'tienda_lince', 'clave-tienda');
+  await pageT.goto(APP + '/app/tienda');
+  await pageT.waitForSelector('[data-testid=orden-tienda]');
+  if (!/vendedora_lima/.test(await pageT.textContent('[data-testid=orden-tienda]')) || /987654321|912345678/.test(await pageT.textContent('body'))) throw new Error('la tienda debe ver la orden sin celulares');
+  await pageT.click('[data-testid=btn-recibido]');
+  await pageT.click('[data-testid=btn-recibido-sin-foto]');
+  await pageT.waitForSelector('.toast:has-text("recibida")');
+  if (sql(`select estado from public.ordenes where id = '${ordenId}'`) !== 'en_tienda') throw new Error('la orden no quedó en tienda');
+  const codigoRetiro = sql(`select codigo_retiro from public.ordenes where id = '${ordenId}'`);
+  await foto(pageT, 'tienda-recibido');
+  // el comprador ve su código de retiro y recibió el aviso (correo + WhatsApp pendiente)
+  await page.goto(APP + '/app/compras/' + pagoId);
+  await page.waitForSelector('[data-testid=codigo-retiro]');
+  if ((await page.textContent('[data-testid=codigo-retiro]')).trim() !== codigoRetiro) throw new Error('el código de retiro no coincide');
+  if (!(await correos()).some(c => /ya está en la tienda/.test(c.subject))) throw new Error('el comprador no recibió el correo "en tienda"');
+  await foto(page, 'compra-en-tienda');
+  log('tienda: cuenta asignada, orden recibida; el comprador ve su código', codigoRetiro);
+
+  // retiro: código incorrecto → error; correcto → entregada; las copias salen de la colección de la vendedora (publicaciones vendidas)
+  await pageT.reload();
+  await pageT.waitForSelector('[data-testid=btn-retirado]');
+  await pageT.click('[data-testid=btn-retirado]');
+  await pageT.fill('[data-testid=input-codigo-retiro]', codigoRetiro === '000000' ? '111111' : '000000');
+  await pageT.click('[data-testid=btn-confirmar-retiro]');
+  await pageT.waitForSelector('.toast:has-text("no coincide")');
+  await pageT.fill('[data-testid=input-codigo-retiro]', codigoRetiro);
+  await pageT.click('[data-testid=btn-confirmar-retiro]');
+  await pageT.waitForSelector('.toast:has-text("entregada")');
+  if (sql(`select estado || ':' || entregada_por from public.ordenes where id = '${ordenId}'`) !== 'entregada:tienda') throw new Error('la orden no quedó entregada por la tienda');
+  if (num(`select count(*) from public.entradas where usuario_id = '${LUCIA}'`) !== 0) throw new Error('las cartas vendidas siguen en la colección de la vendedora');
+  if (num(`select count(*) from public.publicaciones where usuario_id = '${LUCIA}' and estado = 'vendida'`) !== 3 || num(`select count(*) from public.mercado where vendedor_id = '${LUCIA}'`) !== 0) throw new Error('las publicaciones no quedaron vendidas');
+  if (!/118\.61/.test(sql(`select cuerpo from public.notificaciones where usuario_id = '${LUCIA}' and tipo = 'entregada' order by id desc limit 1`))) throw new Error('la vendedora no recibió el aviso de entrega con su ganancia');
+  await pageL.goto(APP + '/app/ventas/ordenes/' + ordenId);
+  await pageL.waitForSelector('[data-testid=estado-orden-venta]:has-text("Entregada")');
+  log('retiro con código: entregada por la tienda; 3 publicaciones vendidas, colección de la vendedora descontada, ganancia S/ 118.61 avisada');
+
+  // el comprador agrega una carta comprada a su colección (Caja 2) con idioma, acabado y estado ya puestos
+  await page.goto(APP + '/app/compras/' + pagoId);
+  await page.waitForSelector('[data-testid=btn-agregar-coleccion]');
+  await page.click('[data-testid=orden] .card-row:has-text("Bulbasaur") [data-testid=btn-agregar-coleccion]');
+  await page.waitForSelector('.sheet:has-text("Guardar en una caja")');
+  if ((await page.inputValue('.sheet input[type=number]')) !== '3' || (await page.inputValue('.sheet select >> nth=1')) !== 'ES') throw new Error('la hoja no vino con la cantidad e idioma de la compra');
+  await page.click('.sheet .chipbtn:has-text("Caja 2")');
+  await page.click('.sheet-foot >> text=Guardar');
+  await page.waitForSelector('.placement .where');
+  await page.click('.sheet-foot >> text=Listo');
+  if (num("select cantidad from public.entradas where carta_id = 'sv03.5-001' and usuario_id = (select id from public.perfiles where username = 'chris_tcg')") !== 3) throw new Error('la carta comprada no se agregó a la colección');
+  await ctxL.close(); await ctxT.close();
+  log('comprador: Bulbasaur ×3 agregado a Caja 2 desde la compra');
+
   // ---------- álbum automático
   await page.goto(APP + '/app/album');
   await page.waitForSelector('.album-card');
@@ -571,7 +669,7 @@ try {
   await page.waitForSelector('.album-cell');
   const total = await page.$$eval('.album-cell', els => els.length);
   const faltan = await page.$$eval('.album-cell.missing', els => els.length);
-  if (total !== 207 || faltan !== 204) throw new Error(`álbum 151: ${total} celdas, ${faltan} faltan`);   // tengo 025, 006 y 004
+  if (total !== 207 || faltan !== 204) throw new Error(`álbum 151: ${total} celdas, ${faltan} faltan`);   // álbum "sin idioma": tengo 025, 006 y 004 (la 001 comprada es ES)
   await page.click('text=Consultar el precio de las que faltan');
   await page.waitForFunction(() => /para completar/.test(document.querySelector('.stat')?.textContent || ''));
   await foto(page, 'album-151');
@@ -645,14 +743,14 @@ try {
   const resImp = await page.textContent('.notice.ok');
   const nCajas = parseInt(sql("select count(*) from public.cajas where usuario_id = (select id from public.perfiles where username = 'chris_tcg')"), 10);
   const nEnt = parseInt(sql("select count(*) from public.entradas where usuario_id = (select id from public.perfiles where username = 'chris_tcg')"), 10);
-  if (nCajas !== 3 || nEnt !== 9) throw new Error(`importación: ${nCajas} cajas, ${nEnt} entradas (${resImp})`);   // 5 propias + 4 importadas
+  if (nCajas !== 3 || nEnt !== 10) throw new Error(`importación: ${nCajas} cajas, ${nEnt} entradas (${resImp})`);   // 6 propias + 4 importadas
   await foto(page, 'ajustes');
   log('importación v1:', resImp.trim());
 
   // exportar JSON
   const [descarga] = await Promise.all([page.waitForEvent('download'), page.click('text=Exportar respaldo (.json)')]);
   const exportado = JSON.parse(fs.readFileSync(await descarga.path(), 'utf8'));
-  if (exportado.entradas.length !== 9) throw new Error('exportación incompleta');
+  if (exportado.entradas.length !== 10) throw new Error('exportación incompleta');
   log('exportación JSON:', exportado.entradas.length, 'entradas');
 
   // ---------- cerrar sesión, ingresar por usuario, recuperar contraseña

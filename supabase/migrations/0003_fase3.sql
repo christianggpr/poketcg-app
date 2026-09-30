@@ -725,3 +725,239 @@ begin
     begin alter publication supabase_realtime add table public.ordenes; exception when duplicate_object then null; end;
   end if;
 end $$;
+
+-- ----------------------------------------------------------------------------
+-- B. Vendedor y tienda: fecha de entrega, recibido en tienda, retirado con código, entrega y stock
+-- ----------------------------------------------------------------------------
+alter table public.ordenes add column if not exists recordatorios int not null default 0;
+
+-- Datos de cobro del vendedor: solo el servidor los lee/escribe (cifrados en `cifrado`); nada visible a otros usuarios
+create table if not exists public.datos_cobro (
+  usuario_id  uuid primary key references public.perfiles (id) on delete cascade,
+  metodo      text not null check (metodo in ('yape', 'plin', 'banco')),
+  titular     text not null default '',
+  banco       text not null default '',
+  cifrado     text not null,                 -- JSON {numero, cuenta, cci} cifrado por el servidor
+  actualizado timestamptz not null default now()
+);
+alter table public.datos_cobro enable row level security;
+-- (sin políticas: ni siquiera el dueño lee la tabla directamente; todo pasa por /api/cobro con service_role)
+
+-- ¿Tiene la tienda una cuenta de encargado?
+create or replace function public.tienda_con_cuenta(p_tienda uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (select 1 from public.perfiles where rol = 'tienda' and tienda_id = p_tienda);
+$$;
+
+-- Fechas en que la tienda abre entre hoy (Lima) y la fecha límite de la orden
+create or replace function public.fechas_entrega_posibles(p_orden uuid)
+returns date[]
+language plpgsql
+stable
+as $$
+declare
+  o record;
+  t record;
+  d date;
+  res date[] := '{}';
+begin
+  select * into o from public.ordenes where id = p_orden;
+  if o is null or o.fecha_limite is null then return res; end if;
+  select * into t from public.tiendas where id = o.tienda_id;
+  d := (now() at time zone 'America/Lima')::date;
+  while d <= o.fecha_limite loop
+    if t is null or extract(dow from d)::int = any(t.dias_abierto) then res := res || d; end if;
+    d := d + 1;
+  end loop;
+  return res;
+end;
+$$;
+grant execute on function public.fechas_entrega_posibles(uuid) to authenticated;
+
+-- El vendedor elige el día en que dejará la carta en la tienda (dentro del plazo y en día que abre)
+create or replace function public.elegir_fecha_entrega(p_orden uuid, p_fecha date)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  yo uuid := auth.uid();
+  o record;
+  t record;
+begin
+  select * into o from public.ordenes where id = p_orden and vendedor_id = yo for update;
+  if o is null then return jsonb_build_object('ok', false, 'error', 'La orden no existe'); end if;
+  if o.estado <> 'pago_confirmado' then return jsonb_build_object('ok', false, 'error', 'La orden ya no está pendiente de entrega'); end if;
+  if p_fecha is null or not (p_fecha = any(public.fechas_entrega_posibles(p_orden))) then return jsonb_build_object('ok', false, 'error', 'Elige un día en que la tienda abra, entre hoy y el ' || to_char(o.fecha_limite, 'DD/MM/YYYY')); end if;
+  update public.ordenes set fecha_entrega = p_fecha, actualizada = now() where id = o.id;
+  select * into t from public.tiendas where id = o.tienda_id;
+  perform public.notificar(o.comprador_id, 'fecha_entrega', 'Orden #' || o.numero || ': entrega programada', 'El vendedor dejará tus cartas en ' || coalesce(t.nombre, 'la tienda') || ' el ' || to_char(p_fecha, 'DD/MM/YYYY') || '. Te avisaremos cuando estén ahí con tu código de retiro.', '/app/compras/' || o.pago_id, jsonb_build_object('orden_id', o.id), '{app,correo}');
+  perform public.notificar(p.id, 'fecha_entrega', 'Orden #' || o.numero || ' llega el ' || to_char(p_fecha, 'DD/MM/YYYY'), 'El vendedor @' || (select username from public.perfiles where id = o.vendedor_id) || ' dejará la orden ese día.', '/tienda', jsonb_build_object('orden_id', o.id), '{app}')
+    from public.perfiles p where p.rol = 'tienda' and p.tienda_id = o.tienda_id;
+  perform public.notificar_admins('fecha_entrega', 'Orden #' || o.numero || ': entrega el ' || to_char(p_fecha, 'DD/MM/YYYY'), 'Vendedor @' || (select username from public.perfiles where id = o.vendedor_id) || ' → ' || coalesce(t.nombre, 'tienda') || '.', '/admin?tab=ordenes', jsonb_build_object('orden_id', o.id));
+  return jsonb_build_object('ok', true, 'fecha_entrega', p_fecha);
+end;
+$$;
+grant execute on function public.elegir_fecha_entrega(uuid, date) to authenticated;
+
+-- "Recibido en tienda": lo marca la cuenta de la sede (con foto) o, si la sede no tiene cuenta, el vendedor con la foto de la entrega
+create or replace function public.marcar_en_tienda(p_orden uuid, p_foto text default null)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  yo uuid := auth.uid();
+  o record;
+  t record;
+  quien text;
+begin
+  select * into o from public.ordenes where id = p_orden for update;
+  if o is null then return jsonb_build_object('ok', false, 'error', 'La orden no existe'); end if;
+  if o.estado <> 'pago_confirmado' then return jsonb_build_object('ok', false, 'error', 'La orden no está esperando entrega (' || o.estado || ')'); end if;
+  if yo is not null and (select rol from public.perfiles where id = yo) = 'tienda' and (select tienda_id from public.perfiles where id = yo) = o.tienda_id then quien := 'tienda';
+  elsif public.es_admin() or yo is null then quien := 'admin';
+  elsif yo = o.vendedor_id and not public.tienda_con_cuenta(o.tienda_id) then
+    if coalesce(p_foto, '') = '' then return jsonb_build_object('ok', false, 'error', 'Sube la foto de la carta entregada en la tienda'); end if;
+    quien := 'vendedor';
+  else return jsonb_build_object('ok', false, 'error', 'Solo la tienda puede marcar la orden como recibida'); end if;
+  update public.ordenes set estado = 'en_tienda', en_tienda_en = now(), foto_entrega_url = coalesce(nullif(p_foto, ''), foto_entrega_url), actualizada = now() where id = o.id;
+  select * into t from public.tiendas where id = o.tienda_id;
+  perform public.notificar(o.comprador_id, 'en_tienda', '¡Tu orden #' || o.numero || ' ya está en la tienda!', 'Recógela en ' || coalesce(t.nombre, 'la tienda') || case when t.direccion <> '' then ' (' || t.direccion || coalesce(', ' || nullif(t.referencia, ''), '') || ')' else '' end || case when t.horario <> '' then ' · ' || t.horario else '' end || '. Muestra tu código de retiro: ' || o.codigo_retiro || '. Cuando la tengas, marca «Entregado» en Mis compras.', '/app/compras/' || o.pago_id, jsonb_build_object('orden_id', o.id, 'codigo', o.codigo_retiro), '{app,correo,whatsapp}');
+  perform public.notificar(o.vendedor_id, 'en_tienda_vendedor', 'Orden #' || o.numero || ' recibida en la tienda', 'Gracias. Cuando el comprador la recoja, tu saldo quedará listo para pagarte.', '/app/ventas/ordenes/' || o.id, jsonb_build_object('orden_id', o.id), '{app}');
+  perform public.notificar_admins('en_tienda', 'Orden #' || o.numero || ' en tienda (' || quien || ')', coalesce(t.nombre, '') || ' · comprador @' || (select username from public.perfiles where id = o.comprador_id), '/admin?tab=ordenes', jsonb_build_object('orden_id', o.id));
+  return jsonb_build_object('ok', true, 'estado', 'en_tienda', 'por', quien);
+end;
+$$;
+grant execute on function public.marcar_en_tienda(uuid, text) to authenticated;
+
+-- Descuenta las copias entregadas del stock y de la colección del vendedor (la publicación queda 'vendida' si se agota)
+create or replace function public.descontar_entrega(p_orden uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  it record;
+  e record;
+  pubs_vendidas uuid[] := '{}';
+begin
+  perform set_config('poketcg.interno', '1', true);
+  for it in select * from public.orden_items where orden_id = p_orden loop
+    if it.publicacion_id is not null then
+      update public.publicaciones set vendidas = greatest(0, vendidas - it.cantidad) where id = it.publicacion_id;
+    end if;
+    if it.entrada_id is not null then
+      select * into e from public.entradas where id = it.entrada_id;
+      if e.id is not null then   -- (un registro con campos nulos no es "is not null")
+        if e.cantidad - it.cantidad <= 0 then
+          if it.publicacion_id is not null then
+            update public.publicaciones set entrada_id = null, estado = 'vendida', cantidad = 0, actualizada = now() where id = it.publicacion_id;
+            pubs_vendidas := pubs_vendidas || it.publicacion_id;
+          end if;
+          delete from public.entradas where id = e.id;
+        else
+          update public.entradas set cantidad = e.cantidad - it.cantidad where id = e.id;   -- el disparador ajusta la publicación
+        end if;
+      end if;
+    elsif it.publicacion_id is not null then
+      update public.publicaciones set cantidad = greatest(0, cantidad - it.cantidad) where id = it.publicacion_id;
+    end if;
+  end loop;
+  return jsonb_build_object('publicaciones_vendidas', to_jsonb(pubs_vendidas));
+end;
+$$;
+revoke all on function public.descontar_entrega(uuid) from public, anon, authenticated;
+
+-- "Entregado": lo confirma el comprador (sin código), la tienda (con el código de retiro) o la tarea diaria (automático)
+create or replace function public.marcar_entregada(p_orden uuid, p_codigo text default null, p_modo text default null)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  yo uuid := auth.uid();
+  o record;
+  quien text;
+  r jsonb;
+begin
+  select * into o from public.ordenes where id = p_orden for update;
+  if o is null then return jsonb_build_object('ok', false, 'error', 'La orden no existe'); end if;
+  if o.estado not in ('en_tienda', 'pago_confirmado') then return jsonb_build_object('ok', false, 'error', 'La orden no se puede marcar como entregada (' || o.estado || ')'); end if;
+  if yo is null and p_modo = 'automatica' then quien := 'automatica';
+  elsif yo = o.comprador_id then quien := 'comprador';
+  elsif yo is not null and (select rol from public.perfiles where id = yo) = 'tienda' and (select tienda_id from public.perfiles where id = yo) = o.tienda_id then
+    if regexp_replace(coalesce(p_codigo, ''), '\D', '', 'g') <> o.codigo_retiro then return jsonb_build_object('ok', false, 'error', 'El código de retiro no coincide'); end if;
+    quien := 'tienda';
+  elsif public.es_admin() then quien := 'admin';
+  else return jsonb_build_object('ok', false, 'error', 'Solo el comprador o la tienda pueden confirmar la entrega'); end if;
+  if o.estado = 'pago_confirmado' and quien = 'comprador' then null; end if;   -- el comprador puede confirmar aunque la tienda no haya marcado "recibido"
+  update public.ordenes set estado = 'entregada', entregada_en = now(), entregada_por = quien, actualizada = now() where id = o.id;
+  r := public.descontar_entrega(o.id);
+  perform public.notificar(o.vendedor_id, 'entregada', '¡Orden #' || o.numero || ' entregada!', 'El comprador ya tiene sus cartas. Tu ganancia de S/ ' || to_char(o.neto_vendedor, 'FM999990.00') || ' queda lista para pagarte' || case when quien = 'automatica' then ' (confirmación automática)' else '' end || '.', '/app/ventas/ordenes/' || o.id, jsonb_build_object('orden_id', o.id), '{app,correo}');
+  perform public.notificar(o.comprador_id, 'entregada_comprador', 'Orden #' || o.numero || ' entregada', case when quien = 'automatica' then 'Como no hubo reclamo en el plazo, la orden se dio por entregada.' else '¡Gracias por comprar!' end || ' Puedes agregar las cartas a tu colección desde Mis compras.', '/app/compras/' || o.pago_id, jsonb_build_object('orden_id', o.id), '{app}');
+  perform public.notificar_admins('entregada', 'Orden #' || o.numero || ' entregada (' || quien || ')', 'Vendedor @' || (select username from public.perfiles where id = o.vendedor_id) || ' · neto S/ ' || to_char(o.neto_vendedor, 'FM999990.00'), '/admin?tab=ordenes', jsonb_build_object('orden_id', o.id));
+  return jsonb_build_object('ok', true, 'estado', 'entregada', 'por', quien) || r;
+end;
+$$;
+grant execute on function public.marcar_entregada(uuid, text, text) to authenticated;
+
+-- Tarea diaria: recordatorios (día 1 y 2 en tienda), confirmación automática y órdenes vencidas
+create or replace function public.mantenimiento_ordenes()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  dias int := coalesce((public.ajustes_pagos()->>'confirmacion_dias')::int, 3);
+  hoy date := (now() at time zone 'America/Lima')::date;
+  o record;
+  it record;
+  auto int := 0; venc int := 0; rec int := 0;
+begin
+  -- confirmación automática
+  for o in select * from public.ordenes where estado = 'en_tienda' and en_tienda_en < now() - make_interval(days => dias) loop
+    perform public.marcar_entregada(o.id, null, 'automatica');
+    auto := auto + 1;
+  end loop;
+  -- recordatorios al comprador (día 1 y día 2 en tienda)
+  for o in select * from public.ordenes where estado = 'en_tienda' and recordatorios < 2 and en_tienda_en < now() - make_interval(days => recordatorios + 1) loop
+    perform public.notificar(o.comprador_id, 'recordatorio', 'Tu orden #' || o.numero || ' te espera en la tienda', 'Recógela con tu código ' || o.codigo_retiro || ' y marca «Entregado». Si no hay novedad en ' || dias || ' días, se confirma sola.', '/app/compras/' || o.pago_id, jsonb_build_object('orden_id', o.id), '{app,correo}');
+    update public.ordenes set recordatorios = recordatorios + 1 where id = o.id;
+    rec := rec + 1;
+  end loop;
+  -- vencidas: pasó la fecha límite sin dejar la carta en la tienda
+  for o in select * from public.ordenes where estado = 'pago_confirmado' and fecha_limite < hoy loop
+    update public.ordenes set estado = 'vencida', motivo = 'No se entregó en la tienda antes del ' || to_char(o.fecha_limite, 'DD/MM/YYYY'), actualizada = now() where id = o.id;
+    perform set_config('poketcg.interno', '1', true);
+    for it in select * from public.orden_items where orden_id = o.id loop
+      update public.publicaciones set vendidas = greatest(0, vendidas - it.cantidad) where id = it.publicacion_id;   -- la copia vuelve al vendedor
+    end loop;
+    perform public.notificar_admins('orden_vencida', 'Orden #' || o.numero || ' vencida: devolver S/ ' || to_char(o.subtotal, 'FM999990.00'), 'El vendedor @' || (select username from public.perfiles where id = o.vendedor_id) || ' no entregó a tiempo. Devuelve el dinero al comprador @' || (select username from public.perfiles where id = o.comprador_id) || '.', '/admin?tab=ordenes', jsonb_build_object('orden_id', o.id));
+    perform public.notificar(o.comprador_id, 'orden_vencida', 'Orden #' || o.numero || ' no se entregó a tiempo', 'El vendedor no dejó las cartas en la tienda dentro del plazo. Te devolveremos S/ ' || to_char(o.subtotal, 'FM999990.00') || ' por Yape/Plin; te escribiremos para coordinarlo.', '/app/compras/' || o.pago_id, jsonb_build_object('orden_id', o.id), '{app,correo}');
+    perform public.notificar(o.vendedor_id, 'orden_vencida_vendedor', 'Orden #' || o.numero || ' vencida', 'No se registró la entrega en la tienda antes del ' || to_char(o.fecha_limite, 'DD/MM/YYYY') || '. La venta se anuló y queda registrada la falta.', '/app/ventas/ordenes/' || o.id, jsonb_build_object('orden_id', o.id), '{app,correo}');
+    venc := venc + 1;
+  end loop;
+  return jsonb_build_object('confirmadas_auto', auto, 'recordatorios', rec, 'vencidas', venc);
+end;
+$$;
+revoke all on function public.mantenimiento_ordenes() from public, anon, authenticated;
+
+-- Fotos de entrega en tienda (públicas: son fotos de cartas en el mostrador)
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('entregas', 'entregas', true, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update set public = true, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+drop policy if exists "entregas: ver" on storage.objects;
+create policy "entregas: ver" on storage.objects for select using (bucket_id = 'entregas');
+drop policy if exists "entregas: subir" on storage.objects;
+create policy "entregas: subir" on storage.objects for insert with check (bucket_id = 'entregas' and auth.role() = 'authenticated');

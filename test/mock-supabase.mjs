@@ -398,7 +398,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/fx') return send(res, 200, { base_code: 'USD', rates: { USD: 1, PEN: 3.7, EUR: 0.9 } });
     if (url.pathname.startsWith('/realtime/')) { res.writeHead(404); return res.end(); }
     if (url.pathname === '/__reset' && req.method === 'POST') {
-      await pool.query("delete from public.tiendas where nombre <> 'TCG Center Perú'; delete from public.precios; delete from public.tareas_programadas; delete from public.mazos_arquetipos; delete from public.publicaciones; delete from public.entradas; delete from public.album_casillas; delete from public.albumes; delete from public.cajas; delete from public.perfiles; delete from auth.mock_tokens; delete from auth.mock_refresh; delete from auth.users;");
+      await pool.query("delete from public.perfiles; delete from auth.mock_tokens; delete from auth.mock_refresh; delete from auth.users; delete from public.tiendas where nombre <> 'TCG Center Perú'; delete from public.precios; delete from public.tareas_programadas; delete from public.mazos_arquetipos; delete from public.publicaciones; delete from public.entradas; delete from public.album_casillas; delete from public.albumes; delete from public.cajas;");
       objetos.clear();
       return send(res, 200, { ok: true });
     }
