@@ -104,6 +104,7 @@ alter table public.publicaciones add column if not exists idioma text not null d
 alter table public.publicaciones add column if not exists condicion text not null default '';
 alter table public.publicaciones add column if not exists precio_mercado_pen numeric(10,2);
 alter table public.publicaciones add column if not exists aviso text;   -- mensaje pendiente para el vendedor (p. ej. foto obligatoria)
+alter table public.publicaciones add column if not exists reservadas int not null default 0;   -- copias apartadas en carritos (bloque C)
 create unique index if not exists publicaciones_una_por_entrada on public.publicaciones (entrada_id) where estado in ('activa', 'pausada', 'reservada');
 create index if not exists publicaciones_mercado on public.publicaciones (estado, carta_id, precio_pen) where estado = 'activa';
 
@@ -214,6 +215,13 @@ begin
     if new.cantidad > e.cantidad then new.cantidad := e.cantidad; end if;
   end if;
   if new.carta_id is null then raise exception 'Solo se pueden publicar cartas del catálogo'; end if;
+  -- reservas (bloque C): solo las funciones del mercado tocan `reservadas`; nunca se vende menos de lo reservado
+  if tg_op = 'UPDATE' and coalesce(current_setting('poketcg.interno', true), '') <> '1' then new.reservadas := old.reservadas; end if;
+  if tg_op = 'INSERT' then new.reservadas := 0; end if;
+  if new.estado in ('pausada', 'retirada', 'vendida') then new.reservadas := 0;
+  elsif new.cantidad < new.reservadas then new.cantidad := new.reservadas; end if;
+  if new.estado = 'activa' and new.reservadas >= new.cantidad and new.reservadas > 0 then new.estado := 'reservada'; end if;
+  if new.estado = 'reservada' and new.reservadas < new.cantidad then new.estado := 'activa'; end if;
   if new.cantidad < 1 and new.estado in ('activa', 'pausada') then new.estado := 'retirada'; end if;
   new.precio_mercado_pen := public.valor_mercado_pen(new.carta_id, new.acabado);
   if new.tipo_precio = 'defecto' then
@@ -236,6 +244,23 @@ end;
 $$;
 drop trigger if exists publicaciones_preparar on public.publicaciones;
 create trigger publicaciones_preparar before insert or update on public.publicaciones for each row execute function public.preparar_publicacion();
+
+-- Si el vendedor pausa o retira, las reservas de los compradores se liberan (el carrito lo refleja).
+create or replace function public.liberar_reservas_al_retirar()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.estado in ('pausada', 'retirada', 'vendida') and old.estado in ('activa', 'reservada') then
+    update public.reservas set estado = 'liberada' where publicacion_id = new.id and estado = 'activa';
+  end if;
+  return null;
+end;
+$$;
+drop trigger if exists publicaciones_liberar_reservas on public.publicaciones;
+create trigger publicaciones_liberar_reservas after update of estado on public.publicaciones for each row execute function public.liberar_reservas_al_retirar();
 
 -- Sincroniza las publicaciones cuando cambia una entrada (cantidad, acabado, idioma, caja) y publica
 -- automáticamente lo que entra en una caja en venta.
@@ -314,13 +339,16 @@ end;
 $$;
 revoke all on function public.recalcular_publicaciones() from public, anon, authenticated;
 
--- Vista pública del mercado: solo publicaciones activas y sin datos personales (usuario, no DNI ni celular)
-create or replace view public.mercado as
-  select p.id, p.carta_id, p.cantidad, p.precio_pen, p.acabado, p.idioma, p.condicion, p.fotos, p.creada, p.actualizada,
+-- Vista pública del mercado: solo publicaciones activas con copias disponibles (cantidad − reservadas)
+-- y sin datos personales (nombre de usuario, nunca DNI, celular ni nombre real).
+drop view if exists public.mercado;
+create view public.mercado as
+  select p.id, p.carta_id, p.cantidad, p.reservadas, p.cantidad - p.reservadas as disponibles, p.precio_pen, p.tipo_precio,
+         p.precio_mercado_pen, p.acabado, p.idioma, p.condicion, p.fotos, p.creada, p.actualizada,
          u.username as vendedor, p.usuario_id as vendedor_id
     from public.publicaciones p
     join public.perfiles u on u.id = p.usuario_id
-   where p.estado = 'activa' and p.cantidad > 0;
+   where p.estado = 'activa' and p.cantidad - p.reservadas > 0;
 grant select on public.mercado to authenticated, anon;
 
 -- Fotos de publicaciones: bucket público; cada usuario sube/borra solo en su carpeta (<uid>/...)
@@ -341,5 +369,215 @@ do $$
 begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
     begin alter publication supabase_realtime add table public.publicaciones; exception when duplicate_object then null; end;
+  end if;
+end $$;
+
+-- ----------------------------------------------------------------------------
+-- C. Mercado: reservas (carrito) sin doble venta, resumen del mercado y avisos en tiempo real
+-- ----------------------------------------------------------------------------
+alter table public.publicaciones add column if not exists reservadas int not null default 0;
+
+-- Reserva = copia(s) de una publicación apartadas en el carrito de un comprador (24 h; sin pago aún)
+create table if not exists public.reservas (
+  id             uuid primary key default gen_random_uuid(),
+  publicacion_id uuid not null references public.publicaciones (id) on delete cascade,
+  comprador_id   uuid not null default auth.uid() references public.perfiles (id) on delete cascade,
+  cantidad       int not null check (cantidad > 0),
+  precio_pen     numeric(10,2) not null,
+  estado         text not null default 'activa' check (estado in ('activa', 'liberada', 'vencida', 'comprada')),
+  creada         timestamptz not null default now(),
+  expira         timestamptz not null default now() + interval '24 hours'
+);
+create index if not exists reservas_por_comprador on public.reservas (comprador_id, estado);
+create index if not exists reservas_por_publicacion on public.reservas (publicacion_id, estado);
+alter table public.reservas enable row level security;
+drop policy if exists "reservas: ver propias" on public.reservas;
+create policy "reservas: ver propias" on public.reservas for select
+  using (comprador_id = auth.uid() or exists (select 1 from public.publicaciones p where p.id = publicacion_id and p.usuario_id = auth.uid()));
+-- (sin políticas de escritura: solo se crean y liberan con reservar_copia / liberar_reserva)
+
+-- Reserva N copias de una publicación con bloqueo de fila: dos compradores nunca se llevan la misma copia.
+create or replace function public.reservar_copia(p_publicacion uuid, p_cantidad int default 1)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  yo uuid := auth.uid();
+  p record;
+  r record;
+  ocupadas int;
+  disponibles int;
+begin
+  if yo is null then return jsonb_build_object('ok', false, 'error', 'Debes iniciar sesión'); end if;
+  if p_cantidad is null or p_cantidad < 1 then return jsonb_build_object('ok', false, 'error', 'Cantidad inválida'); end if;
+  select * into p from public.publicaciones where id = p_publicacion for update;   -- bloqueo: las demás reservas esperan
+  if p is null then return jsonb_build_object('ok', false, 'error', 'La publicación ya no existe'); end if;
+  if p.usuario_id = yo then return jsonb_build_object('ok', false, 'error', 'No puedes comprar tus propias cartas'); end if;
+  if p.estado not in ('activa', 'reservada') then return jsonb_build_object('ok', false, 'error', 'La publicación no está disponible'); end if;
+  update public.reservas set estado = 'vencida' where publicacion_id = p.id and estado = 'activa' and expira < now();
+  select * into r from public.reservas where publicacion_id = p.id and comprador_id = yo and estado = 'activa';
+  select coalesce(sum(cantidad), 0) into ocupadas from public.reservas where publicacion_id = p.id and estado = 'activa' and comprador_id <> yo;
+  disponibles := p.cantidad - ocupadas;   -- lo que puedo llevarme en total (incluida mi reserva actual)
+  if p_cantidad > disponibles then
+    return jsonb_build_object('ok', false, 'error', case when disponibles <= 0 then 'Ya no quedan copias disponibles' else format('Solo quedan %s copias disponibles', disponibles) end, 'disponibles', greatest(disponibles, 0));
+  end if;
+  perform set_config('poketcg.interno', '1', true);
+  if r is null then
+    insert into public.reservas (publicacion_id, comprador_id, cantidad, precio_pen) values (p.id, yo, p_cantidad, p.precio_pen) returning * into r;
+  else
+    update public.reservas set cantidad = p_cantidad, precio_pen = p.precio_pen, expira = now() + interval '24 hours' where id = r.id returning * into r;
+  end if;
+  update public.publicaciones
+     set reservadas = ocupadas + p_cantidad,
+         estado = case when ocupadas + p_cantidad >= cantidad then 'reservada' else 'activa' end
+   where id = p.id;
+  return jsonb_build_object('ok', true, 'reserva_id', r.id, 'cantidad', r.cantidad, 'precio_pen', r.precio_pen, 'expira', r.expira, 'disponibles', p.cantidad - ocupadas - p_cantidad);
+end;
+$$;
+grant execute on function public.reservar_copia(uuid, int) to authenticated;
+
+-- Quita una reserva del carrito y devuelve las copias al mercado.
+create or replace function public.liberar_reserva(p_reserva uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  yo uuid := auth.uid();
+  pid uuid;
+  p record;
+  r record;
+  ocupadas int;
+begin
+  select publicacion_id into pid from public.reservas where id = p_reserva and comprador_id = yo and estado = 'activa';
+  if pid is null then return jsonb_build_object('ok', false, 'error', 'La reserva no existe'); end if;
+  select * into p from public.publicaciones where id = pid for update;   -- mismo orden de bloqueo que reservar_copia
+  select * into r from public.reservas where id = p_reserva and estado = 'activa' for update;
+  if r is null then return jsonb_build_object('ok', false, 'error', 'La reserva ya no está activa'); end if;
+  update public.reservas set estado = 'liberada' where id = r.id;
+  select coalesce(sum(cantidad), 0) into ocupadas from public.reservas where publicacion_id = p.id and estado = 'activa';
+  perform set_config('poketcg.interno', '1', true);
+  update public.publicaciones
+     set reservadas = ocupadas, estado = case when estado = 'reservada' and ocupadas < cantidad then 'activa' else estado end
+   where id = p.id;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+grant execute on function public.liberar_reserva(uuid) to authenticated;
+
+-- Mi carrito: mis reservas activas con los datos públicos de la publicación (también las que ya
+-- apartaron todas las copias y por eso no salen en la vista `mercado`).
+create or replace function public.mi_carrito()
+returns table (
+  id uuid, publicacion_id uuid, cantidad int, precio_pen numeric, creada timestamptz, expira timestamptz,
+  carta_id text, acabado text, idioma text, condicion text, fotos text[], vendedor text, vendedor_id uuid,
+  estado_publicacion text, precio_actual numeric, disponibles int)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select r.id, r.publicacion_id, r.cantidad, r.precio_pen, r.creada, r.expira,
+         p.carta_id, p.acabado, p.idioma, p.condicion, p.fotos, u.username, p.usuario_id, p.estado, p.precio_pen,
+         p.cantidad - p.reservadas + r.cantidad
+    from public.reservas r
+    join public.publicaciones p on p.id = r.publicacion_id
+    join public.perfiles u on u.id = p.usuario_id
+   where r.comprador_id = auth.uid() and r.estado = 'activa' and r.expira > now()
+   order by r.creada;
+$$;
+grant execute on function public.mi_carrito() to authenticated;
+
+-- Mantenimiento (tarea diaria): libera reservas vencidas y limpia avisos viejos del mercado.
+create or replace function public.mantenimiento_mercado()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  vencidas int;
+  afectadas uuid[];
+begin
+  with v as (
+    update public.reservas set estado = 'vencida' where estado = 'activa' and expira < now() returning publicacion_id
+  ) select count(*), array_agg(distinct publicacion_id) into vencidas, afectadas from v;
+  perform set_config('poketcg.interno', '1', true);
+  if afectadas is not null then
+    update public.publicaciones p
+       set reservadas = s.n,
+           estado = case when p.estado = 'reservada' and s.n < p.cantidad then 'activa' else p.estado end
+      from (select a.id, coalesce((select sum(r.cantidad) from public.reservas r where r.publicacion_id = a.id and r.estado = 'activa'), 0)::int as n
+              from unnest(afectadas) as a(id)) s
+     where p.id = s.id;
+  end if;
+  delete from public.mercado_eventos where creado < now() - interval '1 day';
+  return jsonb_build_object('reservas_vencidas', coalesce(vencidas, 0));
+end;
+$$;
+revoke all on function public.mantenimiento_mercado() from public, anon, authenticated;
+
+-- Avisos de cambios en el mercado para el tiempo real (solo la carta afectada, nada personal)
+create table if not exists public.mercado_eventos (
+  id       bigserial primary key,
+  carta_id text,
+  creado   timestamptz not null default now()
+);
+alter table public.mercado_eventos enable row level security;
+drop policy if exists "eventos: ver" on public.mercado_eventos;
+create policy "eventos: ver" on public.mercado_eventos for select using (true);
+create or replace function public.anotar_evento_mercado()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.mercado_eventos (carta_id) values (coalesce(new.carta_id, old.carta_id));
+  return null;
+end;
+$$;
+drop trigger if exists publicaciones_evento on public.publicaciones;
+create trigger publicaciones_evento after insert or update or delete on public.publicaciones for each row execute function public.anotar_evento_mercado();
+
+-- Resumen del mercado por carta (copias disponibles, precio más bajo, vendedores) con filtros y orden.
+-- p_cartas: lista de ids (la búsqueda por nombre/número/colección la hace la app con el catálogo).
+create or replace function public.mercado_resumen(
+  p_cartas text[] default null, p_set text default '', p_idioma text default '', p_acabado text default '',
+  p_condicion text default '', p_min numeric default null, p_max numeric default null,
+  p_orden text default 'novedad', p_limite int default 60, p_desde int default 0)
+returns table (carta_id text, copias bigint, precio_min numeric, precio_max numeric, vendedores text[], ofertas bigint, ultima timestamptz)
+language sql
+stable
+as $$
+  select m.carta_id, sum(m.disponibles)::bigint, min(m.precio_pen), max(m.precio_pen),
+         (array_agg(distinct m.vendedor))[1:5], count(*)::bigint, max(m.creada)
+    from public.mercado m
+    join public.cartas c on c.id = m.carta_id
+   where (p_cartas is null or m.carta_id = any(p_cartas))
+     and (coalesce(p_set, '') = '' or c.coleccion_id = p_set)
+     and (coalesce(p_idioma, '') = '' or m.idioma = p_idioma)
+     and (coalesce(p_acabado, '') = '' or m.acabado = p_acabado)
+     and (coalesce(p_condicion, '') = '' or m.condicion = p_condicion)
+     and (p_min is null or m.precio_pen >= p_min)
+     and (p_max is null or m.precio_pen <= p_max)
+   group by m.carta_id
+   order by case when p_orden = 'precio' then min(m.precio_pen) end asc,
+            case when p_orden = 'valor' then max(m.precio_pen) end desc,
+            case when p_orden = 'novedad' then max(m.creada) end desc,
+            m.carta_id
+   limit greatest(1, least(coalesce(p_limite, 60), 500)) offset greatest(0, coalesce(p_desde, 0));
+$$;
+grant execute on function public.mercado_resumen(text[], text, text, text, text, numeric, numeric, text, int, int) to authenticated, anon;
+
+-- Tiempo real: reservas (carrito) y avisos del mercado
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    begin alter publication supabase_realtime add table public.reservas; exception when duplicate_object then null; end;
+    begin alter publication supabase_realtime add table public.mercado_eventos; exception when duplicate_object then null; end;
   end if;
 end $$;

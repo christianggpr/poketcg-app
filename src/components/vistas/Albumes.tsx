@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { Carta, Coleccion } from '@/lib/catalogo';
@@ -18,6 +18,8 @@ import { LocChip } from '../Ubicacion';
 import { FilterBar, type Filtro } from '../FilterBar';
 import { usePedirPrecios } from '../Precio';
 import { Confirmar } from '../Sheet';
+import { useMercado } from '../MercadoProvider';
+import { resumenMercado, type ResumenCarta } from '@/lib/mercado';
 import { AddEntrySheet } from '../AddEntrySheet';
 import { Sheet } from '../Sheet';
 import { useToast } from '../Toast';
@@ -133,8 +135,17 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   const [idiomaNuevo, setIdiomaNuevo] = useState('ES');
   const [asignando, setAsignando] = useState(false);
   const [confirmarVenta, setConfirmarVenta] = useState(false);
+  const [enRed, setEnRed] = useState<Map<string, ResumenCarta>>(new Map());
+  const mercado = useMercado();
   const toast = useToast();
   const set = cat.coleccion(setId);
+  // Fase 2 · C: qué cartas de esta colección están en venta en la red (se actualiza en tiempo real)
+  useEffect(() => {
+    if (!set) return;
+    let vivo = true;
+    resumenMercado({ set: set.id, limite: 500, orden: 'precio' }).then(r => { if (vivo) setEnRed(new Map(r.map(x => [x.carta_id, x]))); }).catch(() => {});
+    return () => { vivo = false; };
+  }, [set, mercado.version]);
   const idioma = perfil.idioma_nombres;
   const cartas = useMemo(() => (set ? cat.cartasDe(set.id) : []), [cat, set]);
   const propias = useMemo(() => {
@@ -172,6 +183,7 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   const sinPublicar = [...propias.values()].flat().filter(e => !col.publicacionDe(e.id));
   async function ponerEnVenta() {
     setAsignando(true);
+    await precios.pedir([...new Set(sinPublicar.map(e => e.carta_id as string))]).catch(() => {});
     const n = await col.publicarVarias(sinPublicar.map(e => e.id));
     setAsignando(false);
     if (n) toast(`${n} ${n === 1 ? 'carta publicada' : 'cartas publicadas'} con el precio por defecto`, 'ok', 3500); else toast('No se publicó ninguna carta', 'danger');
@@ -206,10 +218,10 @@ export function AlbumColeccion({ setId }: { setId: string }) {
           </div>
         </div>
       ) : null}
-      {idsPropias.length ? <div className="row" style={{ gap: 6, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        {sinPublicar.length ? <button className="btn sm" disabled={asignando} onClick={() => setConfirmarVenta(true)}>🏷️ Poner en venta lo que tengo de esta colección ({sinPublicar.length})</button> : <span className="small muted">🏷️ Todo lo que tienes de esta colección está en el mercado.</span>}
-        <Link href="/app/ventas" className="btn sm ghost">Mis ventas</Link>
-      </div> : null}
+      <div className="row" style={{ gap: 6, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        {idsPropias.length ? (sinPublicar.length ? <button className="btn sm" disabled={asignando} onClick={() => setConfirmarVenta(true)}>🏷️ Poner en venta lo que tengo de esta colección ({sinPublicar.length})</button> : <span className="small muted">🏷️ Todo lo que tienes de esta colección está en el mercado.</span>) : null}
+        {idsFaltan.length ? <Link href={`/app/mercado?set=${encodeURIComponent(set.id)}&faltan=1`} className="btn sm ghost" data-testid="faltan-mercado">🛒 Buscar las que faltan en el mercado{(() => { const n = idsFaltan.filter(id => enRed.has(id)).length; return n ? ` (${n} en venta)` : ''; })()}</Link> : null}
+      </div>
       <FilterBar f={f} onChange={setF} sorts={['set', 'name', 'type', 'value', 'dex']} extra={<div className="seg"><button className={modo === 'todas' ? 'active' : ''} onClick={() => setModo('todas')}>Todas</button><button className={modo === 'tengo' ? 'active' : ''} onClick={() => setModo('tengo')}>Tengo</button><button className={modo === 'faltan' ? 'active' : ''} onClick={() => setModo('faltan')}>Faltan</button></div>} />
       <div className="album-cells">
         {lista.map(c => {
@@ -221,7 +233,7 @@ export function AlbumColeccion({ setId }: { setId: string }) {
               <div className="album-img"><Thumb carta={c} set={set} className="album" />{qty ? <span className="album-qty">×{qty}</span> : null}{es.some(e => col.publicacionDe(e.id)?.estado === 'activa') ? <span className="album-venta" title="En venta en el mercado">🏷️</span> : null}</div>
               <div className="album-num">{c.l}{c.sd ? ' · sin datos' : ''}</div>
               <div className="album-name">{nombreCarta(c, idioma)}</div>
-              <div className="album-foot">{qty ? <span className="album-loc"><LocChip loc={ubicador.ubicacion(es[0])} corto /></span> : <span className="album-miss">falta</span>}{d ? <span className={`price ${d.origen === 'piso' ? 'piso' : ''}`}>{fmtPen(d.pen)}</span> : null}</div>
+              <div className="album-foot">{qty ? <span className="album-loc"><LocChip loc={ubicador.ubicacion(es[0])} corto /></span> : enRed.get(c.id) ? <Link href={`/app/carta/${encodeURIComponent(c.id)}#mercado`} className="album-miss album-red" onClick={e => e.stopPropagation()} title="En venta en la red">🛒 {fmtPen(enRed.get(c.id)!.precio_min)}</Link> : <span className="album-miss">falta</span>}{d ? <span className={`price ${d.origen === 'piso' ? 'piso' : ''}`}>{fmtPen(d.pen)}</span> : null}</div>
             </div>
           );
         })}

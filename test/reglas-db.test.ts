@@ -14,7 +14,7 @@ pg.types.setTypeParser(1700, v => (v == null ? null : parseFloat(v)));
 pg.types.setTypeParser(20, v => (v == null ? null : parseInt(v, 10)));
 
 let pool: pg.Pool | null = null;
-const ids = { u1: '11111111-1111-4111-8111-111111111111', u2: '22222222-2222-4222-8222-222222222222' };
+const ids = { u1: '11111111-1111-4111-8111-111111111111', u2: '22222222-2222-4222-8222-222222222222', u3: '33333333-3333-4333-8333-333333333333' };
 
 async function q<T = Record<string, unknown>>(sql: string, vals: unknown[] = []): Promise<T[]> {
   const r = await pool!.query(sql, vals);
@@ -37,9 +37,12 @@ before(async () => {
   const p = new pg.Pool({ connectionString: DB, max: 4, connectionTimeoutMillis: 3000 });
   try { await p.query('select 1'); pool = p; } catch { await p.end().catch(() => {}); return; }
   // datos mínimos: dos usuarios, una colección, tres cartas, precios de mercado y tipo de cambio conocidos
-  await q(`delete from public.entradas where usuario_id in ($1, $2)`, [ids.u1, ids.u2]);
-  await q(`delete from auth.users where id in ($1, $2)`, [ids.u1, ids.u2]);
-  await q(`insert into auth.users (id, email, raw_user_meta_data) values ($1, 'prueba1@poketcg.pe', '{"username":"vendedor_1","nombres":"Ana","apellidos":"Pérez","telefono":"987654321","dni":"11111111","acepto_terminos":true}'), ($2, 'prueba2@poketcg.pe', '{"username":"comprador_2","nombres":"Beto","apellidos":"Ruiz","telefono":"987654322","dni":"22222222","acepto_terminos":true}')`, [ids.u1, ids.u2]);
+  await q(`delete from public.entradas where usuario_id in ($1, $2, $3)`, [ids.u1, ids.u2, ids.u3]);
+  await q(`delete from auth.users where id in ($1, $2, $3)`, [ids.u1, ids.u2, ids.u3]);
+  await q(`insert into auth.users (id, email, raw_user_meta_data) values
+    ($1, 'prueba1@poketcg.pe', '{"username":"vendedor_1","nombres":"Ana","apellidos":"Pérez","telefono":"987654321","dni":"11111111","acepto_terminos":true}'),
+    ($2, 'prueba2@poketcg.pe', '{"username":"comprador_2","nombres":"Beto","apellidos":"Ruiz","telefono":"987654322","dni":"22222222","acepto_terminos":true}'),
+    ($3, 'prueba3@poketcg.pe', '{"username":"comprador_3","nombres":"Caro","apellidos":"Díaz","telefono":"987654323","dni":"33333333","acepto_terminos":true}')`, [ids.u1, ids.u2, ids.u3]);
   await q(`insert into public.colecciones_tcg (id, nombre, region, total_cartas, total_impreso, fecha) values ('tst1', 'Colección de prueba', 'int', 3, 3, '2024-01-01') on conflict (id) do update set nombre = excluded.nombre`);
   await q(`insert into public.cartas (id, coleccion_id, numero, nombre, rareza, sin_datos) values
     ('tst1-1', 'tst1', '1', 'Bidoof', 'Common', false),
@@ -54,7 +57,7 @@ before(async () => {
     ('tst1-3', '{"ok":true,"tp":{"holofoil":20},"cm":null,"missing":false}', now())
     on conflict (carta_id) do update set datos = excluded.datos, actualizado_en = excluded.actualizado_en`);
 });
-after(async () => { if (pool) { await q(`delete from auth.users where id in ($1, $2)`, [ids.u1, ids.u2]); await pool.end(); } });
+after(async () => { if (pool) { await q(`delete from auth.users where id in ($1, $2, $3)`, [ids.u1, ids.u2, ids.u3]); await pool.end(); } });
 
 const soloConBase = (t: { skip: (m?: string) => void }) => { if (!pool) { t.skip('sin PostgreSQL local (ejecuta test/db/reiniciar.sh)'); return false; } return true; };
 
@@ -144,5 +147,88 @@ test('el mercado público no expone datos personales y otro usuario no toca mis 
   // pausada o retirada → desaparece del mercado
   await como(ids.u1, c => c.query(`update public.publicaciones set estado = 'retirada' where entrada_id = $1`, [ent]));
   assert.equal((await como(ids.u2, async c => (await c.query(`select 1 from public.mercado where carta_id = 'tst1-1'`)).rows)).length, 0);
+  await como(ids.u1, async c => { await c.query(`delete from public.entradas where caja_id = $1`, [caja]); await c.query(`delete from public.cajas where id = $1`, [caja]); });
+});
+
+test('reservas: dos compradores no pueden llevarse la misma copia (bloqueo de fila)', async t => {
+  if (!soloConBase(t)) return;
+  const caja = await como(ids.u1, async c => (await c.query(`insert into public.cajas (nombre, orden, en_venta) values ('Caja reservas', 4, true) returning id`)).rows[0].id as string);
+  const ent = await como(ids.u1, async c => (await c.query(`insert into public.entradas (carta_id, caja_id, cantidad, acabado, idioma) values ('tst1-1', $1, 1, 'Normal', 'ES') returning id`, [caja])).rows[0].id as string);
+  const pub = (await q<{ id: string }>(`select id from public.publicaciones where entrada_id = $1`, [ent]))[0].id;
+  // el vendedor no puede comprarse a sí mismo
+  const propia = await como(ids.u1, async c => (await c.query(`select public.reservar_copia($1, 1) as r`, [pub])).rows[0].r);
+  assert.equal(propia.ok, false); assert.match(propia.error, /propias/);
+  // carrera: u2 y u3 reservan la única copia al mismo tiempo
+  const intento = async (uid: string) => {
+    const c = await pool!.connect();
+    try {
+      await c.query('begin');
+      await c.query('set local role authenticated');
+      await c.query(`select set_config('request.jwt.claim.role', 'authenticated', true), set_config('request.jwt.claim.sub', $1, true)`, [uid]);
+      const r = (await c.query(`select public.reservar_copia($1, 1) as r`, [pub])).rows[0].r;
+      await new Promise(res => setTimeout(res, 150));   // mantiene el bloqueo un momento para que la otra transacción espere
+      await c.query('commit');
+      return r as { ok: boolean; error?: string; reserva_id?: string };
+    } finally { c.release(); }
+  };
+  const [r2, r3] = await Promise.all([intento(ids.u2), intento(ids.u3)]);
+  assert.equal([r2, r3].filter(r => r.ok).length, 1, 'exactamente una reserva debe ganar: ' + JSON.stringify([r2, r3]));
+  const perdedor = r2.ok ? r3 : r2;
+  assert.match(perdedor.error!, /no quedan/i);
+  let [p] = await q<{ reservadas: number; estado: string }>(`select reservadas, estado from public.publicaciones where id = $1`, [pub]);
+  assert.deepEqual([p.reservadas, p.estado], [1, 'reservada']);
+  assert.equal((await q(`select 1 from public.mercado where id = $1`, [pub])).length, 0, 'reservada → fuera del mercado');
+  // el que ganó la ve en su carrito; el otro no
+  const ganador = r2.ok ? ids.u2 : ids.u3, otro = r2.ok ? ids.u3 : ids.u2;
+  assert.equal((await como(ganador, async c => (await c.query(`select 1 from public.reservas where publicacion_id = $1 and estado = 'activa'`, [pub])).rows)).length, 1);
+  assert.equal((await como(otro, async c => (await c.query(`select 1 from public.reservas where publicacion_id = $1`, [pub])).rows)).length, 0);
+  // el vendedor no puede "liberar" reservadas a mano
+  await como(ids.u1, c => c.query(`update public.publicaciones set reservadas = 0 where id = $1`, [pub]));
+  [p] = await q(`select reservadas, estado from public.publicaciones where id = $1`, [pub]);
+  assert.deepEqual([p.reservadas, p.estado], [1, 'reservada']);
+  // liberar → vuelve al mercado
+  const reservaId = (r2.ok ? r2 : r3).reserva_id!;
+  const lib = await como(ganador, async c => (await c.query(`select public.liberar_reserva($1) as r`, [reservaId])).rows[0].r);
+  assert.equal(lib.ok, true);
+  [p] = await q(`select reservadas, estado from public.publicaciones where id = $1`, [pub]);
+  assert.deepEqual([p.reservadas, p.estado], [0, 'activa']);
+  assert.equal((await q(`select 1 from public.mercado where id = $1`, [pub])).length, 1);
+  await como(ids.u1, async c => { await c.query(`delete from public.entradas where caja_id = $1`, [caja]); await c.query(`delete from public.cajas where id = $1`, [caja]); });
+});
+
+test('reservas: cantidades parciales, vencimiento y retiro del vendedor', async t => {
+  if (!soloConBase(t)) return;
+  const caja = await como(ids.u1, async c => (await c.query(`insert into public.cajas (nombre, orden, en_venta) values ('Caja reservas 2', 5, true) returning id`)).rows[0].id as string);
+  const ent = await como(ids.u1, async c => (await c.query(`insert into public.entradas (carta_id, caja_id, cantidad, acabado, idioma) values ('tst1-1', $1, 3, 'Normal', 'ES') returning id`, [caja])).rows[0].id as string);
+  const pub = (await q<{ id: string }>(`select id from public.publicaciones where entrada_id = $1`, [ent]))[0].id;
+  const r2 = await como(ids.u2, async c => (await c.query(`select public.reservar_copia($1, 2) as r`, [pub])).rows[0].r);
+  assert.deepEqual([r2.ok, r2.disponibles], [true, 1]);
+  assert.equal((await q<{ disponibles: number }>(`select disponibles from public.mercado where id = $1`, [pub]))[0].disponibles, 1);
+  const r3 = await como(ids.u3, async c => (await c.query(`select public.reservar_copia($1, 2) as r`, [pub])).rows[0].r);
+  assert.equal(r3.ok, false); assert.match(r3.error, /Solo quedan 1/);
+  // el mismo comprador ajusta su reserva (2 → 1) y no duplica filas
+  const r2b = await como(ids.u2, async c => (await c.query(`select public.reservar_copia($1, 1) as r`, [pub])).rows[0].r);
+  assert.deepEqual([r2b.ok, r2b.reserva_id, r2b.disponibles], [true, r2.reserva_id, 2]);
+  assert.equal((await q(`select 1 from public.reservas where publicacion_id = $1 and estado = 'activa'`, [pub])).length, 1);
+  // resumen del mercado: copias disponibles y vendedores
+  const res = await como(ids.u3, async c => (await c.query(`select * from public.mercado_resumen(p_cartas := array['tst1-1'])`)).rows[0]);
+  assert.equal(res.copias, 2); assert.deepEqual(res.vendedores, ['vendedor_1']); assert.equal(res.precio_min, 1);
+  // vencimiento: la tarea diaria libera lo vencido
+  await q(`update public.reservas set expira = now() - interval '1 minute' where id = $1`, [r2.reserva_id]);
+  const m = (await q<{ mantenimiento_mercado: { reservas_vencidas: number } }>(`select public.mantenimiento_mercado()`))[0].mantenimiento_mercado;
+  assert.ok(m.reservas_vencidas >= 1);
+  assert.equal((await q<{ reservadas: number }>(`select reservadas from public.publicaciones where id = $1`, [pub]))[0].reservadas, 0);
+  // el vendedor retira → las reservas activas se liberan
+  const r3b = await como(ids.u3, async c => (await c.query(`select public.reservar_copia($1, 3) as r`, [pub])).rows[0].r);
+  assert.equal(r3b.ok, true);
+  assert.equal((await q<{ estado: string }>(`select estado from public.publicaciones where id = $1`, [pub]))[0].estado, 'reservada');
+  await como(ids.u1, c => c.query(`update public.publicaciones set estado = 'retirada' where id = $1`, [pub]));
+  assert.equal((await q<{ estado: string }>(`select estado from public.reservas where id = $1`, [r3b.reserva_id]))[0].estado, 'liberada');
+  // el vendedor no puede bajar la cantidad por debajo de lo reservado
+  const ent2 = await como(ids.u1, async c => (await c.query(`insert into public.entradas (carta_id, caja_id, cantidad, acabado, idioma) values ('tst1-2', $1, 2, 'Holo', 'EN') returning id`, [caja])).rows[0].id as string);
+  const pub2 = (await q<{ id: string }>(`select id from public.publicaciones where entrada_id = $1`, [ent2]))[0].id;
+  await como(ids.u2, c => c.query(`select public.reservar_copia($1, 2)`, [pub2]));
+  await como(ids.u1, c => c.query(`update public.publicaciones set cantidad = 1 where id = $1`, [pub2]));
+  assert.equal((await q<{ cantidad: number }>(`select cantidad from public.publicaciones where id = $1`, [pub2]))[0].cantidad, 2);
   await como(ids.u1, async c => { await c.query(`delete from public.entradas where caja_id = $1`, [caja]); await c.query(`delete from public.cajas where id = $1`, [caja]); });
 });

@@ -15,6 +15,7 @@ import { LocChip } from '../Ubicacion';
 import { AddEntrySheet } from '../AddEntrySheet';
 import { EntryDetailSheet } from '../EntryDetailSheet';
 import { EstadoPub } from '../PublicarSheet';
+import { OfertasCarta } from '../OfertasCarta';
 import { haceCuanto } from '../ui';
 
 export function CartaDetalle({ id }: { id: string }) {
@@ -83,6 +84,7 @@ export function CartaDetalle({ id }: { id: string }) {
             ) : <p className="muted">Todavía no la tienes.</p>}
             <button className="btn primary" style={{ marginTop: 8 }} onClick={() => setAgregar(true)}>+ Guardar en una caja</button>
           </div>
+          {!carta.sd ? <div className="bloque" id="mercado"><OfertasCarta carta={carta} /></div> : null}
         </div>
       </div>
       {agregar ? <AddEntrySheet carta={carta} onClose={() => setAgregar(false)} /> : null}

@@ -169,6 +169,8 @@ export function CajaDetalle({ id }: { id: string }) {
   const selRetirar = [...sel].map(id => col.publicacionDe(id)).filter((p): p is NonNullable<typeof p> => !!p);
   async function cambiarVenta(v: boolean) {
     setOcupado(true);
+    // los precios de mercado se descargan antes para que el precio por defecto no quede en el piso
+    if (v) await precios.pedir([...new Set(publicables.map(e => e.carta_id!))]).catch(() => {});
     const ok = await col.editarCaja(caja!.id, { en_venta: v, preguntar_venta: false });
     setOcupado(false);
     if (!ok) { toast('No se pudo cambiar', 'danger'); return; }
@@ -177,6 +179,7 @@ export function CajaDetalle({ id }: { id: string }) {
   }
   async function publicarSeleccion() {
     setOcupado(true);
+    await precios.pedir([...new Set(selPublicar.map(id => entradasCaja.find(e => e.id === id)?.carta_id).filter((x): x is string => !!x))]).catch(() => {});
     const n = await col.publicarVarias(selPublicar);
     setOcupado(false);
     if (n) { toast(`${n} ${n === 1 ? 'carta publicada' : 'cartas publicadas'} con el precio por defecto`, 'ok', 3500); setSel(new Set()); setElegir(false); }

@@ -7,6 +7,7 @@ import { cajasOrdenadas, type Entrada, type Personalizada } from '@/lib/coleccio
 import { useCatalogo } from './CatalogoProvider';
 import { useColeccion } from './ColeccionProvider';
 import { usePerfil } from './PerfilProvider';
+import { usePrecios } from './PreciosProvider';
 import { useUbicador } from './useUbicador';
 import { Sheet } from './Sheet';
 import { Thumb } from './Thumb';
@@ -23,6 +24,7 @@ export function AddEntrySheet({ carta, personalizada, idiomaInicial, cajaInicial
   const cat = useCatalogo();
   const col = useColeccion();
   const { perfil } = usePerfil();
+  const precios = usePrecios();
   const ubicador = useUbicador();
   const toast = useToast();
   const cajas = cajasOrdenadas(col.cajas);
@@ -65,12 +67,14 @@ export function AddEntrySheet({ carta, personalizada, idiomaInicial, cajaInicial
     const todas = async () => {
       if (!cajaRes) return;
       setOcupado(true);
+      await precios.pedir([...new Set(col.entradas.filter(e => e.caja_id === cajaRes.id && e.carta_id).map(e => e.carta_id as string))]).catch(() => {});
       const ok = await col.editarCaja(cajaRes.id, { en_venta: true });
       setOcupado(false);
       if (ok) toast('Caja en venta: sus cartas se publicaron con el precio por defecto', 'ok', 3500); else toast('No se pudo activar la venta', 'danger');
     };
     const soloEsta = async () => {
       setOcupado(true);
+      if (carta) await precios.pedir([carta.id]).catch(() => {});
       const r = await col.publicar(entradaRes.id);
       setOcupado(false);
       if (!r) { toast('No se pudo publicar', 'danger'); return; }

@@ -20,7 +20,7 @@ fs.mkdirSync(CAPTURAS, { recursive: true });
 let paso = 0;
 const log = (...a) => console.log(`[${++paso}]`, ...a);
 async function foto(page, nombre) { await page.screenshot({ path: path.join(CAPTURAS, `${String(paso).padStart(2, '0')}-${nombre}.png`), fullPage: false }); }
-const sql = q => execSync(`su postgres -c "psql -At -d poketcg_test -c \\"${q.replace(/"/g, '\\"')}\\""`).toString().trim();
+const sql = q => { fs.writeFileSync('/tmp/e2e-consulta.sql', q); return execSync('su postgres -c "psql -At -q -d poketcg_test -f /tmp/e2e-consulta.sql"').toString().trim(); };
 const correos = async () => (await fetch(MOCK + '/__correos')).json();
 const num = q => parseInt(sql(q), 10);
 /** PNG mínimo (w×h, un color) para simular la foto de una carta. */
@@ -317,6 +317,100 @@ try {
   if (num("select count(*) from public.publicaciones where carta_id = 'sv03.5-001'") !== 0) throw new Error('la publicación no se borró con la entrada');
   log('entrada eliminada → publicación eliminada');
 
+  // ---------- Fase 2 · C: mercado, carrito y reservas
+  // Otra coleccionista (creada directo en la base) pone una caja en venta: Bulbasaur ×3, Charmander reverse ×1, Caterpie ×2
+  const LUCIA = '44444444-4444-4444-8444-444444444444', CAJA_LUCIA = '55555555-5555-4555-8555-555555555555';
+  sql(`insert into auth.users (id, email, raw_user_meta_data) values ('${LUCIA}', 'vendedora@correo.pe', '{\"username\":\"vendedora_lima\",\"nombres\":\"Lucía\",\"apellidos\":\"Torres\",\"telefono\":\"912345678\",\"dni\":\"87654321\",\"acepto_terminos\":true}')`);
+  sql(`insert into public.cajas (id, usuario_id, nombre, orden) values ('${CAJA_LUCIA}', '${LUCIA}', 'Caja Lucía', 1)`);
+  sql(`insert into public.entradas (usuario_id, caja_id, carta_id, cantidad, acabado, idioma, condicion) values ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-001', 3, 'Normal', 'ES', 'Buena'), ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-004', 1, 'Reverse', 'EN', ''), ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-010', 2, '', 'ES', '')`);
+  sql(`update public.cajas set en_venta = true where id = '${CAJA_LUCIA}'`);
+  if (num(`select count(*) from public.publicaciones where usuario_id = '${LUCIA}' and estado = 'activa'`) !== 3) throw new Error('la caja de Lucía no se publicó');
+  // pestaña Mercado: lista, búsqueda, filtros
+  await page.goto(APP + '/app/mercado');
+  await page.waitForSelector('[data-testid=fila-mercado]');
+  if ((await page.$$('[data-testid=fila-mercado]')).length !== 3) throw new Error('el mercado debía listar 3 cartas');
+  await foto(page, 'mercado');
+  await page.fill('.search-wrap input', 'caterpie');
+  await page.waitForFunction(() => document.querySelectorAll('[data-testid=fila-mercado]').length === 1, null, { timeout: 15000 });
+  const filaCat = await page.textContent('[data-testid=fila-mercado]');
+  // Caterpie nunca se consultó en TCGdex: sin precio en caché el precio por defecto es el piso (S/ 1.00); la tarea diaria lo renueva
+  if (!/@vendedora_lima/.test(filaCat) || !/S\/ 1\.00/.test(filaCat) || !/2 copias/.test(filaCat)) throw new Error('fila del mercado inesperada: ' + filaCat);
+  await page.fill('.search-wrap input', '');
+  await page.waitForFunction(() => document.querySelectorAll('[data-testid=fila-mercado]').length === 3, null, { timeout: 15000 });
+  await page.click('button:has-text("Filtros")');
+  await page.selectOption('[data-testid=filtros-mercado] select >> nth=2', 'Reverse');
+  await page.waitForFunction(() => document.querySelectorAll('[data-testid=fila-mercado]').length === 1, null, { timeout: 15000 });
+  if (!/Charmander/.test(await page.textContent('[data-testid=fila-mercado]'))) throw new Error('el filtro de acabado no funcionó');
+  await page.click('text=Limpiar filtros');
+  await page.waitForFunction(() => document.querySelectorAll('[data-testid=fila-mercado]').length === 3, null, { timeout: 15000 });
+  await page.check('label:has-text("Solo las que me faltan") input');
+  await page.waitForFunction(() => document.querySelectorAll('[data-testid=fila-mercado]').length === 2, null, { timeout: 15000 });   // Charmander ya la tengo
+  await page.uncheck('label:has-text("Solo las que me faltan") input');
+  log('mercado: 3 cartas en venta; búsqueda, filtro por acabado y "solo las que me faltan" OK');
+
+  // detalle de la carta: "Disponible en la red" y agregar 2 copias al carrito
+  await page.click('[data-testid=fila-mercado]:has-text("Bulbasaur")');
+  await page.waitForSelector('[data-testid=resumen-ofertas]');
+  const resumenOf = await page.textContent('[data-testid=resumen-ofertas]');
+  if (!/3 copias desde S\/ 15\.06/.test(resumenOf)) throw new Error('resumen de ofertas inesperado: ' + resumenOf);
+  await page.click('[data-testid=oferta] .stepper button >> nth=1');   // 1 → 2
+  await page.click('[data-testid=btn-agregar]');
+  await page.waitForSelector('.toast:has-text("Reservada en tu carrito (2 copias)")');
+  await page.waitForSelector('[data-testid=chip-carrito]:has-text("2")');
+  if (num(`select reservadas from public.publicaciones where usuario_id = '${LUCIA}' and carta_id = 'sv03.5-001'`) !== 2) throw new Error('la reserva no descontó copias');
+  if (num(`select disponibles from public.mercado where carta_id = 'sv03.5-001'`) !== 1) throw new Error('el mercado no muestra 1 copia disponible');
+  await foto(page, 'ofertas-carta');
+  log('detalle: 3 copias desde S/ 15.06 → 2 reservadas en el carrito (queda 1 en el mercado)');
+
+  // carrito: total, Comprar = Próximamente, subir a 3 → la publicación queda reservada y sale del mercado
+  await page.goto(APP + '/app/carrito');
+  await page.waitForSelector('[data-testid=linea-carrito]');
+  if ((await page.textContent('[data-testid=total-carrito]')) !== 'S/ 30.12') throw new Error('total del carrito incorrecto: ' + await page.textContent('[data-testid=total-carrito]'));
+  await page.click('button:has-text("Comprar")');
+  await page.waitForSelector('text=Próximamente');
+  await page.click('[data-testid=linea-carrito] .stepper button >> nth=1');   // 2 → 3
+  await page.waitForFunction(() => document.querySelector('[data-testid=total-carrito]')?.textContent === 'S/ 45.18', null, { timeout: 15000 });
+  if (sql(`select estado || ':' || reservadas from public.publicaciones where usuario_id = '${LUCIA}' and carta_id = 'sv03.5-001'`) !== 'reservada:3') throw new Error('con todas las copias apartadas debía quedar reservada');
+  if (num(`select count(*) from public.mercado where carta_id = 'sv03.5-001'`) !== 0) throw new Error('una publicación reservada no debe salir en el mercado');
+  await foto(page, 'carrito');
+  // otro comprador no puede reservar lo que ya está apartado (misma función que usa la app)
+  sql(`insert into auth.users (id, email, raw_user_meta_data) values ('66666666-6666-4666-8666-666666666666', 'otro@correo.pe', '{\"username\":\"otro_comprador\",\"acepto_terminos\":true}')`);
+  const pubBulbasaur = sql(`select id from public.publicaciones where usuario_id = '${LUCIA}' and carta_id = 'sv03.5-001'`);
+  const intento = sql(`set role authenticated; select set_config('request.jwt.claim.sub', '66666666-6666-4666-8666-666666666666', false); select public.reservar_copia('${pubBulbasaur}', 1)`);
+  if (!/no quedan copias/i.test(intento)) throw new Error('otro comprador pudo reservar copias ya apartadas: ' + intento);
+  await page.click('[data-testid=linea-carrito] .stepper button >> nth=0');   // 3 → 2
+  await page.waitForFunction(() => document.querySelector('[data-testid=total-carrito]')?.textContent === 'S/ 30.12', null, { timeout: 15000 });
+  if (sql(`select estado || ':' || reservadas from public.publicaciones where usuario_id = '${LUCIA}' and carta_id = 'sv03.5-001'`) !== 'activa:2') throw new Error('al bajar la cantidad debía volver a activa');
+  log('carrito: total S/ 30.12, "Comprar" = Próximamente, 3 copias → reservada (otro comprador rechazado), 2 → activa');
+
+  // mis propias publicaciones no se pueden comprar: publico mi Charmander desde Caja 2 (elegir cuáles)
+  await page.goto(APP + `/app/cajas/${sql("select id from public.cajas where nombre = 'Caja 2'")}?elegir=1`);
+  await page.waitForSelector('[data-testid=barra-seleccion]');
+  await page.click('.entry-row:has-text("004/165")');
+  await page.click('[data-testid=barra-seleccion] button:has-text("Publicar 1")');
+  await page.waitForSelector('.toast:has-text("1 carta publicada")');
+  await page.goto(APP + '/app/carta/sv03.5-004');
+  await page.waitForFunction(() => document.querySelectorAll('[data-testid=oferta]').length === 2, null, { timeout: 15000 });
+  const mias = await page.$$eval('[data-testid=oferta]', els => els.map(e => ({ mia: /tu publicación/.test(e.textContent), boton: !!e.querySelector('[data-testid=btn-agregar]') })));
+  if (!mias.some(m => m.mia && !m.boton) || !mias.some(m => !m.mia && m.boton)) throw new Error('la oferta propia no debe tener botón de compra: ' + JSON.stringify(mias));
+  await foto(page, 'oferta-propia');
+  log('detalle de Charmander: mi oferta sin botón de compra, la de @vendedora_lima con botón');
+
+  // quitar del carrito → las copias vuelven al mercado
+  await page.goto(APP + '/app/carrito');
+  await page.waitForSelector('[data-testid=linea-carrito]');
+  await page.click('[data-testid=linea-carrito] button:has-text("Quitar")');
+  await page.waitForSelector('text=Tu carrito está vacío');
+  if (num(`select reservadas from public.publicaciones where usuario_id = '${LUCIA}' and carta_id = 'sv03.5-001'`) !== 0) throw new Error('quitar del carrito no liberó las copias');
+  // álbum: las que faltan y están en venta muestran "🛒 precio"
+  await page.goto(APP + '/app/album/sv03.5');
+  await page.waitForSelector('.album-red', { timeout: 20000 });
+  const enRed = await page.$$eval('.album-red', els => els.map(e => e.textContent.trim()));
+  if (enRed.length !== 2 || !enRed.every(t => /🛒 S\/ /.test(t))) throw new Error('las casillas que faltan no muestran el mercado: ' + enRed.join(' | '));   // Bulbasaur y Caterpie (Charmander la tengo)
+  if (!/2 en venta/.test(await page.textContent('[data-testid=faltan-mercado]'))) throw new Error('el botón "las que faltan" no cuenta las ofertas');
+  await foto(page, 'album-mercado');
+  log('carrito vaciado (copias liberadas); álbum 151 marca 2 faltantes en venta');
+
   // ---------- álbum automático
   await page.goto(APP + '/app/album');
   await page.waitForSelector('.album-card');
@@ -377,8 +471,8 @@ try {
   await page.click('text=Combinar (añadir a lo que ya tengo)');
   await page.waitForSelector('text=Importación terminada', { timeout: 30000 });
   const resImp = await page.textContent('.notice.ok');
-  const nCajas = parseInt(sql('select count(*) from public.cajas'), 10);
-  const nEnt = parseInt(sql('select count(*) from public.entradas'), 10);
+  const nCajas = parseInt(sql("select count(*) from public.cajas where usuario_id = (select id from public.perfiles where username = 'chris_tcg')"), 10);
+  const nEnt = parseInt(sql("select count(*) from public.entradas where usuario_id = (select id from public.perfiles where username = 'chris_tcg')"), 10);
   if (nCajas !== 3 || nEnt !== 9) throw new Error(`importación: ${nCajas} cajas, ${nEnt} entradas (${resImp})`);   // 5 propias + 4 importadas
   await foto(page, 'ajustes');
   log('importación v1:', resImp.trim());

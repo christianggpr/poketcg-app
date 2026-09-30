@@ -85,8 +85,17 @@ export async function tick(admin: SupabaseClient, presupuestoMs = 50000, opts: {
       const { data, error } = await admin.rpc('recalcular_publicaciones');
       if (error && !/function .* does not exist/i.test(error.message)) throw new Error('recalcular_publicaciones: ' + error.message);
       if (!error) (detalle as Record<string, unknown>).publicaciones = data;
-      detalle.fase = 'fin';
+      detalle.fase = 'mercado';
       hecho.push('publicaciones recalculadas');
+      await guardar();
+    }
+    // 6) mercado (Fase 2 · C): reservas vencidas liberadas y avisos viejos borrados
+    if (detalle.fase === 'mercado' && quedaTiempo()) {
+      const { data, error } = await admin.rpc('mantenimiento_mercado');
+      if (error && !/function .* does not exist/i.test(error.message)) throw new Error('mantenimiento_mercado: ' + error.message);
+      if (!error) (detalle as Record<string, unknown>).mercado = data;
+      detalle.fase = 'fin';
+      hecho.push('mercado: reservas vencidas liberadas');
       await guardar();
     }
     if (detalle.fase === 'fin') {

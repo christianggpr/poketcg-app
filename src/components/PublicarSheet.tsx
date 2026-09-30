@@ -57,6 +57,7 @@ export function PublicarSheet({ entrada, onClose }: { entrada: Entrada; onClose:
   async function guardar() {
     if (tipo === 'manual' && (!isFinite(precioManual) || precioManual < 0.5)) { toast('El precio manual mínimo es S/ 0.50', 'danger'); return; }
     setGuardando(true);
+    if (carta) await precios.pedir([carta.id]).catch(() => {});
     const r = pub
       ? await col.editarPublicacion(pub.id, { cantidad, tipo_precio: tipo, precio_pen: tipo === 'manual' ? redondear(precioManual) : 0, estado: pub.estado === 'pausada' && pub.motivo_pausa !== 'foto' ? 'pausada' : 'activa' })
       : await col.publicar(entrada.id, { cantidad, tipo_precio: tipo, precio_pen: tipo === 'manual' ? redondear(precioManual) : 0 });
