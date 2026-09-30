@@ -527,3 +527,10 @@ textarea.input { min-height: 64px; resize: vertical; }
 .bloque > h3 { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 0 0 8px; }
 .bloque > h3 .count { color: var(--fg-muted); font-size: 13px; font-weight: 600; white-space: nowrap; }
 .binder-toolbar select.input { flex: 0 1 160px; min-width: 120px; }
+.price.piso { opacity: .8; }
+.tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tabla th, .tabla td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tabla th { color: var(--fg-muted); font-weight: 600; }
+.estado-ok { color: var(--ok); font-weight: 700; }
+.estado-error { color: var(--danger); font-weight: 700; }
+.estado-en_curso { color: var(--warn); font-weight: 700; }

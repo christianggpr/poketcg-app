@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { cardTypeIcon, cardTypeLabel, nombreCarta, nombreColeccion, numLabel, rarezaLabel, urlImagenGrande } from '@/lib/catalogo';
 import type { Entrada } from '@/lib/coleccion';
-import { fmtUsd } from '@/lib/precios-core';
+import { fmtPen, fmtUsd } from '@/lib/precios-core';
 import { useCatalogo } from '../CatalogoProvider';
 import { useColeccion } from '../ColeccionProvider';
 import { usePerfil } from '../PerfilProvider';
@@ -32,6 +32,8 @@ export function CartaDetalle({ id }: { id: string }) {
   const propias = col.entradas.filter(e => e.carta_id === carta.id);
   const rec = precios.registro(carta.id);
   const v = precios.valor(carta, '');
+  const defecto = precios.precioDefecto(carta, '');
+  const fx = precios.ajustes.fx;
   const grande = urlImagenGrande(carta, set);
   const especie = carta.dex && carta.dex.length ? cat.especie(carta.dex[0]) : undefined;
 
@@ -59,8 +61,9 @@ export function CartaDetalle({ id }: { id: string }) {
           <div className="bloque">
             <h3><span>Precio de mercado</span></h3>
             {v ? (
-              <div className="finishes">{v.finishes.map(f => <span key={f.k} className="pill">{f.label} <b>{fmtUsd(f.usd)}</b></span>)}<span className="small muted">Fuente: {v.src}{v.src === 'Cardmarket' ? ' (EUR convertido)' : ''}</span></div>
-            ) : rec ? <p className="small muted">Sin precio publicado para esta carta.</p> : <p className="small muted">Consultando…</p>}
+              <div className="finishes">{v.finishes.map(f => { const esCm = v.src === 'Cardmarket'; const eur = esCm ? f.usd / (precios.fx || 1) : null; const pen = esCm ? (eur as number) * fx.eur_pen : f.usd * fx.usd_pen; return <span key={f.k} className="pill">{f.label} <b>{fmtPen(pen)}</b> <span className="faint">{esCm ? `€${(eur as number).toFixed(2)}` : fmtUsd(f.usd)}</span></span>; })}<span className="small muted">Fuente: {v.src} · cambio {v.src === 'Cardmarket' ? `€1 = S/ ${fx.eur_pen.toFixed(3)}` : `US$1 = S/ ${fx.usd_pen.toFixed(3)}`}</span></div>
+            ) : rec ? <p className="small muted">Sin precio de mercado para esta carta{carta.sinTcgdex ? ' (no está en TCGdex)' : ''}.</p> : <p className="small muted">Consultando…</p>}
+            <p className="small" style={{ marginTop: 6 }}>Precio por defecto en el mercado PokéTCG: <b>{fmtPen(defecto.pen)}</b> <span className="muted">({defecto.origen === 'piso' ? `piso de ${fmtPen(defecto.piso)}` : 'valor de mercado'}; con acabado reverse/holo el piso es {fmtPen(precios.ajustes.pisos.especial)})</span></p>
           </div>
           <div className="bloque">
             <h3><span>En tu colección</span><span className="count">{propias.reduce((n, e) => n + e.cantidad, 0)}</span></h3>
@@ -72,7 +75,7 @@ export function CartaDetalle({ id }: { id: string }) {
                       <div className="card-name">×{e.cantidad} {e.acabado ? <span className="pill">{e.acabado}</span> : null} {e.idioma ? <span className="pill">{e.idioma}</span> : null} {e.condicion ? <span className="pill">{e.condicion}</span> : null}</div>
                       <div className="card-set"><LocChip loc={ubicador.ubicacion(e)} /> <span className="faint">· añadida {haceCuanto(e.creado_en)}</span>{e.nota ? <div className="small muted">{e.nota}</div> : null}</div>
                     </div>
-                    <div className="card-side">{(() => { const vv = precios.valor(carta, e.acabado); return vv ? <span className="price">{fmtUsd(vv.usd * e.cantidad)}</span> : null; })()}</div>
+                    <div className="card-side">{(() => { const dd = precios.precioDefecto(carta, e.acabado); return <span className={`price ${dd.origen === 'piso' ? 'piso' : ''}`}>{fmtPen(dd.pen * e.cantidad)}</span>; })()}</div>
                   </div>
                 ))}
               </div>

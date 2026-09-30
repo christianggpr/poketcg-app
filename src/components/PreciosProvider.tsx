@@ -1,13 +1,16 @@
 'use client';
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { Carta } from '@/lib/catalogo';
-import { FX_FALLBACK, valorDe, type RegistroPrecio, type Valor } from '@/lib/precios-core';
+import { AJUSTES_POR_DEFECTO, FX_FALLBACK, precioDefectoPen, valorDe, valorMercadoPen, type Ajustes, type PrecioDefecto, type RegistroPrecio, type Valor, type ValorPen } from '@/lib/precios-core';
 
 type Ctx = {
   version: number;
-  fx: number;
+  fx: number;                 // USD por EUR (compatibilidad)
+  ajustes: Ajustes;           // tipo de cambio a soles, pisos y comisión
   registro: (id: string) => RegistroPrecio | undefined;
-  valor: (carta: Carta | null | undefined, acabado: string) => Valor | null;
+  valor: (carta: Carta | null | undefined, acabado: string) => Valor | null;              // en dólares
+  valorPen: (carta: Carta | null | undefined, acabado: string) => ValorPen | null;        // mercado en soles
+  precioDefecto: (carta: Carta | null | undefined, acabado: string) => PrecioDefecto;     // máx(piso, mercado)
   pedir: (ids: string[], forzar?: boolean) => Promise<void>;
   cargando: boolean;
 };
@@ -18,8 +21,8 @@ export function PreciosProvider({ children }: { children: React.ReactNode }) {
   const pedidos = useRef(new Set<string>());
   const [version, setVersion] = useState(0);
   const [fx, setFx] = useState(FX_FALLBACK);
+  const [ajustes, setAjustes] = useState<Ajustes>(AJUSTES_POR_DEFECTO);
   const [cargando, setCargando] = useState(false);
-
   const cola = useRef(new Set<string>());
   const colaForzar = useRef(false);
   const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -42,6 +45,7 @@ export function PreciosProvider({ children }: { children: React.ReactNode }) {
         if (j && j.ok) {
           for (const rec of j.registros as RegistroPrecio[]) cache.current.set(rec.id, rec);
           if (j.fx) setFx(j.fx);
+          if (j.ajustes) setAjustes(j.ajustes);
           setVersion(v => v + 1);
         }
       }
@@ -64,11 +68,19 @@ export function PreciosProvider({ children }: { children: React.ReactNode }) {
     });
   }, [vaciar]);
 
+  // Ajustes (tipo de cambio, pisos, comisión) desde el inicio, aunque aún no se pidan precios
+  useEffect(() => {
+    fetch('/api/precios', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [] }) })
+      .then(r => r.json()).then(j => { if (j && j.ok && j.ajustes) { setAjustes(j.ajustes); setVersion(v => v + 1); } }).catch(() => {});
+  }, []);
+
   const api = useMemo<Ctx>(() => ({
-    version, fx, cargando, pedir,
+    version, fx, ajustes, cargando, pedir,
     registro: id => cache.current.get(id),
-    valor: (carta, acabado) => (carta ? valorDe(cache.current.get(carta.id), acabado, fx) : null)
-  }), [version, fx, cargando, pedir]);
+    valor: (carta, acabado) => (carta ? valorDe(cache.current.get(carta.id), acabado, fx) : null),
+    valorPen: (carta, acabado) => (carta ? valorMercadoPen(cache.current.get(carta.id), acabado, ajustes.fx) : null),
+    precioDefecto: (carta, acabado) => precioDefectoPen(carta, acabado, carta ? cache.current.get(carta.id) : null, ajustes)
+  }), [version, fx, ajustes, cargando, pedir]);
   return <PreciosCtx.Provider value={api}>{children}</PreciosCtx.Provider>;
 }
 

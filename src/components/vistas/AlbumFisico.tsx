@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { Carta, Coleccion } from '@/lib/catalogo';
 import { fold, nombreCarta, nombreColeccion } from '@/lib/catalogo';
 import type { Casilla, Entrada } from '@/lib/coleccion';
-import { fmtUsd } from '@/lib/precios-core';
+import { fmtPen } from '@/lib/precios-core';
 import { useCatalogo } from '../CatalogoProvider';
 import { useColeccion } from '../ColeccionProvider';
 import { usePerfil } from '../PerfilProvider';
@@ -63,13 +63,14 @@ export function AlbumFisico({ id }: { id: string }) {
       if (!c.carta_id) continue;
       asignadas++;
       const carta = cat.carta(c.carta_id);
+      if (!carta || carta.sd) continue;
       const es = propias.get(c.carta_id);
-      const v = precios.valor(carta, es?.[0]?.acabado || '');
-      if (es && es.length) { tengo++; if (v) valor += v.usd; } else if (v) falta += v.usd;
+      const d = precios.precioDefecto(carta, es?.[0]?.acabado || '');
+      if (es && es.length) { tengo++; valor += d.pen; } else falta += d.pen;
     }
     return { asignadas, tengo, valor: Math.round(valor * 100) / 100, falta: Math.round(falta * 100) / 100 };
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [casillas, propias, cat, precios.version, precios.fx]);
+  }, [casillas, propias, cat, precios.version]);
 
   if (!album) return <div className="empty">Ese álbum no existe. <Link href="/app/album">Volver</Link></div>;
   const totalPaginas = album.paginas;
@@ -132,8 +133,8 @@ export function AlbumFisico({ id }: { id: string }) {
       </div>
       <div className="stat" style={{ margin: '10px 0' }}>
         <div className="box"><b>{stats.tengo} / {stats.asignadas}</b><span>cartas que tienes de las asignadas</span></div>
-        <div className="box"><b>{fmtUsd(stats.valor)}</b><span>valor de lo que tienes</span></div>
-        <div className="box"><b>{fmtUsd(stats.falta)}</b><span>para completar (con precio)</span></div>
+        <div className="box"><b>{fmtPen(stats.valor)}</b><span>valor de lo que tienes</span></div>
+        <div className="box"><b>{fmtPen(stats.falta)}</b><span>para completar</span></div>
       </div>
       <div className="binder-toolbar">
         <button className="btn sm" onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina <= 1}>◀</button>

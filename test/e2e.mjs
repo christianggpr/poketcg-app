@@ -143,9 +143,9 @@ try {
   // ---------- Mi colección con valor
   await page.goto(APP + '/app');
   await page.waitForSelector('text=valor estimado');
-  await page.waitForFunction(() => /\(\d*[1-9]\d* con precio\)/.test(document.querySelector('.stat')?.textContent || ''), null, { timeout: 30000 });
+  await page.waitForFunction(() => /\(\d*[1-9]\d* con precio de mercado\)/.test(document.querySelector('.stat')?.textContent || ''), null, { timeout: 30000 });
   const stat = await page.textContent('.stat');
-  if (!/5cartas \(4 distintas\)/.test(stat) || !/US\$ [1-9]/.test(stat)) throw new Error('resumen inesperado: ' + stat);
+  if (!/5cartas \(4 distintas\)/.test(stat) || !/S\/ [1-9]/.test(stat)) throw new Error('resumen inesperado: ' + stat);
   await foto(page, 'mi-coleccion');
   log('Mi colección:', stat.replace(/\s+/g, ' ').slice(0, 120));
 

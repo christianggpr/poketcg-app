@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CATALOGO_VERSION, type DatosCatalogo } from '@/lib/catalogo';
 import { Aviso } from '../ui';
+import { AdminMercado } from './AdminMercado';
 
 type Resumen = { colecciones: number; cartas: number; usuarios: number };
 
@@ -71,6 +72,7 @@ export function AdminPanel() {
         {progreso ? <div style={{ marginTop: 10 }}><div className="bar"><div style={{ width: Math.round((progreso.hecho / progreso.total) * 100) + '%' }} /></div><p className="small muted">{progreso.texto}</p></div> : null}
         {log.length ? <pre className="mono small" style={{ whiteSpace: 'pre-wrap' }}>{log.join('\n')}</pre> : null}
       </div>
+      <AdminMercado />
     </div>
   );
 }

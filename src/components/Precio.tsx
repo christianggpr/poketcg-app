@@ -1,20 +1,30 @@
 'use client';
 import { useEffect } from 'react';
 import type { Carta } from '@/lib/catalogo';
-import { fmtUsd } from '@/lib/precios-core';
+import { fmtPen, fmtUsd } from '@/lib/precios-core';
 import { usePrecios } from './PreciosProvider';
 
-/** Precio de una carta según el acabado; pide el precio si aún no está en caché. */
+/**
+ * Precio de una carta en soles (precio por defecto del mercado PokéTCG = máx(piso, valor de mercado)),
+ * multiplicado por la cantidad. Pide el precio si aún no está en caché.
+ */
 export function Precio({ carta, acabado = '', cantidad = 1, corto = true }: { carta: Carta | null | undefined; acabado?: string; cantidad?: number; corto?: boolean }) {
   const precios = usePrecios();
-  useEffect(() => { if (carta && !carta.sd) precios.pedir([carta.id]); }, [carta, precios]);
+  useEffect(() => { if (carta && !carta.sd && !carta.sinTcgdex) precios.pedir([carta.id]); }, [carta, precios]);
   if (!carta || carta.sd) return null;
-  const v = precios.valor(carta, acabado);
-  if (!v) return <span className="price empty" />;
-  const total = v.usd * cantidad;
-  const titulo = `${v.label}${v.approx ? ' (aprox.)' : ''} · ${v.src}${cantidad > 1 ? ` · ${cantidad} × ${fmtUsd(v.usd)}` : ''}`;
-  if (corto) return <span className="price" title={titulo}>{fmtUsd(total)}</span>;
-  return <span className="price" title={titulo}>{fmtUsd(total)}{cantidad > 1 ? <span className="faint"> ({cantidad} × {fmtUsd(v.usd)})</span> : null} <span className="faint">{v.label}{v.approx ? ' ≈' : ''}</span></span>;
+  const d = precios.precioDefecto(carta, acabado);
+  const total = d.pen * cantidad;
+  const m = d.mercado;
+  const titulo = m
+    ? `Mercado: ${fmtPen(m.pen)} (${m.label}${m.approx ? ' aprox.' : ''} · ${m.src}${m.usd != null ? ` ${fmtUsd(m.usd)}` : ''}${m.eur != null ? ` €${m.eur.toFixed(2)}` : ''})${d.origen === 'piso' ? ` · se aplica el piso de ${fmtPen(d.piso)}` : ''}${cantidad > 1 ? ` · ${cantidad} × ${fmtPen(d.pen)}` : ''}`
+    : `Sin precio de mercado: se aplica el piso de ${fmtPen(d.piso)}${cantidad > 1 ? ` · ${cantidad} × ${fmtPen(d.pen)}` : ''}`;
+  if (corto) return <span className={`price ${d.origen === 'piso' ? 'piso' : ''}`} title={titulo}>{fmtPen(total)}</span>;
+  return (
+    <span className={`price ${d.origen === 'piso' ? 'piso' : ''}`} title={titulo}>
+      {fmtPen(total)}{cantidad > 1 ? <span className="faint"> ({cantidad} × {fmtPen(d.pen)})</span> : null}
+      <span className="faint"> {m ? `${m.label}${m.approx ? ' ≈' : ''}` : 'piso'}</span>
+    </span>
+  );
 }
 
 /** Pide en lote los precios de una lista de cartas (para listas largas). */

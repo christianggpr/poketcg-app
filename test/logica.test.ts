@@ -136,3 +136,32 @@ test('precios: TCGplayer por acabado y Cardmarket convertido', () => {
   assert.equal(fmtUsd(3.5), 'US$ 3.50');
   assert.equal(fmtUsd(null), '—');
 });
+
+test('Fase 2: precio por defecto = máx(piso, mercado) en soles', async () => {
+  const { precioDefectoPen, valorMercadoPen, esBrillante, fmtPen, netoVendedor, parsearPrecio: pp } = await import('../src/lib/precios-core.ts');
+  const ajustes = { fx: { usd_pen: 4, eur_pen: 4.5 }, pisos: { normal: 1, especial: 2 }, comision: 0.05 };
+  const comun = { r: 'Common', n: 'Pidgey' };
+  const holo = { r: 'Holo Rare', n: 'Charizard' };
+  const ex = { r: 'Double rare', n: 'Charizard ex' };
+  // mercado S/ 0.40 (US$ 0.10) en carta normal → piso S/ 1
+  const rec1 = pp('a', { pricing: { tcgplayer: { normal: { marketPrice: 0.1 } } } });
+  assert.equal(valorMercadoPen(rec1, 'Normal', ajustes.fx)?.pen, 0.4);
+  assert.deepEqual([precioDefectoPen(comun, 'Normal', rec1, ajustes).pen, precioDefectoPen(comun, 'Normal', rec1, ajustes).origen], [1, 'piso']);
+  // holo con mercado S/ 1.50 → piso S/ 2
+  const rec2 = pp('b', { pricing: { tcgplayer: { holofoil: { marketPrice: 0.375 } } } });
+  assert.equal(precioDefectoPen(holo, 'Holo', rec2, ajustes).pen, 2);
+  assert.equal(precioDefectoPen(comun, 'Reverse', rec2, ajustes).pen, 2);   // reverse siempre especial
+  // mercado S/ 12 → S/ 12
+  const rec3 = pp('c', { pricing: { tcgplayer: { normal: { marketPrice: 3 } } } });
+  assert.deepEqual([precioDefectoPen(ex, '', rec3, ajustes).pen, precioDefectoPen(ex, '', rec3, ajustes).origen], [12, 'mercado']);
+  // Cardmarket en euros → soles
+  const rec4 = pp('d', { pricing: { cardmarket: { trend: 2 } } });
+  assert.equal(valorMercadoPen(rec4, '', ajustes.fx)?.pen, 9);
+  // sin precio de mercado → piso según la carta
+  assert.equal(precioDefectoPen(comun, '', null, ajustes).pen, 1);
+  assert.equal(precioDefectoPen(ex, '', null, ajustes).pen, 2);
+  assert.equal(esBrillante({ r: 'Rare', n: 'Pikachu V' }, 'Normal'), true);
+  assert.equal(esBrillante({ r: 'Uncommon', n: 'Potion' }, ''), false);
+  assert.equal(fmtPen(1250.5), 'S/ 1,250.50');
+  assert.equal(netoVendedor(100, 0.05), 95);
+});

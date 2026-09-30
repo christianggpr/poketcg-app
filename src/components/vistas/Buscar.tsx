@@ -5,7 +5,7 @@ import type { Carta } from '@/lib/catalogo';
 import { matchesType, ordenarCartas } from '@/lib/catalogo';
 import { buscarCatalogo } from '@/lib/buscar';
 import { agruparPorColeccion, totalCartas, ts } from '@/lib/coleccion';
-import { fmtUsd } from '@/lib/precios-core';
+import { fmtPen } from '@/lib/precios-core';
 import { useCatalogo } from '../CatalogoProvider';
 import { useColeccion } from '../ColeccionProvider';
 import { usePerfil } from '../PerfilProvider';
@@ -72,16 +72,19 @@ function MiColeccion({ onAgregar }: { onAgregar: (c: Carta) => void }) {
   const ids = useMemo(() => [...new Set(col.entradas.map(e => e.carta_id).filter((x): x is string => !!x))], [col.entradas]);
   usePedirPrecios(ids);
 
+  // Valor de la colección = Σ precio por defecto (máx(piso, mercado)) × cantidad, en soles
   const valor = useMemo(() => {
-    let usd = 0, conPrecio = 0;
+    let pen = 0, conMercado = 0;
     for (const e of col.entradas) {
       const c = cat.carta(e.carta_id);
-      const v = precios.valor(c, e.acabado);
-      if (v) { usd += v.usd * e.cantidad; conPrecio += e.cantidad; }
+      if (!c || c.sd) continue;
+      const d = precios.precioDefecto(c, e.acabado);
+      pen += d.pen * e.cantidad;
+      if (d.mercado) conMercado += e.cantidad;
     }
-    return { usd: Math.round(usd * 100) / 100, conPrecio };
+    return { pen: Math.round(pen * 100) / 100, conMercado };
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [col.entradas, cat, precios.version, precios.fx]);
+  }, [col.entradas, cat, precios.version]);
 
   const langs = useMemo(() => [...new Set(col.entradas.map(e => e.idioma).filter(Boolean))].sort(), [col.entradas]);
   const filtradas = useMemo(() => col.entradas.filter(e => { const c = cat.carta(e.carta_id); return (!f.lang || e.idioma === f.lang) && (!f.type || (c ? matchesType(c, f.type) : false)); }), [col.entradas, cat, f]);
@@ -99,13 +102,13 @@ function MiColeccion({ onAgregar }: { onAgregar: (c: Carta) => void }) {
   }
 
   const addedAt = (c: Carta) => Math.max(0, ...col.entradas.filter(e => e.carta_id === c.id).map(e => ts(e.creado_en)));
-  const priceOf = (c: Carta) => { const v = precios.valor(c, col.entradas.find(e => e.carta_id === c.id)?.acabado || ''); return v ? v.usd : null; };
+  const priceOf = (c: Carta) => precios.precioDefecto(c, col.entradas.find(e => e.carta_id === c.id)?.acabado || '').pen;
 
   return (
     <div style={{ marginTop: 14 }}>
       <div className="stat" style={{ marginBottom: 12 }}>
         <div className="box"><b>{total.toLocaleString('es-PE')}</b><span>cartas ({col.entradas.length} distintas)</span></div>
-        <div className="box"><b>{precios.version === 0 && precios.cargando ? '…' : fmtUsd(valor.usd)}</b><span>valor estimado ({valor.conPrecio} con precio){precios.cargando ? ' · actualizando…' : ''}</span></div>
+        <div className="box" title="Suma del precio por defecto del mercado PokéTCG (máximo entre el piso y el valor de mercado) por la cantidad de cada carta"><b>{precios.version === 0 && precios.cargando ? '…' : fmtPen(valor.pen)}</b><span>valor estimado ({valor.conMercado} con precio de mercado){precios.cargando ? ' · actualizando…' : ''}</span></div>
         <div className="box"><b>{col.cajas.length}</b><span>{col.cajas.length === 1 ? 'caja' : 'cajas'}</span></div>
       </div>
       <FilterBar f={f} onChange={setF} langs={langs} />

@@ -141,14 +141,14 @@ function Respaldo() {
     descargar(`poketcg-respaldo-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(payload, null, 1), 'application/json');
   };
   const exportarCsv = () => {
-    const filas: (string | number)[][] = [['Caja', 'Posición', 'Colección', 'Número', 'Nombre', 'Cantidad', 'Acabado', 'Idioma', 'Estado', 'Rareza', 'Precio unitario USD', 'Total USD', 'Id', 'Nota']];
+    const filas: (string | number)[][] = [['Caja', 'Posición', 'Colección', 'Número', 'Nombre', 'Cantidad', 'Acabado', 'Idioma', 'Estado', 'Rareza', 'Precio unitario S/', 'Total S/', 'Mercado S/', 'Mercado USD', 'Id', 'Nota']];
     for (const caja of cajasOrdenadas(col.cajas)) {
       for (const p of ubicador.posiciones(caja).lista) {
-        const e = p.entrada; const c = cat.carta(e.carta_id); const v = precios.valor(c, e.acabado);
-        filas.push([caja.nombre, p.idx, coleccionEntrada(cat, e, idioma), numeroEntrada(cat, e), c ? nombreCarta(c, idioma) : nombreEntrada(cat, e, idioma), e.cantidad, e.acabado, e.idioma, e.condicion, c ? rarezaLabel(c.r) : '', v ? v.usd : '', v ? Math.round(v.usd * e.cantidad * 100) / 100 : '', c ? c.id : '', e.nota]);
+        const e = p.entrada; const c = cat.carta(e.carta_id); const d = c && !c.sd ? precios.precioDefecto(c, e.acabado) : null; const v = precios.valor(c, e.acabado);
+        filas.push([caja.nombre, p.idx, coleccionEntrada(cat, e, idioma), numeroEntrada(cat, e), c ? nombreCarta(c, idioma) : nombreEntrada(cat, e, idioma), e.cantidad, e.acabado, e.idioma, e.condicion, c ? rarezaLabel(c.r) : '', d ? d.pen : '', d ? Math.round(d.pen * e.cantidad * 100) / 100 : '', d && d.mercado ? d.mercado.pen : '', v ? v.usd : '', c ? c.id : '', e.nota]);
       }
     }
-    for (const e of col.entradas.filter(x => !x.caja_id)) { const c = cat.carta(e.carta_id); filas.push(['(sin caja)', '', coleccionEntrada(cat, e, idioma), numeroEntrada(cat, e), nombreEntrada(cat, e, idioma), e.cantidad, e.acabado, e.idioma, e.condicion, c ? rarezaLabel(c.r) : '', '', '', c ? c.id : '', e.nota]); }
+    for (const e of col.entradas.filter(x => !x.caja_id)) { const c = cat.carta(e.carta_id); const d = c && !c.sd ? precios.precioDefecto(c, e.acabado) : null; filas.push(['(sin caja)', '', coleccionEntrada(cat, e, idioma), numeroEntrada(cat, e), nombreEntrada(cat, e, idioma), e.cantidad, e.acabado, e.idioma, e.condicion, c ? rarezaLabel(c.r) : '', d ? d.pen : '', d ? Math.round(d.pen * e.cantidad * 100) / 100 : '', d && d.mercado ? d.mercado.pen : '', '', c ? c.id : '', e.nota]); }
     const csv = '﻿' + filas.map(f => f.map(x => `"${String(x ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
     descargar(`poketcg-coleccion-${new Date().toISOString().slice(0, 10)}.csv`, csv, 'text/csv');
   };

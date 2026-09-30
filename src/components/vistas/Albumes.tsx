@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import type { Carta, Coleccion } from '@/lib/catalogo';
 import { matchesType, nombreCarta, nombreColeccion, ordenarCartas } from '@/lib/catalogo';
 import type { Entrada } from '@/lib/coleccion';
-import { fmtUsd } from '@/lib/precios-core';
+import { fmtPen } from '@/lib/precios-core';
 import { IDIOMAS_CARTA } from '@/lib/config';
 import { useCatalogo } from '../CatalogoProvider';
 import { useColeccion } from '../ColeccionProvider';
@@ -151,12 +151,12 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   usePedirPrecios(consultarFaltan ? [...idsPropias, ...idsFaltan] : idsPropias);
 
   const stats = useMemo(() => {
-    let valor = 0, faltaUsd = 0, faltaConPrecio = 0;
-    for (const [id, es] of propias) { const c = cat.carta(id); for (const e of es) { const v = precios.valor(c, e.acabado); if (v) valor += v.usd * e.cantidad; } }
-    for (const id of idsFaltan) { const v = precios.valor(cat.carta(id), ''); if (v) { faltaUsd += v.usd; faltaConPrecio++; } }
-    return { valor: Math.round(valor * 100) / 100, faltaUsd: Math.round(faltaUsd * 100) / 100, faltaConPrecio };
+    let valor = 0, faltaPen = 0, faltaConPrecio = 0;
+    for (const [id, es] of propias) { const c = cat.carta(id); if (!c || c.sd) continue; for (const e of es) valor += precios.precioDefecto(c, e.acabado).pen * e.cantidad; }
+    for (const id of idsFaltan) { const c = cat.carta(id); if (!c) continue; const d = precios.precioDefecto(c, ''); faltaPen += d.pen; if (d.mercado) faltaConPrecio++; }
+    return { valor: Math.round(valor * 100) / 100, faltaPen: Math.round(faltaPen * 100) / 100, faltaConPrecio };
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [propias, idsFaltan, cat, precios.version, precios.fx]);
+  }, [propias, idsFaltan, cat, precios.version]);
 
   if (!set) return <div className="empty">Esa colección no existe. <Link href="/app/album">Volver</Link></div>;
   const sinIdioma = idiomaAlb === '—' ? [...propias.values()].flat() : [];
@@ -169,7 +169,7 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   }
   const total = cartas.filter(c => !c.sd).length;
   const pct = total ? Math.round((idsPropias.length / total) * 100) : 0;
-  const priceOf = (c: Carta) => { const v = precios.valor(c, propias.get(c.id)?.[0]?.acabado || ''); return v ? v.usd : null; };
+  const priceOf = (c: Carta) => precios.precioDefecto(c, propias.get(c.id)?.[0]?.acabado || '').pen;
   let lista = cartas.filter(c => matchesType(c, f.type) || (!f.type));
   if (modo === 'tengo') lista = lista.filter(c => propias.has(c.id));
   if (modo === 'faltan') lista = lista.filter(c => !propias.has(c.id));
@@ -184,8 +184,8 @@ export function AlbumColeccion({ setId }: { setId: string }) {
       </div>
       <div className="stat" style={{ margin: '10px 0' }}>
         <div className="box"><b>{idsPropias.length} / {total}</b><span>cartas · {pct} % completo</span></div>
-        <div className="box"><b>{fmtUsd(stats.valor)}</b><span>valor de lo que tienes</span></div>
-        <div className="box"><b>{consultarFaltan ? fmtUsd(stats.faltaUsd) : '—'}</b><span>{consultarFaltan ? `para completar (${stats.faltaConPrecio} con precio)` : <button className="link" onClick={() => setConsultarFaltan(true)}>Consultar el precio de las que faltan</button>}</span></div>
+        <div className="box"><b>{fmtPen(stats.valor)}</b><span>valor de lo que tienes</span></div>
+        <div className="box"><b>{consultarFaltan ? fmtPen(stats.faltaPen) : '—'}</b><span>{consultarFaltan ? `para completar (${stats.faltaConPrecio} con precio de mercado)` : <button className="link" onClick={() => setConsultarFaltan(true)}>Consultar el precio de las que faltan</button>}</span></div>
       </div>
       <div className="bar" style={{ marginBottom: 10 }}><div style={{ width: pct + '%' }} /></div>
       {sinIdioma.length ? (
@@ -202,13 +202,13 @@ export function AlbumColeccion({ setId }: { setId: string }) {
         {lista.map(c => {
           const es = propias.get(c.id) || [];
           const qty = es.reduce((n, e) => n + e.cantidad, 0);
-          const v = precios.valor(c, es[0]?.acabado || '');
+          const d = c.sd ? null : precios.precioDefecto(c, es[0]?.acabado || '');
           return (
             <div key={c.id} className={`album-cell ${qty ? '' : 'missing'}`} role="button" tabIndex={0} onClick={() => { if (qty) router.push(`/app/carta/${encodeURIComponent(c.id)}`); else setAgregar(c); }}>
               <div className="album-img"><Thumb carta={c} set={set} className="album" />{qty ? <span className="album-qty">×{qty}</span> : null}</div>
               <div className="album-num">{c.l}{c.sd ? ' · sin datos' : ''}</div>
               <div className="album-name">{nombreCarta(c, idioma)}</div>
-              <div className="album-foot">{qty ? <span className="album-loc"><LocChip loc={ubicador.ubicacion(es[0])} corto /></span> : <span className="album-miss">falta</span>}{v ? <span className="price">{fmtUsd(v.usd)}</span> : null}</div>
+              <div className="album-foot">{qty ? <span className="album-loc"><LocChip loc={ubicador.ubicacion(es[0])} corto /></span> : <span className="album-miss">falta</span>}{d ? <span className={`price ${d.origen === 'piso' ? 'piso' : ''}`}>{fmtPen(d.pen)}</span> : null}</div>
             </div>
           );
         })}

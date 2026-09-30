@@ -116,25 +116,43 @@ async function auth(req, res, url, body) {
 
 // ---------------------------------------------------------------- REST (subconjunto de PostgREST)
 const ident = s => { if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(s)) throw new Error('identificador inválido: ' + s); return '"' + s + '"'; };
+// columna simple o ruta JSON (detalle->>fecha, detalle->fx->>usd_pen)
+const columna = k => {
+  const partes = k.split(/(->>|->)/);
+  let sql = ident(partes[0]);
+  for (let i = 1; i < partes.length; i += 2) { const clave = partes[i + 1]; if (!/^[a-zA-Z0-9_]+$/.test(clave)) throw new Error('ruta json inválida: ' + k); sql += `${partes[i]}'${clave}'`; }
+  return sql;
+};
+function condicion(k, v, vals) {
+  const push = x => { vals.push(x); return '$' + vals.length; };
+  const m = /^(\w+)\.(.*)$/s.exec(v);
+  if (!m) return null;
+  const col = columna(k), op = m[1], val = m[2];
+  if (op === 'eq') return `${col} = ${push(val)}`;
+  if (op === 'neq') return `${col} <> ${push(val)}`;
+  if (op === 'ilike') return `${col}::text ilike ${push(val.replace(/\*/g, '%'))}`;
+  if (op === 'like') return `${col}::text like ${push(val.replace(/\*/g, '%'))}`;
+  if (op === 'is') return `${col} is ${val === 'null' ? 'null' : val === 'true' ? 'true' : 'false'}`;
+  if (op === 'in') { const lista = val.replace(/^\(|\)$/g, '').split(',').map(x => x.trim().replace(/^"|"$/g, '')); return `${col} = any(${push(lista)})`; }
+  if (op === 'gt') return `${col} > ${push(val)}`;
+  if (op === 'gte') return `${col} >= ${push(val)}`;
+  if (op === 'lt') return `${col} < ${push(val)}`;
+  if (op === 'lte') return `${col} <= ${push(val)}`;
+  throw new Error('operador no soportado: ' + op);
+}
 function parseFilters(params, tabla) {
   const where = []; const vals = [];
-  const push = v => { vals.push(v); return '$' + vals.length; };
   for (const [k, v] of params) {
     if (['select', 'order', 'limit', 'offset', 'on_conflict', 'columns'].includes(k)) continue;
-    const m = /^(\w+)\.(.*)$/s.exec(v);
-    if (!m) continue;
-    const col = ident(k), op = m[1], val = m[2];
-    if (op === 'eq') where.push(`${col} = ${push(val)}`);
-    else if (op === 'neq') where.push(`${col} <> ${push(val)}`);
-    else if (op === 'ilike') where.push(`${col}::text ilike ${push(val.replace(/\*/g, '%'))}`);
-    else if (op === 'like') where.push(`${col}::text like ${push(val.replace(/\*/g, '%'))}`);
-    else if (op === 'is') where.push(`${col} is ${val === 'null' ? 'null' : val === 'true' ? 'true' : 'false'}`);
-    else if (op === 'in') { const lista = val.replace(/^\(|\)$/g, '').split(',').map(x => x.trim().replace(/^"|"$/g, '')); where.push(`${col} = any(${push(lista)})`); }
-    else if (op === 'gt') where.push(`${col} > ${push(val)}`);
-    else if (op === 'gte') where.push(`${col} >= ${push(val)}`);
-    else if (op === 'lt') where.push(`${col} < ${push(val)}`);
-    else if (op === 'lte') where.push(`${col} <= ${push(val)}`);
-    else throw new Error('operador no soportado: ' + op + ' en ' + tabla);
+    if (k === 'or') {
+      // or=(a.is.null,b.lt.2026-01-01)
+      const partes = v.replace(/^\(|\)$/g, '').split(',');
+      const conds = partes.map(p => { const i = p.indexOf('.'); return condicion(p.slice(0, i), p.slice(i + 1), vals); }).filter(Boolean);
+      if (conds.length) where.push('(' + conds.join(' or ') + ')');
+      continue;
+    }
+    const c = condicion(k, v, vals);
+    if (c) where.push(c);
   }
   return { sql: where.length ? ' where ' + where.join(' and ') : '', vals };
 }
@@ -161,6 +179,7 @@ function parseSelect(tabla, sel) {
   return cols.join(', ');
 }
 async function rest(req, res, url, body) {
+  if (url.pathname.startsWith('/rest/v1/rpc/')) return rpc(req, res, url, body);
   const tabla = url.pathname.replace(/^\/rest\/v1\//, '').split('/')[0];
   if (!/^[a-z_]+$/.test(tabla)) return send(res, 404, { message: 'tabla inválida' });
   const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -229,6 +248,37 @@ async function rest(req, res, url, body) {
   }
 }
 
+// llamadas a funciones: POST /rest/v1/rpc/<fn> con argumentos con nombre
+async function rpc(req, res, url, body) {
+  const fn = url.pathname.replace(/^\/rest\/v1\/rpc\//, '');
+  if (!/^[a-z_][a-z0-9_]*$/.test(fn)) return send(res, 404, { message: 'función inválida' });
+  const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  let role = 'anon', sub = null;
+  if (bearer === SERVICE_KEY) role = 'service_role';
+  else if (bearer && bearer !== ANON_KEY) { const c = claims(bearer); if (c && c.sub) { role = 'authenticated'; sub = c.sub; } }
+  const cliente = await pool.connect();
+  try {
+    await cliente.query('begin');
+    await cliente.query(`set local role ${role}`);
+    await cliente.query(`select set_config('request.jwt.claim.role', $1, true), set_config('request.jwt.claim.sub', $2, true)`, [role, sub || '']);
+    const args = body && typeof body === 'object' ? body : {};
+    const nombres = Object.keys(args); const vals = [];
+    const lista = nombres.map(n => { if (!/^[a-z_][a-z0-9_]*$/.test(n)) throw new Error('argumento inválido'); const v = args[n]; vals.push(v !== null && typeof v === 'object' && !Array.isArray(v) ? JSON.stringify(v) : v); return `${n} => $${vals.length}`; }).join(', ');
+    const meta = await cliente.query(`select p.proretset, t.typname from pg_proc p join pg_type t on t.oid = p.prorettype join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = $1 limit 1`, [fn]);
+    if (!meta.rows[0]) { await cliente.query('rollback'); return send(res, 404, { code: 'PGRST202', message: `Could not find the function public.${fn} in the schema cache` }); }
+    const r = await cliente.query(`select * from ${fn}(${lista})`, vals);
+    await cliente.query('commit');
+    if (meta.rows[0].proretset) return send(res, 200, r.rows);
+    const fila = r.rows[0] || {};
+    const claves = Object.keys(fila);
+    // función escalar: PostgREST devuelve el valor directamente
+    return send(res, 200, claves.length === 1 && claves[0] === fn ? fila[fn] : fila);
+  } catch (e) {
+    await cliente.query('rollback').catch(() => {});
+    return send(res, e.code === '42501' ? 401 : 400, { code: e.code || 'ERR', message: e.message, details: e.detail || null, hint: e.hint || null });
+  } finally { cliente.release(); }
+}
+
 // ---------------------------------------------------------------- servicios externos simulados
 function tcgdex(res, url) {
   const id = url.pathname.split('/').pop();
@@ -248,7 +298,8 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/rest/v1/')) return await rest(req, res, url, body);
     if (url.pathname === '/emails' && req.method === 'POST') { fs.appendFileSync(CORREOS, JSON.stringify({ t: new Date().toISOString(), ...body }) + '\n'); return send(res, 200, { id: crypto.randomUUID() }); }
     if (url.pathname.startsWith('/tcgdex/')) return tcgdex(res, url);
-    if (url.pathname === '/fx') return send(res, 200, { rates: { USD: 1.1 } });
+    if (url.pathname === '/fx-eur') return send(res, 200, { base_code: 'EUR', rates: { USD: 1.1 } });
+    if (url.pathname === '/fx') return send(res, 200, { base_code: 'USD', rates: { USD: 1, PEN: 3.7, EUR: 0.9 } });
     if (url.pathname.startsWith('/realtime/')) { res.writeHead(404); return res.end(); }
     if (url.pathname === '/__reset' && req.method === 'POST') {
       await pool.query('delete from public.entradas; delete from public.album_casillas; delete from public.albumes; delete from public.cajas; delete from public.perfiles; delete from auth.mock_tokens; delete from auth.mock_refresh; delete from auth.users;');

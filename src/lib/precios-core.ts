@@ -82,3 +82,70 @@ export function valorDe(rec: RegistroPrecio | null | undefined, acabado: string,
 export function fmtUsd(usd: number | null | undefined): string {
   return usd == null ? '—' : 'US$ ' + (usd >= 100 ? Math.round(usd).toLocaleString('es-PE') : usd.toFixed(2));
 }
+
+// ---- Fase 2: soles, pisos y precio por defecto -----------------------------------------------
+
+export type TipoCambio = { usd_pen: number; eur_pen: number; t?: number; fuente?: string };
+export type Ajustes = {
+  fx: TipoCambio;
+  pisos: { normal: number; especial: number };
+  comision: number;               // 0.05 = 5 %
+};
+export const FX_RESPALDO: TipoCambio = { usd_pen: 3.75, eur_pen: 4.2, fuente: 'respaldo' };
+export const AJUSTES_POR_DEFECTO: Ajustes = { fx: FX_RESPALDO, pisos: { normal: 1, especial: 2 }, comision: 0.05 };
+
+export type ValorPen = { pen: number; usd?: number; eur?: number; finish: string; label: string; approx: boolean; src: string };
+
+/** Valor de mercado en soles según el acabado (TCGplayer USD → PEN; si no, Cardmarket EUR → PEN). */
+export function valorMercadoPen(rec: RegistroPrecio | null | undefined, acabado: string, fx: TipoCambio): ValorPen | null {
+  if (!rec || !rec.ok) return null;
+  const v = acabado === 'Normal' || acabado === 'Holo' || acabado === 'Reverse' ? acabado : '';
+  if (rec.tp) {
+    const order = PREF[v];
+    const keys = Object.keys(rec.tp);
+    const finish = order.find(k => rec.tp![k] != null) || keys[0];
+    const wanted = v === 'Normal' ? 'normal' : v === 'Holo' ? 'holofoil' : v === 'Reverse' ? 'reverse-holofoil' : null;
+    const approx = !!(wanted && finish !== wanted) || (!v && keys.length > 1);
+    const usd = rec.tp[finish];
+    return { pen: redondear(usd * fx.usd_pen), usd, finish, label: FINISH_LABEL[finish] || finish, approx, src: 'TCGplayer' };
+  }
+  if (rec.cm) {
+    const holo = v === 'Reverse' || v === 'Holo';
+    const eur = holo ? rec.cm.holo || rec.cm.trend : rec.cm.trend || rec.cm.holo;
+    if (!eur) return null;
+    const used = holo ? (rec.cm.holo ? 'holo' : 'normal') : rec.cm.trend ? 'normal' : 'holo';
+    return { pen: redondear(eur * fx.eur_pen), eur, finish: used, label: used === 'holo' ? 'Holo / reverse' : 'Normal', approx: holo ? !rec.cm.holo : !rec.cm.trend, src: 'Cardmarket' };
+  }
+  return null;
+}
+
+const RAREZAS_PLANAS = new Set(['Common', 'Uncommon', 'Rare', 'Promo', 'None', '']);
+const RE_ESPECIAL = /\b(ex|EX|GX|V|VMAX|VSTAR|BREAK|LEGEND|Prism Star|TAG TEAM|LV\.X|☆|Star|◇)\b|\bMega\b|Radiant|Shining|Crystal/;
+
+/** ¿La carta (con el acabado registrado) es "brillante"? Decide el piso: normal S/ 1, especial S/ 2. */
+export function esBrillante(card: { r?: string; n?: string } | null | undefined, acabado: string): boolean {
+  if (acabado === 'Reverse' || acabado === 'Holo' || acabado === 'Otra') return true;
+  if (!card) return false;
+  if (card.r && !RAREZAS_PLANAS.has(card.r)) return true;
+  return !!(card.n && RE_ESPECIAL.test(card.n));
+}
+
+export type PrecioDefecto = { pen: number; piso: number; mercado: ValorPen | null; origen: 'mercado' | 'piso' };
+
+/** Precio por defecto en el mercado PokéTCG = máx(piso, valor de mercado). */
+export function precioDefectoPen(card: { r?: string; n?: string } | null | undefined, acabado: string, rec: RegistroPrecio | null | undefined, ajustes: Ajustes): PrecioDefecto {
+  const piso = esBrillante(card, acabado) ? ajustes.pisos.especial : ajustes.pisos.normal;
+  const mercado = valorMercadoPen(rec, acabado, ajustes.fx);
+  if (mercado && mercado.pen > piso) return { pen: mercado.pen, piso, mercado, origen: 'mercado' };
+  return { pen: piso, piso, mercado, origen: 'piso' };
+}
+
+export const redondear = (n: number): number => Math.round(n * 100) / 100;
+
+export function fmtPen(pen: number | null | undefined): string {
+  if (pen == null || !isFinite(pen)) return '—';
+  return 'S/ ' + pen.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** Lo que recibe el vendedor tras la comisión. */
+export const netoVendedor = (pen: number, comision: number): number => redondear(pen * (1 - comision));
