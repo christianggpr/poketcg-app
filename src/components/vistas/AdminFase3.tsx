@@ -273,3 +273,55 @@ export function AdminOrdenes() {
     </div>
   );
 }
+
+type RetiroAdmin = { id: string; numero: number; usuario_id: string; monto: number; bruto: number; comision: number; ordenes_numeros: number[]; estado: string; n_operacion: string | null; excel_generado_en: string | null; pagado_en: string | null; creado: string;
+  perfil: { username: string; nombres: string; apellidos: string; dni: string | null; telefono: string | null } | null; cobro: { metodo: string; titular: string; banco: string; numero: string; cuenta: string; cci: string } | null };
+
+/** Pagos a vendedores: pendientes con sus datos de cobro, Excel y marcar pagados. */
+export function AdminRetiros() {
+  const toast = useToast();
+  const [estado, setEstado] = useState('pendientes');
+  const [lista, setLista] = useState<RetiroAdmin[] | null>(null);
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [operacion, setOperacion] = useState('');
+  const [ocupado, setOcupado] = useState(false);
+  const cargar = useCallback(async () => { const r = await fetch('/api/admin/retiros?estado=' + estado).then(x => x.json()).catch(() => null); setLista(r?.ok ? r.retiros : []); setSel(new Set()); }, [estado]);
+  useEffect(() => { cargar(); }, [cargar]);
+  async function pagar(ids: string[]) {
+    if (!ids.length) return;
+    setOcupado(true);
+    const r = await post('/api/admin/retiros', { accion: 'pagado', ids, n_operacion: operacion.trim() || null });
+    setOcupado(false);
+    if (r.ok) { toast(`${r.pagados} ${r.pagados === 1 ? 'pago marcado' : 'pagos marcados'} como realizados: vendedores avisados`, 'ok', 3500); setOperacion(''); cargar(); } else toast(r.error || 'No se pudo', 'danger');
+  }
+  async function liberar() { setOcupado(true); const r = await post('/api/admin/retiros', { accion: 'liberar' }); setOcupado(false); if (r.ok) { toast(`Saldos liberados: ${r.liberadas}`, 'ok'); cargar(); } }
+  const metodo = (c: RetiroAdmin['cobro']) => !c ? 'SIN DATOS DE COBRO' : c.metodo === 'banco' ? `${c.banco} · cta ${c.cuenta} · CCI ${c.cci}` : `${c.metodo === 'yape' ? 'Yape' : 'Plin'} ${c.numero}`;
+  const total = (lista || []).filter(r => r.estado !== 'pagado' && r.cobro).reduce((s, r) => s + r.monto, 0);
+  return (
+    <div className="panel" data-testid="admin-retiros">
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+        <h3 style={{ margin: 0 }}>Pagos a vendedores</h3>
+        <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+          <div className="seg">{[['pendientes', 'Por pagar'], ['pagado', 'Pagados'], ['todos', 'Todos']].map(([v, l]) => <button key={v} className={estado === v ? 'active' : ''} onClick={() => setEstado(v)}>{l}</button>)}</div>
+          <a className="btn sm" href="/api/admin/retiros/excel" data-testid="btn-excel">⬇️ Excel del día</a>
+          <button className="btn sm ghost" disabled={ocupado} onClick={liberar} title="Normalmente lo hace la tarea diaria">Liberar saldos ahora</button>
+        </div>
+      </div>
+      <p className="small muted">Cada entrega confirmada genera (o suma a) un pago pendiente por vendedor. Cada día de pago recibes el Excel por correo; pagas por Yape/Plin o transferencia y aquí marcas «Pagado» (con el n.º de operación): el vendedor recibe el aviso.</p>
+      {estado === 'pendientes' && lista?.length ? <p className="small"><b>Total por pagar hoy: {fmtPen(total)}</b>{lista.some(r => !r.cobro) ? ` · ${lista.filter(r => !r.cobro).length} sin datos de cobro (ya se les pidió)` : ''}</p> : null}
+      {!lista ? <p className="small muted"><span className="spinner" /> Cargando…</p> : null}
+      {lista && !lista.length ? <p className="small muted">Nada por aquí.</p> : null}
+      {(lista || []).map(r => (
+        <div key={r.id} className="card-row" style={{ cursor: 'default', marginBottom: 6 }} data-testid="admin-retiro">
+          {r.estado !== 'pagado' ? <input type="checkbox" className="sel" checked={sel.has(r.id)} disabled={!r.cobro} onChange={e => setSel(x => { const y = new Set(x); if (e.target.checked) y.add(r.id); else y.delete(r.id); return y; })} /> : null}
+          <div className="card-main">
+            <div className="card-name">Pago #{r.numero} · <b>{fmtPen(r.monto)}</b> a @{r.perfil?.username} <span className="small muted">({r.perfil?.nombres} {r.perfil?.apellidos} · DNI {r.perfil?.dni || '—'} · {r.perfil?.telefono})</span> <span className={`pill ${r.estado === 'pagado' ? 'ok' : r.cobro ? 'warn' : 'danger'}`}>{r.estado === 'pagado' ? 'pagado' : r.cobro ? 'por pagar' : 'sin datos de cobro'}</span></div>
+            <div className="card-set"><b>{metodo(r.cobro)}</b>{r.cobro ? ` · titular ${r.cobro.titular}` : ''} · órdenes {r.ordenes_numeros.map(n => '#' + n).join(', ')} · bruto {fmtPen(r.bruto)} − comisión {fmtPen(r.comision)}{r.excel_generado_en ? ` · en Excel del ${fechaDia(r.excel_generado_en.slice(0, 10))}` : ''}{r.pagado_en ? ` · pagado ${fechaHora(r.pagado_en)}${r.n_operacion ? ' · op. ' + r.n_operacion : ''}` : ''}</div>
+          </div>
+          {r.estado !== 'pagado' && r.cobro ? <div className="card-side"><button className="btn sm primary" disabled={ocupado} onClick={() => pagar([r.id])} data-testid="btn-pagado">Pagado ✔</button></div> : null}
+        </div>
+      ))}
+      {sel.size ? <div className="barra-seleccion"><span className="small"><b>{sel.size}</b> seleccionados</span><input className="input sm" style={{ maxWidth: 200 }} placeholder="N.º de operación (opcional)" value={operacion} onChange={e => setOperacion(e.target.value)} /><span className="grow" /><button className="btn sm primary" disabled={ocupado} onClick={() => pagar([...sel])}>Marcar {sel.size} como pagados</button></div> : null}
+    </div>
+  );
+}

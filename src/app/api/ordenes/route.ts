@@ -27,6 +27,7 @@ export async function POST(req: Request) {
   if (!res.ok) return json({ ok: false, error: res.error }, 400);
   const admin = supabaseAdmin();
   if (res.publicaciones_vendidas?.length) await borrarFotosVendidas(admin, res.publicaciones_vendidas);
+  if (b.accion === 'entregada') await admin.rpc('liberar_saldos');   // con liberacion_dias = 0 la ganancia queda lista al instante
   await mantenimientoRapido(admin, true).catch(() => null);
   return json({ ...res, ok: true });
 }

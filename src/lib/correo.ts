@@ -1,7 +1,7 @@
 // Envío de correos con Resend (API HTTP, sin dependencias). Solo en el servidor.
 import { APP_NAME, EMAIL_FROM, ADMIN_EMAIL } from './config';
 
-type Correo = { para: string; asunto: string; html: string; texto: string };
+type Correo = { para: string; asunto: string; html: string; texto: string; adjuntos?: { filename: string; content: string }[] };
 
 export async function enviarCorreo(c: Correo): Promise<{ ok: true; id?: string } | { ok: false; error: string }> {
   const key = process.env.RESEND_API_KEY;
@@ -10,7 +10,7 @@ export async function enviarCorreo(c: Correo): Promise<{ ok: true; id?: string }
     const r = await fetch(process.env.RESEND_ENDPOINT || 'https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: EMAIL_FROM, to: [c.para], reply_to: ADMIN_EMAIL, subject: c.asunto, html: c.html, text: c.texto })
+      body: JSON.stringify({ from: EMAIL_FROM, to: [c.para], reply_to: ADMIN_EMAIL, subject: c.asunto, html: c.html, text: c.texto, ...(c.adjuntos?.length ? { attachments: c.adjuntos } : {}) })
     });
     const j = (await r.json().catch(() => ({}))) as { id?: string; message?: string; name?: string };
     if (!r.ok) return { ok: false, error: j.message || j.name || `Resend respondió ${r.status}` };

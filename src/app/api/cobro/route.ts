@@ -36,5 +36,6 @@ export async function POST(req: Request) {
   const fila = { usuario_id: user.id, metodo, titular, banco: metodo === 'banco' ? banco : '', cifrado: cifrar(JSON.stringify(metodo === 'banco' ? { cuenta, cci } : { numero })), actualizado: new Date().toISOString() };
   const { error } = await admin.from('datos_cobro').upsert(fila, { onConflict: 'usuario_id' });
   if (error) return json({ ok: false, error: error.message }, 500);
+  await admin.rpc('activar_retiros_sin_datos', { p_usuario: user.id });   // pagos que esperaban estos datos
   return json({ ok: true });
 }

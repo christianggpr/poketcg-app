@@ -5,9 +5,9 @@ import { CATALOGO_VERSION, type DatosCatalogo } from '@/lib/catalogo';
 import { useSearchParams } from 'next/navigation';
 import { Aviso } from '../ui';
 import { AdminMercado } from './AdminMercado';
-import { AdminAjustesPagos, AdminOrdenes, AdminPagos, AdminTiendas, AdminVerificaciones, AdminWhatsApp } from './AdminFase3';
+import { AdminAjustesPagos, AdminOrdenes, AdminPagos, AdminRetiros, AdminTiendas, AdminVerificaciones, AdminWhatsApp } from './AdminFase3';
 
-const PESTANAS: [string, string][] = [['pagos', '🧾 Pagos'], ['ordenes', '📦 Órdenes'], ['tiendas', '🏪 Tiendas'], ['verificaciones', '📱 Celulares'], ['whatsapp', '📲 WhatsApp'], ['cobros', '💳 Cobros y pagos'], ['mercado', '📈 Precios y tareas'], ['catalogo', '🗂️ Catálogo']];
+const PESTANAS: [string, string][] = [['pagos', '🧾 Pagos'], ['ordenes', '📦 Órdenes'], ['retiros', '💰 Pagos a vendedores'], ['tiendas', '🏪 Tiendas'], ['verificaciones', '📱 Celulares'], ['whatsapp', '📲 WhatsApp'], ['cobros', '💳 Cobros y pagos'], ['mercado', '📈 Precios y tareas'], ['catalogo', '🗂️ Catálogo']];
 
 type Resumen = { colecciones: number; cartas: number; usuarios: number };
 
@@ -74,6 +74,7 @@ export function AdminPanel() {
       <div className="seg" style={{ flexWrap: 'wrap', margin: '10px 0' }} data-testid="admin-tabs">{PESTANAS.map(([v, l]) => <button key={v} className={tab === v ? 'active' : ''} onClick={() => { setTab(v); history.replaceState(null, '', '/admin?tab=' + v); }}>{l}</button>)}</div>
       {tab === 'pagos' ? <AdminPagos /> : null}
       {tab === 'ordenes' ? <AdminOrdenes /> : null}
+      {tab === 'retiros' ? <AdminRetiros /> : null}
       {tab === 'tiendas' ? <AdminTiendas /> : null}
       {tab === 'verificaciones' ? <AdminVerificaciones /> : null}
       {tab === 'whatsapp' ? <AdminWhatsApp /> : null}

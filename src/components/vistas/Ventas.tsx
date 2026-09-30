@@ -1,6 +1,8 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { fechaHora } from '@/lib/compras';
+import { supabaseBrowser } from '@/lib/supabase/client';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
 import type { Entrada, Publicacion } from '@/lib/coleccion';
 import { fmtPen, netoVendedor } from '@/lib/precios-core';
@@ -70,6 +72,7 @@ export function Ventas() {
         <div className="row" style={{ gap: 6 }}><Link href="/app/ventas/ordenes" className="btn sm primary" data-testid="btn-ordenes-venta">📦 Órdenes de venta</Link><Link href="/app/cajas" className="btn sm ghost">Cajas</Link></div>
       </div>
       <p className="small muted">Lo que tienes publicado en el mercado. Los compradores solo ven tu nombre de usuario (@{perfil.username}); nunca tu DNI, teléfono ni nombre real. La comisión es del {Math.round(comision * 100)} % sobre el precio de venta.</p>
+      <MiSaldo />
       <div className="stat" style={{ margin: '10px 0' }}>
         <div className="box"><b>{resumen.activas}</b><span>activas</span></div>
         <div className="box"><b>{fmtPen(resumen.valor)}</b><span>en venta (recibirías {fmtPen(netoVendedor(resumen.valor, comision))})</span></div>
@@ -119,6 +122,39 @@ export function Ventas() {
       </div>
       {abrir ? <PublicarSheet entrada={abrir} onClose={() => setAbrir(null)} /> : null}
       {confirmarRetiro ? <Confirmar titulo="Retirar publicaciones" texto={`Se retirarán ${puedeRetirar.length} ${puedeRetirar.length === 1 ? 'publicación' : 'publicaciones'} del mercado (las cartas siguen en tu colección) y se borrarán sus fotos.`} okLabel="Retirar" peligro onOk={() => { setConfirmarRetiro(false); accion(puedeRetirar, 'retirada'); }} onClose={() => setConfirmarRetiro(false)} /> : null}
+    </div>
+  );
+}
+
+type Saldo = { en_curso: number; por_liberar: number; por_pagar: number; sin_datos: boolean; pagado: number; ordenes_vendidas: number };
+type RetiroMio = { id: string; numero: number; monto: number; ordenes: string[]; estado: string; n_operacion: string | null; pagado_en: string | null; creado: string };
+
+/** Mi saldo: ganancias en curso, por pagar y pagadas (los pagos se hacen cada día a tus datos de cobro). */
+function MiSaldo() {
+  const [saldo, setSaldo] = useState<Saldo | null>(null);
+  const [retiros, setRetiros] = useState<RetiroMio[]>([]);
+  const [abrir, setAbrir] = useState(false);
+  useEffect(() => {
+    const sb = supabaseBrowser();
+    sb.rpc('mi_saldo').then(({ data }) => { if (data) setSaldo({ ...data, en_curso: Number(data.en_curso), por_liberar: Number(data.por_liberar), por_pagar: Number(data.por_pagar), pagado: Number(data.pagado) }); });
+    sb.from('retiros').select('*').order('creado', { ascending: false }).limit(50).then(({ data }) => setRetiros(((data || []) as RetiroMio[]).map(r => ({ ...r, monto: Number(r.monto) }))));
+  }, []);
+  if (!saldo || (!saldo.ordenes_vendidas && !saldo.en_curso && !saldo.por_pagar)) return null;
+  return (
+    <div className="panel" data-testid="mi-saldo">
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}><h3 style={{ margin: 0 }}>💰 Mi saldo</h3><button className="btn sm ghost" onClick={() => setAbrir(a => !a)}>{abrir ? 'Ocultar' : 'Ver movimientos'}</button></div>
+      <div className="stat" style={{ marginTop: 8 }}>
+        <div className="box"><b>{fmtPen(saldo.en_curso + saldo.por_liberar)}</b><span>ventas en curso</span></div>
+        <div className="box"><b>{fmtPen(saldo.por_pagar)}</b><span>por pagarte{saldo.sin_datos ? ' · faltan datos de cobro' : ''}</span></div>
+        <div className="box"><b>{fmtPen(saldo.pagado)}</b><span>ya pagado</span></div>
+      </div>
+      {saldo.sin_datos ? <div className="notice warn small" style={{ marginTop: 8 }}>Para pagarte, registra tus datos de cobro en <Link href="/app/ajustes">Ajustes</Link>.</div> : <p className="small muted" style={{ marginTop: 6 }}>Cada entrega confirmada se paga a tus datos de cobro en el siguiente día de pago (todos los días).</p>}
+      {abrir ? (
+        <div className="card-list" style={{ marginTop: 8 }}>
+          {retiros.map(r => <div key={r.id} className="card-row" style={{ cursor: 'default' }} data-testid="retiro"><div className="card-main"><div className="card-name">Pago #{r.numero} · {fmtPen(r.monto)} <span className={`pill ${r.estado === 'pagado' ? 'ok' : r.estado === 'sin_datos' ? 'warn' : 'primary'}`}>{r.estado === 'pagado' ? 'pagado' : r.estado === 'sin_datos' ? 'faltan datos de cobro' : 'por pagar'}</span></div><div className="card-set">{r.ordenes.length} {r.ordenes.length === 1 ? 'orden' : 'órdenes'} · {fechaHora(r.creado)}{r.pagado_en ? ` · pagado ${fechaHora(r.pagado_en)}` : ''}{r.n_operacion ? ` · operación ${r.n_operacion}` : ''}</div></div></div>)}
+          {!retiros.length ? <p className="small muted">Sin movimientos todavía.</p> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

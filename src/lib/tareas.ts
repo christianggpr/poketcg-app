@@ -5,6 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { renovarTipoCambio } from './ajustes';
 import { preciosDe } from './tcgdex';
 import { actualizarMazos, type CursorMazos } from './mazos';
+import { procesarDiaDePago } from './retiros';
 
 export type Tarea = {
   id: number;
@@ -105,6 +106,23 @@ export async function tick(admin: SupabaseClient, presupuestoMs = 50000, opts: {
       if (error && !/function .* does not exist/i.test(error.message)) throw new Error('mantenimiento_ordenes: ' + error.message);
       (detalle as Record<string, unknown>).ordenes = error ? { omitido: true } : data;
       hecho.push('órdenes: recordatorios, confirmaciones automáticas y vencidas');
+      await guardar();
+    }
+    // 6c) saldos y día de pago (Fase 3 · C): libera ganancias y, si hoy es día de pago, genera el Excel
+    if (detalle.fase === 'mazos' && !(detalle as Record<string, unknown>).pagos && quedaTiempo()) {
+      const { data, error } = await admin.rpc('liberar_saldos');
+      if (error && !/function .* does not exist/i.test(error.message)) throw new Error('liberar_saldos: ' + error.message);
+      const info: Record<string, unknown> = { liberadas: (data as { liberadas?: number } | null)?.liberadas ?? 0 };
+      if (!error) {
+        const { data: aj } = await admin.from('ajustes_globales').select('valor').eq('clave', 'pagos').maybeSingle();
+        const dias = ((aj?.valor as { dias_pago?: number[] } | null)?.dias_pago) || [0, 1, 2, 3, 4, 5, 6];
+        const hoyLima = new Date(Date.now() - 5 * 3600 * 1000);
+        if (dias.includes(hoyLima.getUTCDay())) {
+          try { Object.assign(info, await procesarDiaDePago(admin, new Date())); } catch (e) { info.excel_error = e instanceof Error ? e.message : String(e); }
+        } else info.dia_de_pago = false;
+      }
+      (detalle as Record<string, unknown>).pagos = info;
+      hecho.push(`saldos liberados (${info.liberadas})${info.generado ? `, Excel de pagos enviado (S/ ${info.total})` : ''}`);
       await guardar();
     }
     // 7) mazos meta (Fase 2 · D): Limitless por lotes; si falla se conserva la última versión

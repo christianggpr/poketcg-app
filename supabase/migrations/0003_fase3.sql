@@ -961,3 +961,121 @@ drop policy if exists "entregas: ver" on storage.objects;
 create policy "entregas: ver" on storage.objects for select using (bucket_id = 'entregas');
 drop policy if exists "entregas: subir" on storage.objects;
 create policy "entregas: subir" on storage.objects for insert with check (bucket_id = 'entregas' and auth.role() = 'authenticated');
+
+-- ----------------------------------------------------------------------------
+-- C. Saldos y pagos a vendedores: la ganancia se libera al confirmarse la entrega y se paga cada día de pago
+-- ----------------------------------------------------------------------------
+create table if not exists public.retiros (
+  id                 uuid primary key default gen_random_uuid(),
+  numero             bigserial,
+  usuario_id         uuid not null references public.perfiles (id) on delete cascade,
+  monto              numeric(10,2) not null default 0,
+  bruto              numeric(10,2) not null default 0,
+  comision           numeric(10,2) not null default 0,
+  ordenes            uuid[] not null default '{}',
+  estado             text not null default 'pendiente' check (estado in ('pendiente', 'sin_datos', 'pagado', 'anulado')),
+  n_operacion        text,
+  comprobante_url    text,
+  excel_generado_en  timestamptz,
+  pagado_en          timestamptz,
+  pagado_por         uuid,
+  notas              text,
+  creado             timestamptz not null default now(),
+  actualizado        timestamptz not null default now()
+);
+create index if not exists retiros_por_usuario on public.retiros (usuario_id, estado);
+create index if not exists retiros_por_estado on public.retiros (estado, creado);
+alter table public.retiros enable row level security;
+drop policy if exists "retiros: ver propios" on public.retiros;
+create policy "retiros: ver propios" on public.retiros for select using (usuario_id = auth.uid() or public.es_admin());
+-- (sin escritura directa)
+
+-- Libera el saldo de las órdenes entregadas (tras `liberacion_dias`, por defecto 0) y lo suma al pago pendiente del vendedor
+create or replace function public.liberar_saldos()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  dias int := coalesce((public.ajustes_pagos()->>'liberacion_dias')::int, 0);
+  o record;
+  r record;
+  n int := 0;
+  tiene_datos boolean;
+begin
+  for o in select * from public.ordenes where estado = 'entregada' and entregada_en <= now() - make_interval(days => dias) order by entregada_en for update skip locked loop
+    update public.ordenes set estado = 'saldo_liberado', saldo_liberado_en = now(), actualizada = now() where id = o.id;
+    select exists (select 1 from public.datos_cobro where usuario_id = o.vendedor_id) into tiene_datos;
+    select * into r from public.retiros where usuario_id = o.vendedor_id and estado in ('pendiente', 'sin_datos') and excel_generado_en is null order by creado limit 1 for update;
+    if r.id is null then
+      insert into public.retiros (usuario_id, monto, bruto, comision, ordenes, estado) values (o.vendedor_id, o.neto_vendedor, o.subtotal, o.comision, array[o.id], case when tiene_datos then 'pendiente' else 'sin_datos' end) returning * into r;
+    else
+      update public.retiros set monto = monto + o.neto_vendedor, bruto = bruto + o.subtotal, comision = comision + o.comision, ordenes = ordenes || o.id, estado = case when tiene_datos then 'pendiente' else 'sin_datos' end, actualizado = now() where id = r.id;
+    end if;
+    perform public.notificar(o.vendedor_id, 'saldo_liberado', 'Ganancia lista: S/ ' || to_char(o.neto_vendedor, 'FM999990.00') || ' (orden #' || o.numero || ')',
+      case when tiene_datos then 'Se paga en el próximo día de pago a tus datos de cobro. Verás el abono en Mis ventas → Mi saldo.' else 'Para pagarte necesitamos tus datos de cobro (Yape, Plin o cuenta bancaria): regístralos en Ajustes.' end,
+      '/app/ventas', jsonb_build_object('orden_id', o.id, 'retiro_id', r.id), case when tiene_datos then '{app}'::text[] else '{app,correo}'::text[] end);
+    n := n + 1;
+  end loop;
+  return jsonb_build_object('liberadas', n);
+end;
+$$;
+revoke all on function public.liberar_saldos() from public, anon, authenticated;
+
+-- Cuando el vendedor registra sus datos de cobro, sus pagos "sin datos" pasan a pendientes (lo llama el servidor)
+create or replace function public.activar_retiros_sin_datos(p_usuario uuid)
+returns int
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare n int;
+begin
+  update public.retiros set estado = 'pendiente', actualizado = now() where usuario_id = p_usuario and estado = 'sin_datos';
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+revoke all on function public.activar_retiros_sin_datos(uuid) from public, anon, authenticated;
+
+-- El administrador marca un pago como realizado (Yape/Plin/transferencia) y el vendedor recibe el aviso
+create or replace function public.marcar_retiro_pagado(p_retiro uuid, p_operacion text default null, p_comprobante text default null)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  yo uuid := auth.uid();
+  r record;
+begin
+  if yo is not null and not public.es_admin() then return jsonb_build_object('ok', false, 'error', 'Solo el administrador'); end if;
+  select * into r from public.retiros where id = p_retiro for update;
+  if r.id is null then return jsonb_build_object('ok', false, 'error', 'El pago no existe'); end if;
+  if r.estado = 'pagado' then return jsonb_build_object('ok', true, 'estado', 'pagado'); end if;
+  update public.retiros set estado = 'pagado', pagado_en = now(), pagado_por = yo, n_operacion = nullif(p_operacion, ''), comprobante_url = nullif(p_comprobante, ''), actualizado = now() where id = r.id;
+  perform public.notificar(r.usuario_id, 'retiro_pagado', 'Te pagamos S/ ' || to_char(r.monto, 'FM999990.00'), 'Depósito de tus ventas (' || array_length(r.ordenes, 1) || ' ' || case when array_length(r.ordenes, 1) = 1 then 'orden' else 'órdenes' end || ')' || case when nullif(p_operacion, '') is not null then ' · operación ' || p_operacion else '' end || '. Revisa tu Yape/Plin o cuenta.', '/app/ventas', jsonb_build_object('retiro_id', r.id), '{app,correo,whatsapp}');
+  return jsonb_build_object('ok', true, 'estado', 'pagado');
+end;
+$$;
+grant execute on function public.marcar_retiro_pagado(uuid, text, text) to authenticated;   -- la función exige es_admin()
+
+-- Mi saldo (vendedor): en curso, por pagar y pagado
+create or replace function public.mi_saldo()
+returns jsonb
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select jsonb_build_object(
+    'en_curso',   coalesce((select sum(neto_vendedor) from public.ordenes where vendedor_id = auth.uid() and estado in ('pago_confirmado', 'en_tienda')), 0),
+    'por_liberar', coalesce((select sum(neto_vendedor) from public.ordenes where vendedor_id = auth.uid() and estado = 'entregada'), 0),
+    'por_pagar',  coalesce((select sum(monto) from public.retiros where usuario_id = auth.uid() and estado in ('pendiente', 'sin_datos')), 0),
+    'sin_datos',  exists (select 1 from public.retiros where usuario_id = auth.uid() and estado = 'sin_datos'),
+    'pagado',     coalesce((select sum(monto) from public.retiros where usuario_id = auth.uid() and estado = 'pagado'), 0),
+    'ordenes_vendidas', (select count(*) from public.ordenes where vendedor_id = auth.uid() and estado in ('entregada', 'saldo_liberado'))
+  );
+$$;
+grant execute on function public.mi_saldo() to authenticated;

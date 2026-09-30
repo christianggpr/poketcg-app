@@ -265,3 +265,35 @@ test('tarea diaria: recordatorios, confirmación automática a los N días y ór
   assert.equal((await q<{ disponibles: number }>(`select disponibles from public.mercado where id = $1`, [b.pub]))[0].disponibles, 2);
   assert.match((await q<{ titulo: string }>(`select titulo from public.notificaciones where usuario_id = $1 and tipo = 'orden_vencida' order by id desc limit 1`, [ids.admin]))[0].titulo, /devolver/);
 });
+
+test('saldos: al entregarse, la ganancia se libera y se acumula en un pago pendiente por vendedor; sin datos de cobro queda "sin datos"; pagar avisa', async t => {
+  if (!conBase(t)) return;
+  const a = await comprarYConfirmar('tst2-1', 4, 10, 2);
+  const b = await comprarYConfirmar('tst2-2', 2, 30, 1, ids.otro);
+  assert.equal((await rpc(ids.comprador, 'marcar_entregada', [a.orden.id, null, null])).ok, true);
+  assert.equal((await rpc(ids.otro, 'marcar_entregada', [b.orden.id, null, null])).ok, true);
+  await q(`delete from public.retiros where usuario_id = $1`, [ids.vendedor]);
+  await q(`delete from public.datos_cobro where usuario_id = $1`, [ids.vendedor]);
+  await q(`update public.ordenes set estado = 'saldo_liberado' where vendedor_id = $1 and estado = 'entregada' and id not in ($2, $3)`, [ids.vendedor, a.orden.id, b.orden.id]);   // entregas de pruebas anteriores
+  const lib = (await q<{ r: { liberadas: number } }>(`select public.liberar_saldos() as r`))[0].r;
+  assert.ok(lib.liberadas >= 2);
+  const ret = await q<{ estado: string; monto: number; bruto: number; comision: number; ordenes: string[] }>(`select estado, monto, bruto, comision, ordenes from public.retiros where usuario_id = $1 and estado <> 'pagado'`, [ids.vendedor]);
+  assert.equal(ret.length, 1, 'un solo pago pendiente por vendedor');
+  assert.deepEqual([ret[0].estado, ret[0].monto, ret[0].bruto, ret[0].comision], ['sin_datos', 47.5, 50, 2.5]);   // 2×10 + 30 = 50 − 5 %
+  assert.ok(ret[0].ordenes.includes(a.orden.id) && ret[0].ordenes.includes(b.orden.id));
+  assert.equal((await q<{ estado: string }>(`select estado from public.ordenes where id = $1`, [a.orden.id]))[0].estado, 'saldo_liberado');
+  const saldo = await como(ids.vendedor, async c => (await c.query(`select public.mi_saldo() as s`)).rows[0].s);
+  assert.deepEqual([saldo.por_pagar, saldo.sin_datos, saldo.pagado], [47.5, true, 0]);
+  // registra datos de cobro → pendiente; el administrador paga → aviso con WhatsApp
+  await q(`insert into public.datos_cobro (usuario_id, metodo, titular, cifrado) values ($1, 'yape', 'Vero Vega', 'x')`, [ids.vendedor]);
+  assert.equal((await q<{ n: number }>(`select public.activar_retiros_sin_datos($1) as n`, [ids.vendedor]))[0].n, 1);
+  const retiroId = (await q<{ id: string }>(`select id from public.retiros where usuario_id = $1 and estado = 'pendiente'`, [ids.vendedor]))[0].id;
+  assert.equal((await rpc(ids.comprador, 'marcar_retiro_pagado', [retiroId, 'OP1', null])).ok, false, 'solo el administrador paga');
+  const pag = await rpc(ids.admin, 'marcar_retiro_pagado', [retiroId, 'OP-777', null]);
+  assert.equal(pag.ok, true);
+  const aviso = (await q<{ cuerpo: string; canales: string[] }>(`select cuerpo, canales from public.notificaciones where usuario_id = $1 and tipo = 'retiro_pagado' order by id desc limit 1`, [ids.vendedor]))[0];
+  assert.match(aviso.cuerpo, /OP-777/); assert.ok(aviso.canales.includes('whatsapp'));
+  const saldo2 = await como(ids.vendedor, async c => (await c.query(`select public.mi_saldo() as s`)).rows[0].s);
+  assert.deepEqual([saldo2.por_pagar, saldo2.pagado], [0, 47.5]);
+  await q(`delete from public.datos_cobro where usuario_id = $1`, [ids.vendedor]);
+});

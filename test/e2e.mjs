@@ -12,6 +12,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 const require = createRequire(process.env.PLAYWRIGHT_MODULES || '/opt/node-tools/node_modules/');
 const { chromium } = require('playwright');
+const requireProyecto = createRequire(import.meta.url); // dependencias del proyecto (exceljs)
 
 const APP = 'http://127.0.0.1:3000';
 const MOCK = 'http://127.0.0.1:54321';
@@ -612,8 +613,8 @@ try {
   const pageT = await ctxT.newPage();
   await entrar(pageT, 'tienda_lince', 'clave-tienda');
   await pageT.goto(APP + '/app/tienda');
-  await pageT.waitForSelector('[data-testid=orden-tienda]');
-  if (!/vendedora_lima/.test(await pageT.textContent('[data-testid=orden-tienda]')) || /987654321|912345678/.test(await pageT.textContent('body'))) throw new Error('la tienda debe ver la orden sin celulares');
+  await pageT.waitForSelector('[data-testid=orden-tienda]:has-text("vendedora_lima")'); // los nombres de usuario cargan después de las órdenes
+  if (/987654321|912345678/.test(await pageT.textContent('body'))) throw new Error('la tienda debe ver la orden sin celulares');
   await pageT.click('[data-testid=btn-recibido]');
   await pageT.click('[data-testid=btn-recibido-sin-foto]');
   await pageT.waitForSelector('.toast:has-text("recibida")');
@@ -638,7 +639,8 @@ try {
   await pageT.fill('[data-testid=input-codigo-retiro]', codigoRetiro);
   await pageT.click('[data-testid=btn-confirmar-retiro]');
   await pageT.waitForSelector('.toast:has-text("entregada")');
-  if (sql(`select estado || ':' || entregada_por from public.ordenes where id = '${ordenId}'`) !== 'entregada:tienda') throw new Error('la orden no quedó entregada por la tienda');
+  // con liberacion_dias = 0 el saldo se libera al instante: entregada → saldo_liberado en la misma llamada
+  if (sql(`select estado || ':' || entregada_por from public.ordenes where id = '${ordenId}'`) !== 'saldo_liberado:tienda') throw new Error('la orden no quedó entregada por la tienda (con saldo liberado)');
   if (num(`select count(*) from public.entradas where usuario_id = '${LUCIA}'`) !== 0) throw new Error('las cartas vendidas siguen en la colección de la vendedora');
   if (num(`select count(*) from public.publicaciones where usuario_id = '${LUCIA}' and estado = 'vendida'`) !== 3 || num(`select count(*) from public.mercado where vendedor_id = '${LUCIA}'`) !== 0) throw new Error('las publicaciones no quedaron vendidas');
   if (!/118\.61/.test(sql(`select cuerpo from public.notificaciones where usuario_id = '${LUCIA}' and tipo = 'entregada' order by id desc limit 1`))) throw new Error('la vendedora no recibió el aviso de entrega con su ganancia');
@@ -659,6 +661,53 @@ try {
   if (num("select cantidad from public.entradas where carta_id = 'sv03.5-001' and usuario_id = (select id from public.perfiles where username = 'chris_tcg')") !== 3) throw new Error('la carta comprada no se agregó a la colección');
   await ctxL.close(); await ctxT.close();
   log('comprador: Bulbasaur ×3 agregado a Caja 2 desde la compra');
+
+  // ---------- Fase 3 · C: saldo del vendedor, Excel del día de pago y pago marcado
+  if (sql(`select estado || ':' || monto from public.retiros where usuario_id = '${LUCIA}'`) !== 'pendiente:118.61') throw new Error('la entrega no generó el pago pendiente: ' + sql(`select estado || ':' || monto from public.retiros where usuario_id = '${LUCIA}'`));
+  const ctxL2 = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE' });
+  const pageL2 = await ctxL2.newPage();
+  await entrar(pageL2, 'vendedora_lima', 'clave-lucia');
+  await pageL2.goto(APP + '/app/ventas');
+  await pageL2.waitForSelector('[data-testid=mi-saldo]');
+  if (!/S\/ 118\.61/.test(await pageL2.textContent('[data-testid=mi-saldo]'))) throw new Error('Mi saldo no muestra la ganancia por pagar');
+  await pageL2.click('[data-testid=mi-saldo] >> text=Ver movimientos');
+  await pageL2.waitForSelector('[data-testid=retiro]:has-text("por pagar")');
+  await foto(pageL2, 'mi-saldo');
+  // Excel del día (descarga desde /admin) con la vendedora en la hoja Yape-Plin
+  await page.goto(APP + '/admin?tab=retiros');
+  await page.waitForSelector('[data-testid=admin-retiro]:has-text("@vendedora_lima")');
+  if (!/Yape 912345678/.test(await page.textContent('[data-testid=admin-retiro]:has-text("@vendedora_lima")'))) throw new Error('el pago no muestra los datos de cobro descifrados');
+  const xlsx = await page.request.get(APP + '/api/admin/retiros/excel');
+  if (!xlsx.ok() || !/spreadsheetml/.test(xlsx.headers()['content-type'] || '')) throw new Error('no se pudo descargar el Excel: ' + xlsx.status());
+  const ExcelJS = requireProyecto('exceljs');
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(await xlsx.body());
+  const hojaYape = wb.getWorksheet('Yape-Plin');
+  const filaLucia = [];
+  hojaYape.eachRow(r => { if (String(r.getCell(3).value) === '@vendedora_lima') filaLucia.push(r.values); });
+  if (filaLucia.length !== 1 || filaLucia[0][8] !== '912345678' || Number(filaLucia[0][16]) !== 118.61 || !/#\d+/.test(String(filaLucia[0][13]))) throw new Error('fila del Excel inesperada: ' + JSON.stringify(filaLucia));
+  if (!wb.getWorksheet('Resumen') || !wb.getWorksheet('Transferencia')) throw new Error('faltan hojas en el Excel');
+  // la tarea diaria (todos los días son día de pago) envía el Excel por correo al administrador
+  const tareaPago = await correrTarea();
+  if (!tareaPago.tarea?.detalle?.pagos?.generado) throw new Error('la tarea diaria no generó el Excel: ' + JSON.stringify(tareaPago.tarea?.detalle?.pagos));
+  const correoExcel = (await correos()).filter(c => /Pagos a vendedores/.test(c.subject)).pop();
+  if (!correoExcel || !correoExcel.attachments?.length || !/pagos-poketcg-.*\.xlsx/.test(correoExcel.attachments[0].filename)) throw new Error('el correo del Excel no llegó con adjunto');
+  log('pago pendiente S/ 118.61 (Yape 912345678) en Mi saldo, en /admin y en el Excel enviado por correo:', correoExcel.attachments[0].filename);
+
+  // el administrador marca el pago → la vendedora recibe el aviso (correo + WhatsApp) y ve "ya pagado"
+  await page.reload();
+  await page.waitForSelector('[data-testid=admin-retiro]:has-text("@vendedora_lima") [data-testid=btn-pagado]');
+  await page.click('[data-testid=admin-retiro]:has-text("@vendedora_lima") [data-testid=btn-pagado]');
+  await page.waitForSelector('.toast:has-text("vendedores avisados")');
+  if (sql(`select estado from public.retiros where usuario_id = '${LUCIA}'`) !== 'pagado') throw new Error('el pago no quedó marcado');
+  if (!(await correos()).some(c => /Te pagamos S\/ 118\.61/.test(c.subject))) throw new Error('la vendedora no recibió el correo del pago');
+  await page.click('[data-testid=admin-tabs] >> text=WhatsApp');
+  await page.waitForSelector('[data-testid=admin-wsp]:has-text("Te pagamos")');
+  await pageL2.goto(APP + '/app/ventas');
+  await pageL2.waitForSelector('[data-testid=mi-saldo]');
+  if (!/ya pagado/.test(await pageL2.textContent('[data-testid=mi-saldo]')) || !/S\/ 118\.61/.test(await pageL2.textContent('[data-testid=mi-saldo] .stat .box >> nth=2'))) throw new Error('Mi saldo no muestra el pago realizado');
+  await ctxL2.close();
+  log('pago marcado como realizado: vendedora avisada por correo y WhatsApp; Mi saldo → ya pagado S/ 118.61');
 
   // ---------- álbum automático
   await page.goto(APP + '/app/album');
