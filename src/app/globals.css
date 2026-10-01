@@ -576,7 +576,7 @@ textarea.input { min-height: 72px; resize: vertical; }
 .pocket { position: relative; aspect-ratio: 63 / 88; border-radius: 8px; border: 2px dashed var(--carpeta-linea); background: var(--carpeta-casilla); display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; min-height: 44px; }
 .pocket.filled { border-style: solid; border-color: transparent; background: var(--carpeta-casilla); }
 .pocket.missing { border-style: dashed; border-color: var(--carpeta-linea); background: var(--carpeta-casilla); }
-.pocket.missing img { filter: grayscale(1) brightness(1.08) contrast(.85); opacity: .5; }
+.pocket.missing img { filter: grayscale(1) brightness(1.25) contrast(.9); opacity: .62; }   /* Ajustes de layout · 4: gris claro, reconocible sobre la hoja oscura */
 .pocket.selected { outline: 3px solid var(--acento); outline-offset: -1px; }
 .pocket.drop { outline: 3px solid var(--primario); outline-offset: -1px; }
 .pocket img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -1078,9 +1078,9 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
 /* La hoja del álbum: las cartas que faltan se ven en gris y más claras; el número arriba a la izquierda como en las que tengo */
 .hoja-carpeta .pocket.missing .pocket-n { background: rgba(255, 255, 255, .82); color: var(--carpeta); }
 .hoja-carpeta .pocket.missing { border-color: transparent; }
-.hoja-carpeta .pocket.missing:hover img { opacity: .72; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pocket.missing img { filter: grayscale(1) brightness(.9) contrast(.85); opacity: .45; } }
-:root[data-theme="dark"] .pocket.missing img { filter: grayscale(1) brightness(.9) contrast(.85); opacity: .45; }
+.hoja-carpeta .pocket.missing:hover img { opacity: .8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pocket.missing img { filter: grayscale(1) brightness(1.15) contrast(.9); opacity: .58; } }
+:root[data-theme="dark"] .pocket.missing img { filter: grayscale(1) brightness(1.15) contrast(.9); opacity: .58; }
 
 /* Mejoras 2 · B · el álbum es lo principal; Bulk aparte */
 .sugerencia.repetida { box-shadow: inset 0 0 0 2px var(--aviso-texto); }
