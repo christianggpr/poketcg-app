@@ -72,12 +72,9 @@ export function Mercado() {
   return (
     <div>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <h2 style={{ margin: 0 }}>🛒 Mercado</h2>
+        <h2 style={{ margin: 0 }}>🔎 Buscar en el mercado</h2>
         <div className="row" style={{ gap: 6 }}>
           <Link href="/app/carrito" className="btn sm" data-testid="btn-carrito">🛒 Carrito{mercado.unidades ? ` (${mercado.unidades})` : ''}</Link>
-          <Link href="/app/compras" className="btn sm ghost">🧾 Mis compras</Link>
-          <Link href="/app/mazos" className="btn sm ghost">🃏 Mazos meta</Link>
-          <Link href="/app/ventas" className="btn sm ghost">🏷️ Mis ventas</Link>
         </div>
       </div>
       <p className="small muted">Cartas que otros coleccionistas tienen en venta. El precio que ves es el que pagas por copia (la comisión la paga el vendedor): pagas por Yape/Plin o con tu saldo y recoges en una tienda aliada con tu código de retiro. Las copias del carrito quedan reservadas 24 h.</p>
@@ -129,12 +126,12 @@ export function Mercado() {
 }
 
 /** Lista de deseos: las cartas marcadas con ❤️, con la mejor oferta actual o "sin ofertas" (la app avisa cuando aparece una). */
-function ListaDeseos() {
+export function ListaDeseos({ abiertaAlInicio = false }: { abiertaAlInicio?: boolean }) {
   const cat = useCatalogo();
   const { perfil } = usePerfil();
   const mercado = useMercado();
   const router = useRouter();
-  const [abierta, setAbierta] = useState(false);
+  const [abierta, setAbierta] = useState(abiertaAlInicio);
   const [resumen, setResumen] = useState<Map<string, ResumenCarta>>(new Map());
   const ids = mercado.favoritos;
   useEffect(() => {
@@ -165,7 +162,7 @@ function ListaDeseos() {
   );
 }
 
-function FilaMercado({ carta, resumen, tengo, onClick }: { carta: Carta; resumen: ResumenCarta; tengo: boolean; onClick: () => void }) {
+export function FilaMercado({ carta, resumen, tengo, onClick }: { carta: Carta; resumen: ResumenCarta; tengo: boolean; onClick: () => void }) {
   const cat = useCatalogo();
   const { perfil } = usePerfil();
   const idioma = perfil.idioma_nombres;

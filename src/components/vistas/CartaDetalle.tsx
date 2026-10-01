@@ -32,7 +32,7 @@ export function CartaDetalle({ id }: { id: string }) {
   const [editar, setEditar] = useState<Entrada | null>(null);
   const carta = cat.carta(id);
   useEffect(() => { if (carta && !carta.sd) precios.pedir([carta.id]); }, [carta, precios]);
-  if (!carta) return <div className="empty"><div className="big">🫥</div>Esa carta no está en el catálogo. <Link href="/app">Volver a buscar</Link></div>;
+  if (!carta) return <div className="empty"><div className="big">🫥</div>Esa carta no está en el catálogo. <Link href="/app/buscar">Volver a buscar</Link></div>;
   const set = cat.setOf(carta);
   const idioma = perfil.idioma_nombres;
   const propias = col.entradas.filter(e => e.carta_id === carta.id);
@@ -60,7 +60,7 @@ export function CartaDetalle({ id }: { id: string }) {
 
   return (
     <div>
-      <p className="small"><Link href="/app">← Buscar</Link>{set ? <> · <Link href={`/app/album/${encodeURIComponent(set.id)}`}>Álbum {nombreColeccion(set, idioma)}</Link></> : null}</p>
+      <p className="small"><Link href="/app/buscar">← Buscar</Link>{set ? <> · <Link href={`/app/album/${encodeURIComponent(set.id)}`}>Álbum {nombreColeccion(set, idioma)}</Link></> : null}</p>
       <div className="detail-grid">
         <div>
           {grande ? /* eslint-disable-next-line @next/next/no-img-element */ <img className="thumb xl" src={grande} alt="" style={{ width: '100%', height: 'auto', maxWidth: 320 }} onError={e => { e.currentTarget.style.display = 'none'; }} /> : <Thumb carta={carta} set={set} className="xl" />}

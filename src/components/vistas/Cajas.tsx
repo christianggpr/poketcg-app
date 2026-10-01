@@ -170,7 +170,7 @@ export function Cajas() {
           const sets = r ? [...r.sets.entries()].sort((a, b) => b[1] - a[1]) : [];
           return (
             <div className="box-card" key={c.id}>
-              <Link href={`/app/cajas/${c.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Link href={`/app/bulk/${c.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div className="order">{i + 1}ª</div>
                 <div className="box-name"><span className="ico">📦</span>{c.nombre}</div>
                 <div className="box-meta">{r ? `${r.n} ${r.n === 1 ? 'carta' : 'cartas'}` : 'vacía'} · {c.modo === 'manual' ? 'orden manual' : 'por colección y nº'}{c.descripcion ? ` · ${c.descripcion}` : ''}{c.en_venta ? <> · <span className="pill ok">🏷️ en venta</span></> : null}</div>
@@ -215,7 +215,7 @@ export function CajaDetalle({ id }: { id: string }) {
   const [personalizada, setPersonalizada] = useState<Personalizada | null>(null);
   const [editarEntrada, setEditarEntrada] = useState<Entrada | null>(null);
   const [pNombre, setPNombre] = useState(''); const [pCol, setPCol] = useState(''); const [pNum, setPNum] = useState('');
-  if (!caja) return <div className="empty"><div className="big">📦</div>Esa caja no existe. <Link href="/app/cajas">Volver a cajas</Link></div>;
+  if (!caja) return <div className="empty"><div className="big">📦</div>Esa caja no existe. <Link href="/app/bulk">Volver a Bulk</Link></div>;
   const pos = ubicador.posiciones(caja);
   const idioma = perfil.idioma_nombres;
   const entradasCaja = pos.lista.map(p => p.entrada);
@@ -251,7 +251,7 @@ export function CajaDetalle({ id }: { id: string }) {
   let seccionPrev = '';
   return (
     <div>
-      <p className="small"><Link href="/app/cajas">← Cajas</Link></p>
+      <p className="small"><Link href="/app/bulk">← Bulk</Link></p>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
         <div><h2 style={{ margin: 0 }}>📦 {caja.nombre}</h2><div className="small muted">Caja {ubicador.ordinal(caja)}ª de izquierda a derecha · {pos.total} {pos.total === 1 ? 'posición' : 'posiciones'} · {caja.modo === 'manual' ? 'orden manual' : `por colección y nº (${caja.orden_colecciones === 'desc' ? 'nuevas primero' : 'antiguas primero'})`}{caja.descripcion ? ` · ${caja.descripcion}` : ''}{pubsCaja.length ? ` · ${pubsCaja.length} en el mercado` : ''}</div></div>
         <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
@@ -320,7 +320,7 @@ export function CajaDetalle({ id }: { id: string }) {
       {editarEntrada ? <EntryDetailSheet entrada={editarEntrada} onClose={() => setEditarEntrada(null)} /> : null}
       {editar ? <EditorCaja caja={caja} onClose={() => setEditar(false)} /> : null}
       {confirmarVenta ? <Confirmar titulo="Poner la caja en venta" texto={`Se publicarán en el mercado las ${publicables.length - pubsCaja.length} ${publicables.length - pubsCaja.length === 1 ? 'carta' : 'cartas'} del catálogo que hay en esta caja con el precio por defecto (${fmtPen(precios.ajustes.pisos.normal)} las normales, ${fmtPen(precios.ajustes.pisos.especial)} las holo/reverse/especiales, o el valor de mercado si es mayor) y cada carta que guardes aquí se publicará sola. Podrás cambiar precios, pausar o retirar cuando quieras. Las de más de S/ 50 quedan pausadas hasta que les agregues una foto.`} okLabel="Poner en venta" onOk={() => { setConfirmarVenta(false); cambiarVenta(true); }} onClose={() => setConfirmarVenta(false)} /> : null}
-      {borrar ? <Confirmar titulo="Eliminar caja" texto={`Se eliminará la caja "${caja.nombre}". Las cartas que tenga quedarán sin caja (no se borran).`} okLabel="Eliminar caja" peligro onOk={async () => { const ok = await col.eliminarCaja(caja.id, false); if (ok) { toast('Caja eliminada', 'ok'); router.replace('/app/cajas'); } }} onClose={() => setBorrar(false)} /> : null}
+      {borrar ? <Confirmar titulo="Eliminar caja" texto={`Se eliminará la caja "${caja.nombre}". Las cartas que tenga quedarán sin caja (no se borran).`} okLabel="Eliminar caja" peligro onOk={async () => { const ok = await col.eliminarCaja(caja.id, false); if (ok) { toast('Caja eliminada', 'ok'); router.replace('/app/bulk'); } }} onClose={() => setBorrar(false)} /> : null}
     </div>
   );
 }

@@ -1,9 +1,7 @@
-import { Suspense } from 'react';
-import { CajaDetalle } from '@/components/vistas/Cajas';
+import { redirect } from 'next/navigation';
 
-export const metadata = { title: 'Caja' };
-
-export default async function PaginaCaja({ params }: { params: Promise<{ id: string }> }) {
+/** Dirección antigua de una caja: redirige al Bulk con el mismo id (enlaces y correos ya enviados siguen funcionando). */
+export default async function PaginaCajaAntigua({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <Suspense><CajaDetalle id={id} /></Suspense>;
+  redirect(`/app/bulk/${encodeURIComponent(id)}`);
 }

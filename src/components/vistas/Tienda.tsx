@@ -54,7 +54,7 @@ export function Tienda() {
     return () => { sb.removeChannel(ch); };
   }, [perfil.id, cargar]);
 
-  if (!esTienda) return <div className="empty"><div className="big">🏪</div>Esta página es para las cuentas de tienda. <Link href="/app">Volver</Link></div>;
+  if (!esTienda) return <div className="empty"><div className="big">🏪</div>Esta página es para las cuentas de tienda. <Link href="/app/album">Volver</Link></div>;
 
   async function recibido(o: Orden, file?: File) {
     setOcupado(true);

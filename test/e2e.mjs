@@ -99,8 +99,8 @@ try {
 
   // confirmar por el enlace del correo → sesión iniciada
   await page.goto(enlace);
-  await page.waitForURL(/\/app/, { timeout: 20000 });
-  await page.waitForSelector('text=Tu colección está vacía', { timeout: 60000 });
+  await page.waitForURL(/\/app\/album/, { timeout: 20000 });   // ?bienvenida=1 llega a Álbumes y se muestra el aviso
+  await page.waitForSelector('text=Cuando guardes cartas aparecerán aquí', { timeout: 60000 });
   await foto(page, 'app-vacia');
   if (!(await page.textContent('body')).includes('Bienvenido')) throw new Error('sin mensaje de bienvenida');
   log('correo confirmado, sesión iniciada, catálogo cargado');
@@ -123,8 +123,18 @@ try {
   if (t1.tarea?.estado !== 'ok' || t1.tarea?.detalle?.fx?.usd_pen !== 3.7) throw new Error('la tarea diaria no fijó el tipo de cambio: ' + JSON.stringify(t1).slice(0, 300));
   log('tarea diaria ejecutada: tipo de cambio US$1 = S/ 3.70');
 
-  // ---------- cajas
+  // ---------- cajas (Mejoras 1 · B: la app abre en Álbumes con dos pestañas; /app/cajas redirige a /app/bulk)
+  await page.goto(APP + '/app');
+  await page.waitForURL(/\/app\/album$/);
+  if ((await page.$$('[data-testid=tabbar] a')).length !== 2 || !(await page.$('[data-testid=tabbar-coleccion].active')) || !(await page.$('[data-testid=sec-album].active'))) throw new Error('la app debía abrir en Mi Colección → Álbumes con 2 pestañas');
+  await page.click('[data-testid=btn-perfil]');
+  await page.waitForSelector('[data-testid=menu-perfil] [data-testid=menu-ajustes]');
+  if (!(await page.$('[data-testid=menu-perfil] [data-testid=menu-salir]'))) throw new Error('el menú de perfil debía tener Cerrar sesión');
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('[data-testid=menu-perfil]', { state: 'detached' });
   await page.goto(APP + '/app/cajas');
+  await page.waitForURL(/\/app\/bulk$/);
+  if (!(await page.$('[data-testid=sec-bulk].active'))) throw new Error('/app/cajas debía redirigir a /app/bulk con la sección Bulk activa');
   await page.click('text=+ Nueva caja');
   await page.fill('.sheet input.input', 'Caja 1');
   await page.click('.sheet-foot >> text=Crear caja');
@@ -145,7 +155,7 @@ try {
 
   // ---------- guardar cartas desde Buscar
   async function guardar(q, idCarta, esperado) {
-    await page.goto(APP + '/app');
+    await page.goto(APP + '/app/buscar');
     await page.fill('.search-wrap input', q);
     await page.waitForSelector('.card-row');
     const fila = page.locator('.card-row', { hasText: idCarta.texto }).first();
@@ -175,7 +185,7 @@ try {
   log('Pikachu reverse (otra entrada) →', r.donde);
 
   // ---------- Mi colección con valor
-  await page.goto(APP + '/app');
+  await page.goto(APP + '/app/buscar');
   await page.waitForSelector('text=valor estimado');
   await page.waitForFunction(() => /\(\d*[1-9]\d* con precio de mercado\)/.test(document.querySelector('.stat')?.textContent || ''), null, { timeout: 30000 });
   const stat = await page.textContent('.stat');
@@ -184,7 +194,7 @@ try {
   log('Mi colección:', stat.replace(/\s+/g, ' ').slice(0, 120));
 
   // ---------- detalle de la caja: orden físico
-  await page.goto(APP + '/app/cajas');
+  await page.goto(APP + '/app/bulk');
   await page.click('.box-card >> text=Caja 1');
   await page.waitForSelector('.entry-row');
   const orden = await page.$$eval('.entry-row .num', els => els.map(e => e.textContent.trim()));
@@ -214,7 +224,7 @@ try {
   log('Caja 1 en venta: 2 publicaciones con precio por defecto, pausadas por falta de foto (> S/ 50)');
 
   // carta nueva en la caja en venta → se publica sola y queda activa (Bulbasaur S/ 15.06 < S/ 50)
-  await page.goto(APP + '/app');
+  await page.goto(APP + '/app/buscar');
   await page.fill('.search-wrap input', 'bulbasaur 151');
   await page.waitForSelector('.card-row');
   await page.locator('.card-row', { hasText: '001/165' }).first().locator('text=+ Guardar en una caja').click();
@@ -230,7 +240,7 @@ try {
   log('carta nueva en caja en venta → publicada sola y activa a S/ 15.06');
 
   // Caja 2 (no en venta) → al guardar pregunta; "Solo esta carta"
-  await page.goto(APP + '/app');
+  await page.goto(APP + '/app/buscar');
   await page.fill('.search-wrap input', 'charmander 151');
   await page.waitForSelector('.card-row');
   await page.locator('.card-row', { hasText: '004/165' }).first().locator('text=+ Guardar en una caja').click();
@@ -247,7 +257,7 @@ try {
   log('pregunta al guardar en caja no en venta → "Solo esta carta" publicada a S/ 16.54');
 
   // precio manual 80 sin foto → pausada; con foto → activa; volver al precio por defecto
-  await page.goto(APP + '/app/cajas');
+  await page.goto(APP + '/app/bulk');
   await page.click('.box-card >> text=Caja 2');
   await page.waitForSelector('.entry-row');
   await page.click('.entry-row:has-text("004/165")');
@@ -280,7 +290,7 @@ try {
   log('precio manual S/ 80 sin foto → pausada; foto comprimida y pública → activa; vuelta al precio por defecto S/ 16.54');
 
   // cantidad de la entrada → la publicación se ajusta sola
-  await page.goto(APP + '/app/cajas');
+  await page.goto(APP + '/app/bulk');
   await page.click('.box-card >> text=Caja 1');
   await page.waitForSelector('.entry-row');
   await page.click('.entry-row:has-text("025/165") >> nth=0');
@@ -322,7 +332,7 @@ try {
   log('vista pública del mercado: 1 activa, solo @vendedor, sin datos personales');
 
   // borrar la entrada → la publicación desaparece
-  await page.goto(APP + '/app/cajas');
+  await page.goto(APP + '/app/bulk');
   await page.click('.box-card >> text=Caja 1');
   await page.waitForSelector('.entry-row');
   await page.click('.entry-row:has-text("001/165")');
@@ -341,8 +351,8 @@ try {
   sql(`insert into public.entradas (usuario_id, caja_id, carta_id, cantidad, acabado, idioma, condicion) values ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-001', 3, 'Normal', 'ES', 'MP'), ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-004', 1, 'Reverse', 'EN', ''), ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-010', 2, '', 'ES', '')`);
   sql(`update public.cajas set en_venta = true where id = '${CAJA_LUCIA}'`);
   if (num(`select count(*) from public.publicaciones where usuario_id = '${LUCIA}' and estado = 'activa'`) !== 3) throw new Error('la caja de Lucía no se publicó');
-  // pestaña Mercado: lista, búsqueda, filtros
-  await page.goto(APP + '/app/mercado');
+  // pestaña Mercado → Buscar en el mercado: lista, búsqueda, filtros
+  await page.goto(APP + '/app/mercado/buscar');
   await page.waitForSelector('[data-testid=fila-mercado]');
   if ((await page.$$('[data-testid=fila-mercado]')).length !== 3) throw new Error('el mercado debía listar 3 cartas');
   await foto(page, 'mercado');
@@ -402,7 +412,7 @@ try {
   log('carrito: total S/ 30.12, "Comprar" abre la elección de tienda, 3 copias → reservada (otro comprador rechazado), 2 → activa');
 
   // mis propias publicaciones no se pueden comprar: publico mi Charmander desde Caja 2 (elegir cuáles)
-  await page.goto(APP + `/app/cajas/${sql("select id from public.cajas where nombre = 'Caja 2'")}?elegir=1`);
+  await page.goto(APP + `/app/bulk/${sql("select id from public.cajas where nombre = 'Caja 2'")}?elegir=1`);
   await page.waitForSelector('[data-testid=barra-seleccion]');
   await page.click('.entry-row:has-text("004/165")');
   await page.click('[data-testid=barra-seleccion] button:has-text("Publicar 1")');
@@ -600,7 +610,7 @@ try {
   sql(`update auth.users set encrypted_password = 'clave-lucia', email_confirmed_at = now() where id = '${LUCIA}'`);
   const TIENDA_USR = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
   sql(`insert into auth.users (id, email, encrypted_password, email_confirmed_at, raw_user_meta_data) values ('${TIENDA_USR}', 'tienda@correo.pe', 'clave-tienda', now(), '{\"username\":\"tienda_lince\",\"nombres\":\"Tienda\",\"apellidos\":\"Lince\",\"telefono\":\"955555555\",\"dni\":\"55555555\",\"acepto_terminos\":true}')`);
-  const entrar = async (pg, usuario, clave) => { await pg.goto(APP + '/ingresar'); await pg.fill('input[autocomplete=username]', usuario); await pg.fill('input[type=password]', clave); await pg.click('button[type=submit]'); await pg.waitForURL(/\/app/, { timeout: 20000 }); await pg.waitForSelector('text=/valor estimado|colección está vacía/', { timeout: 60000 }); };
+  const entrar = async (pg, usuario, clave) => { await pg.goto(APP + '/ingresar'); await pg.fill('input[autocomplete=username]', usuario); await pg.fill('input[type=password]', clave); await pg.click('button[type=submit]'); await pg.waitForURL(/\/app/, { timeout: 20000 }); await pg.waitForSelector('text=/Álbumes por colección|valor estimado|colección está vacía/', { timeout: 60000 }); };
   const ctxL = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE' });
   const pageL = await ctxL.newPage();
   await entrar(pageL, 'vendedora_lima', 'clave-lucia');
@@ -695,7 +705,7 @@ try {
   await page.waitForSelector('[data-testid=orden-entregada]');
   if ((await page.$$('[data-testid=en-mi-coleccion]')).length !== 3) throw new Error('la compra no marca las cartas como "en tu colección"');
   // Cajas → Por colocar (6 cartas): Bulbasaur ×3 a la Caja 2 con la posición indicada
-  await page.goto(APP + '/app/cajas');
+  await page.goto(APP + '/app/bulk');
   await page.waitForSelector('[data-testid=por-colocar]:has-text("Por colocar (6)")');
   if ((await page.$$('[data-testid=carta-por-colocar]')).length !== 3 || !/orden #\d+ a @vendedora_lima/.test(await page.textContent('[data-testid=por-colocar]'))) throw new Error('la sección "Por colocar" no muestra las 3 cartas compradas');
   await page.selectOption('[data-testid=select-caja-colocar]', { label: '📦 Caja 2' });
@@ -756,7 +766,7 @@ try {
   await page.waitForSelector('.toast:has-text("suspendido")');
   await page.waitForSelector('[data-testid=admin-usuario]:has-text("@vendedora_lima") [data-testid=pill-suspendido]');
   if (sql(`select estado || ':' || suspendido_motivo from public.perfiles where id = '${LUCIA}'`) !== 'suspendido:Prueba de suspensión') throw new Error('la suspensión no se guardó');
-  await pageL3.goto(APP + '/app');
+  await pageL3.goto(APP + '/app/buscar');
   await pageL3.waitForSelector('text=Tu cuenta está suspendida');
   await pageAnon.reload();
   await pageAnon.waitForSelector('[data-testid=pill-suspendido]');
@@ -1051,7 +1061,7 @@ try {
   if (sql(`select titulo || '|' || enlace from public.notificaciones where usuario_id = '${CHRIS}' and tipo = 'favorito' order by id desc limit 1`) !== '❤️ Charmeleon (MEW 005) está en venta|/app/carta/sv03.5-005') throw new Error('el aviso de favorito no llegó: ' + sql(`select titulo || '|' || enlace from public.notificaciones where usuario_id = '${CHRIS}' and tipo = 'favorito' order by id desc limit 1`));
   await page.goto(APP + '/app/notificaciones');
   await page.waitForSelector('text=Charmeleon (MEW 005) está en venta');
-  await page.goto(APP + '/app/mercado');
+  await page.goto(APP + '/app/mercado/buscar');
   await page.waitForSelector('[data-testid=btn-lista-deseos]:has-text("(1)")');
   await page.click('[data-testid=btn-lista-deseos]');
   await page.waitForSelector('[data-testid=fila-deseo]:has-text("1 copia")');
@@ -1077,7 +1087,7 @@ try {
 
   // ---------- Mejoras 1 · A1: desplazamiento hasta el final en todas las páginas principales (PC y celular), también tras abrir y cerrar una hoja
   const cajaChris = sql(`select id from public.cajas where usuario_id = '${CHRIS}' order by orden limit 1`);
-  const PAGINAS_SCROLL = ['/app', '/app/album', '/app/album/sv03.5', '/app/cajas', `/app/cajas/${cajaChris}`, '/app/mercado', '/app/carrito', '/app/mazos', '/app/compras', '/app/ventas', '/app/notificaciones', '/app/ajustes', '/admin', '/ayuda', '/tiendas', '/u/vendedora_lima', '/carta/sv03.5-001'];
+  const PAGINAS_SCROLL = ['/app/buscar', '/app/album', '/app/album/sv03.5', '/app/bulk', `/app/bulk/${cajaChris}`, '/app/mercado', '/app/mercado/buscar', '/app/carrito', '/app/mazos', '/app/compras', '/app/ventas', '/app/notificaciones', '/app/ajustes', '/admin', '/ayuda', '/tiendas', '/u/vendedora_lima', '/carta/sv03.5-001'];
   const comprobarScroll = async (pg, etiqueta) => {
     const problemas = [];
     for (const ruta of PAGINAS_SCROLL) {
@@ -1091,7 +1101,7 @@ try {
       if (!e.llego || e.overflow || e.hojas) problemas.push(`${ruta}: ${JSON.stringify(e)}`);
     }
     // abre una hoja en Buscar ("+ otra copia"), la cierra con Escape y comprueba que se puede seguir bajando
-    await pg.goto(APP + '/app');
+    await pg.goto(APP + '/app/buscar');
     await pg.waitForSelector('text=+ otra copia');
     await pg.evaluate(() => window.scrollTo(0, 400));
     await pg.click('text=+ otra copia >> nth=0');
@@ -1241,8 +1251,8 @@ try {
   await page.waitForSelector('.notice.danger');
   await page.fill('input[type=password]', 'clave12345');
   await page.click('button[type=submit]');
-  await page.waitForURL(/\/app/, { timeout: 20000 });
-  await page.waitForSelector('text=valor estimado', { timeout: 60000 });
+  await page.waitForURL(/\/app\/album/, { timeout: 20000 });   // la app abre en Mi Colección → Álbumes
+  await page.waitForSelector('text=Álbumes por colección', { timeout: 60000 });
   log('ingreso por nombre de usuario OK (y contraseña incorrecta rechazada)');
   await page.goto(APP + '/app/ajustes');
   await page.click('text=Cerrar sesión');
@@ -1275,7 +1285,7 @@ try {
 
   // ---------- escritorio
   await page.setViewportSize({ width: 1200, height: 800 });
-  await page.goto(APP + '/app');
+  await page.goto(APP + '/app/buscar');
   await page.waitForSelector('text=valor estimado', { timeout: 60000 });
   await foto(page, 'escritorio');
 

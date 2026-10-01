@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import type { Carta } from '@/lib/catalogo';
 import { matchesType, ordenarCartas } from '@/lib/catalogo';
 import { buscarCatalogo } from '@/lib/buscar';
@@ -15,33 +16,29 @@ import { CardRow, SimboloSet } from '../CardRow';
 import { FilterBar, type Filtro } from '../FilterBar';
 import { usePedirPrecios } from '../Precio';
 import { AddEntrySheet } from '../AddEntrySheet';
-import { Aviso } from '../ui';
 
 export function Buscar() {
   const cat = useCatalogo();
   const col = useColeccion();
   const { perfil } = usePerfil();
   const params = useSearchParams();
-  const router = useRouter();
   const [q, setQ] = useState(params.get('q') || '');
   const [qLenta, setQLenta] = useState(q);
   const [agregar, setAgregar] = useState<Carta | null>(null);
-  const [bienvenida, setBienvenida] = useState(params.get('bienvenida') === '1');
-  const [claveOk] = useState(params.get('clave') === 'ok');
   useEffect(() => { const t = setTimeout(() => setQLenta(q), 120); return () => clearTimeout(t); }, [q]);
-  useEffect(() => { if (params.get('bienvenida') || params.get('clave')) router.replace('/app'); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   const resultados = useMemo(() => (qLenta.trim() ? buscarCatalogo(cat, qLenta, 60) : []), [cat, qLenta]);
   const ubicador = useUbicador();
 
   return (
     <div>
-      {bienvenida ? <Aviso tipo="ok">¡Tu correo quedó confirmado! Bienvenido/a, {perfil.nombres.split(' ')[0] || perfil.username}. Empieza creando una caja y añadiendo tus primeras cartas. <button className="link" onClick={() => setBienvenida(false)}>Cerrar</button></Aviso> : null}
-      {claveOk ? <Aviso tipo="ok">Contraseña cambiada.</Aviso> : null}
-      <div className="search-wrap">
-        <span className="ico">🔍</span>
-        <input className="input" placeholder="Nombre en cualquier idioma, número (025/165), colección (151, obsidian, sv2a)…" value={q} onChange={e => setQ(e.target.value)} />
-        {q ? <button className="clear" onClick={() => setQ('')} aria-label="Borrar">✕</button> : null}
+      <div className="row" style={{ gap: 8, alignItems: 'stretch' }}>
+        <div className="search-wrap" style={{ flex: 1 }}>
+          <span className="ico">🔍</span>
+          <input className="input" placeholder="Nombre en cualquier idioma, número (025/165), colección (151, obsidian, sv2a)…" value={q} onChange={e => setQ(e.target.value)} />
+          {q ? <button className="clear" onClick={() => setQ('')} aria-label="Borrar">✕</button> : null}
+        </div>
+        <Link href="/app/escanear" className="btn" title="Identificar una carta con la cámara" data-testid="btn-escanear" style={{ flex: 'none' }}>📷 Escanear</Link>
       </div>
       {qLenta.trim() ? (
         <div className="card-list" style={{ marginTop: 10 }}>

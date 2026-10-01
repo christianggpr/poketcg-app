@@ -1,7 +1,6 @@
-import { Cajas } from '@/components/vistas/Cajas';
+import { redirect } from 'next/navigation';
 
-export const metadata = { title: 'Cajas' };
-
-export default function PaginaCajas() {
-  return <Cajas />;
+/** Dirección antigua: las cajas ahora se llaman Bulk (Mejoras 1 · C1). */
+export default function PaginaCajasAntigua() {
+  redirect('/app/bulk');
 }

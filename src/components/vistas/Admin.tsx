@@ -64,7 +64,7 @@ export function AdminPanel() {
 
   return (
     <div className="view">
-      <p className="small"><Link href="/app">← Volver a la app</Link></p>
+      <p className="small"><Link href="/app/album">← Volver a la app</Link></p>
       <h2>Administración</h2>
       {error ? <Aviso tipo="danger">{error}</Aviso> : null}
       <div className="stat">

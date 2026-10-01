@@ -11,7 +11,7 @@ export function BarraPublica({ conSesion, volver = '/' }: { conSesion: boolean; 
         <div><div className="brand-name">{APP_NAME}</div><div className="brand-sub">{APP_TAGLINE}</div></div>
       </Link>
       <div className="topbar-right">
-        {conSesion ? <Link className="btn sm primary" href="/app">Abrir la app</Link> : <><Link className="btn sm" href={'/ingresar' + (volver !== '/' ? '?volver=' + encodeURIComponent(volver) : '')}>Ingresar</Link><Link className="btn sm primary" href="/registro">Crear cuenta</Link></>}
+        {conSesion ? <Link className="btn sm primary" href="/app/album">Abrir la app</Link> : <><Link className="btn sm" href={'/ingresar' + (volver !== '/' ? '?volver=' + encodeURIComponent(volver) : '')}>Ingresar</Link><Link className="btn sm primary" href="/registro">Crear cuenta</Link></>}
       </div>
     </header>
   );
