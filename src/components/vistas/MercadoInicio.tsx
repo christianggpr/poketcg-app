@@ -33,7 +33,7 @@ export function MercadoInicio() {
         {recientes === null ? <p className="small muted"><span className="spinner" /> Consultando…</p> : null}
         {recientes && !recientes.length ? <p className="small muted">Todavía no hay cartas en venta. ¿Tienes repetidas? Ponlas en venta desde tu Bulk.</p> : null}
         <div className="card-list">
-          {(recientes || []).map(f => { const c = cat.carta(f.carta_id); if (!c) return null; return <FilaMercado key={f.carta_id} carta={c} resumen={f} tengo={idsMias.has(f.carta_id)} onClick={() => router.push(`/app/carta/${encodeURIComponent(c.id)}#mercado`)} />; })}
+          {(recientes || []).map(f => { const c = cat.carta(f.carta_id); if (!c) return null; return <FilaMercado key={f.carta_id} carta={c} resumen={f} tengo={idsMias.has(f.carta_id)} onClick={() => router.push(`/app/carta/${encodeURIComponent(c.id)}?desde=mercado#mercado`)} />; })}
         </div>
       </div>
       <ListaDeseos abiertaAlInicio />

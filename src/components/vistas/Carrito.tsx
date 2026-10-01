@@ -106,7 +106,7 @@ export function Carrito() {
               const cambioPrecio = Math.abs(l.precio_actual - l.precio_pen) >= 0.01;
               return (
                 <div key={l.id} className={`card-row linea-carrito ${mal ? 'dim' : ''}`} style={{ cursor: 'default' }} data-testid="linea-carrito">
-                  <Link href={carta ? `/app/carta/${encodeURIComponent(carta.id)}` : '#'}><Thumb carta={carta} set={set} /></Link>
+                  <Link href={carta ? `/app/carta/${encodeURIComponent(carta.id)}?desde=mercado` : '#'}><Thumb carta={carta} set={set} /></Link>
                   <div className="card-main">
                     <div className="card-name">{carta ? nombreCarta(carta, perfil.idioma_nombres) : 'Carta'}</div>
                     <div className="card-set">{set?.ab || nombreColeccion(set, perfil.idioma_nombres)} · {carta ? numLabel(carta, set) : ''}{l.idioma ? ` · ${l.idioma}` : ''}{l.condicion ? ` · ${l.condicion}` : ''}{l.acabado ? ` · ${l.acabado}` : ''} · <VendedorChip username={l.vendedor} reputacion={reputaciones.get(l.vendedor_id)?.reputacion} corto /></div>

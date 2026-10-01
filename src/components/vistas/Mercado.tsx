@@ -116,7 +116,7 @@ export function Mercado() {
         {lista.map(f => {
           const c = cat.carta(f.carta_id);
           if (!c) return null;
-          return <FilaMercado key={f.carta_id} carta={c} resumen={f} tengo={idsMias.has(f.carta_id)} onClick={() => router.push(`/app/carta/${encodeURIComponent(c.id)}#mercado`)} />;
+          return <FilaMercado key={f.carta_id} carta={c} resumen={f} tengo={idsMias.has(f.carta_id)} onClick={() => router.push(`/app/carta/${encodeURIComponent(c.id)}?desde=mercado#mercado`)} />;
         })}
       </div>
       {filas && (pagina > 0 || hayMas) ? (
@@ -150,7 +150,7 @@ export function ListaDeseos({ abiertaAlInicio = false }: { abiertaAlInicio?: boo
       {abierta ? (
         <div className="card-list" style={{ marginTop: 6 }}>
           {ids.map(id => { const c = cat.carta(id); if (!c) return null; const r = resumen.get(id); const set = cat.setOf(c); return (
-            <div key={id} className="card-row" role="button" tabIndex={0} onClick={() => router.push(`/app/carta/${encodeURIComponent(id)}#mercado`)} data-testid="fila-deseo">
+            <div key={id} className="card-row" role="button" tabIndex={0} onClick={() => router.push(`/app/carta/${encodeURIComponent(id)}?desde=mercado#mercado`)} data-testid="fila-deseo">
               <Thumb carta={c} set={set} />
               <div className="card-main">
                 <div className="card-name">{nombreCarta(c, perfil.idioma_nombres)}</div>

@@ -58,7 +58,7 @@ export function CarruselMercado({ titulo, icono, items, testid, vacio, nota }: {
       {!tarjetas.length ? <p className="small muted">{vacio}</p> : (
         <div className="pista" ref={pista} onPointerEnter={() => setPausado(true)} onPointerLeave={() => setPausado(false)} onTouchStart={() => setPausado(true)} onTouchEnd={() => setTimeout(() => setPausado(false), 1500)} onFocus={() => setPausado(true)} onBlur={() => setPausado(false)}>
           {lista.map(({ d, c }, i) => { const set = cat.setOf(c); return (
-            <button key={d.carta_id + ':' + i} className="tarjeta" onClick={() => router.push(`/app/carta/${encodeURIComponent(c.id)}#mercado`)} aria-hidden={i >= tarjetas.length} tabIndex={i >= tarjetas.length ? -1 : 0} data-testid={i < tarjetas.length ? `${testid}-item` : undefined}>
+            <button key={d.carta_id + ':' + i} className="tarjeta" onClick={() => router.push(`/app/carta/${encodeURIComponent(c.id)}?desde=mercado#mercado`)} aria-hidden={i >= tarjetas.length} tabIndex={i >= tarjetas.length ? -1 : 0} data-testid={i < tarjetas.length ? `${testid}-item` : undefined}>
               <Thumb carta={c} set={set} className="lg" />
               <span className="nombre">{nombreCarta(c, idioma)}</span>
               <span className="set small muted">{set?.ab || nombreColeccion(set, idioma, true)} {c.l}</span>

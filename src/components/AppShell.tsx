@@ -1,5 +1,5 @@
 'use client';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ordenesDe } from '@/lib/compras';
@@ -43,10 +43,18 @@ const conLateral = (ruta: string) => ['/app/album', '/app/bulk', '/app/cajas', '
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const ruta = usePathname();
+  const params = useSearchParams();
   const { cat, estado, error } = useCatalogoOpcional();
   const col = useColeccion();
   const { perfil } = usePerfil();
-  const principal = PRINCIPALES.find(p => p.rutas.some(r => pertenece(ruta, r))) || (ruta === '/app' ? PRINCIPALES[0] : null);
+  // Ajustes de layout · 7: la ficha de una carta marca la pestaña desde la que se llegó (?desde=mercado o la última
+  // pestaña visitada); desde un álbum o Bulk, Mi Colección; desde el Mercado, el carrito o un carrusel, Mercado.
+  const origen = useRef<'coleccion' | 'mercado'>('coleccion');
+  const esCarta = /^\/app\/carta\//.test(ruta);
+  const porRuta = PRINCIPALES.find(p => p.rutas.some(r => pertenece(ruta, r))) || (ruta === '/app' ? PRINCIPALES[0] : null);
+  if (!esCarta && porRuta) origen.current = porRuta.id;
+  const desde = params.get('desde');
+  const principal = esCarta ? PRINCIPALES.find(p => p.id === (desde === 'mercado' || desde === 'coleccion' ? desde : origen.current)) || porRuta : porRuta;
   // sección activa: la de prefijo más largo que coincida (así /app/mercado/buscar no activa otra sección)
   const secciones = principal ? SECCIONES[principal.id] : [];
   const seccionActiva = secciones.map(s => ({ s, largo: Math.max(0, ...s.rutas.filter(r => pertenece(ruta, r)).map(r => r.length)) })).filter(x => x.largo > 0).sort((a, b) => b.largo - a.largo)[0]?.s || null;
