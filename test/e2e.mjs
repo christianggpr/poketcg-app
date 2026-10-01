@@ -591,6 +591,14 @@ try {
   await pageL.waitForSelector('.toast:has-text("Fecha de entrega guardada")');
   const ordenId = pageL.url().split('/').pop();
   if (sql(`select fecha_entrega::text = fecha_limite::text from public.ordenes where id = '${ordenId}'`) !== 't') throw new Error('la fecha de entrega no se guardó');
+  // Fase 4 · D: rótulo del sobre (imprimible / copiable) con orden, tienda, usuarios y cartas
+  await pageL.click('[data-testid=btn-rotulo]');
+  await pageL.waitForSelector('[data-testid=rotulo]');
+  const textoRotulo = await pageL.textContent('[data-testid=rotulo]');
+  for (const esperado of [`ORDEN #${sql(`select numero from public.ordenes where id = '${ordenId}'`)}`, 'Tienda E2E', '@vendedora_lima', '@chris_tcg', '3× Bulbasaur', 'código de retiro']) if (!textoRotulo.includes(esperado)) throw new Error('el rótulo no incluye «' + esperado + '»: ' + textoRotulo);
+  await foto(pageL, 'vendedora-rotulo');
+  await pageL.click('.sheet-foot >> text=Cerrar');
+  await pageL.waitForSelector('[data-testid=rotulo]', { state: 'detached' });
   await foto(pageL, 'vendedora-orden');
   // datos de cobro (cifrados en el servidor)
   await pageL.goto(APP + '/app/ajustes');
@@ -954,6 +962,91 @@ try {
   wbRep.getWorksheet('Vendedores').eachRow((r, i) => { if (i > 1) filasVen.push(r.values); });
   if (!filasVen.some(f => f[1] === '@vendedora_lima' && Number(f[6]) >= 1)) throw new Error('la hoja Vendedores no muestra a la vendedora con sus faltas: ' + JSON.stringify(filasVen));
   log('reportes en /admin: ventas', ventasUI, '· comisiones', comisionesUI, '·', ordenesEsp, 'órdenes ·', devolucionesEsp, 'devoluciones · gráfico por día y por mes · Excel con 6 hojas');
+
+  // ---------- Fase 4 · D: confianza pública (ficha de carta, tiendas, ayuda, portada con cifras, sitemap), favoritos y modo oscuro
+  // el administrador completa la tienda: tarifa de recojo, Instagram y coordenadas (mapa)
+  const tiendaE2E = JSON.parse(sql(`select row_to_json(t) from public.tiendas t where id = '${TIENDA_E2E}'`));
+  const guardarTienda = await page.request.post(APP + '/api/admin/tiendas', { data: { ...tiendaE2E, tarifa_recojo: 2, instagram: '@tiendae2e', lat: -12.0862, lon: -77.0346, mapa_url: '' } });
+  if (!guardarTienda.ok() || !(await guardarTienda.json()).ok) throw new Error('no se pudo guardar la tarifa de recojo: ' + guardarTienda.status());
+  const ctxPub = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE' });
+  const pagePub = await ctxPub.newPage();
+  // ficha pública de la carta vendida (sin sesión): nombre, última venta, promedio, JSON-LD y título para Google
+  const precioVenta = sql(`select round(sum(cantidad * precio_pen) / sum(cantidad), 2) from public.ventas_publicas where carta_id = 'sv03.5-001'`);   // promedio por copia
+  await pagePub.goto(APP + '/carta/sv03.5-001');
+  await pagePub.waitForSelector('[data-testid=ficha-publica]');
+  if (!/Bulbasaur/.test(await pagePub.textContent('[data-testid=ficha-nombre]'))) throw new Error('la ficha pública no muestra el nombre');
+  if (!(await pagePub.textContent('[data-testid=ficha-promedio]')).includes(pen(precioVenta))) throw new Error('la ficha no muestra el promedio de ventas ' + pen(precioVenta) + ': ' + await pagePub.textContent('[data-testid=ficha-promedio]'));
+  if ((await pagePub.$$('[data-testid=ficha-venta]')).length < 1 || !/@vendedora_lima/.test(await pagePub.textContent('[data-testid=ficha-publica]'))) throw new Error('la ficha no lista las ventas con el vendedor');
+  if (/chris_tcg/.test(await pagePub.textContent('[data-testid=ficha-publica]'))) throw new Error('la ficha pública expone al comprador');
+  const htmlFicha = await pagePub.content();
+  if (!/"@type":"Product"/.test(htmlFicha) || !/Bulbasaur.*precio en Perú/.test(await pagePub.title())) throw new Error('faltan los datos para buscadores en la ficha: ' + await pagePub.title());
+  await foto(pagePub, 'ficha-publica');
+  // tiendas: ambas sedes, tarifa de recojo, gratis, cómo llegar y mapa
+  await pagePub.goto(APP + '/tiendas', { waitUntil: 'domcontentloaded' });
+  await pagePub.waitForSelector('[data-testid=tienda-publica]:has-text("Tienda E2E")');
+  const textoTiendas = await pagePub.textContent('[data-testid=tiendas-publicas]');
+  for (const esperado of ['TCG Center Perú', 'Tienda E2E', 'S/ 2.00', 'Recojo gratis', 'Lince', '@tiendae2e']) if (!textoTiendas.includes(esperado)) throw new Error('/tiendas no muestra «' + esperado + '»');
+  if ((await pagePub.$$('[data-testid=tienda-publica] a:has-text("Cómo llegar")')).length < 2 || !(await pagePub.$('[data-testid=tienda-publica]:has-text("Tienda E2E") iframe.mapa'))) throw new Error('/tiendas sin enlaces de cómo llegar o sin mapa');
+  // centro de ayuda: 4 secciones, buscador y contacto
+  await pagePub.goto(APP + '/ayuda');
+  await pagePub.waitForSelector('[data-testid=faq]');
+  const nPreguntas = (await pagePub.$$('[data-testid=faq-pregunta]')).length;
+  if (nPreguntas < 30 || (await pagePub.$$('[data-testid=faq-seccion]')).length !== 4) throw new Error('la ayuda debía tener 4 secciones y 30+ preguntas: ' + nPreguntas);
+  await pagePub.fill('[data-testid=faq-buscar]', 'código de retiro');
+  await pagePub.waitForFunction(() => document.querySelectorAll('[data-testid=faq-pregunta]').length < 30 && document.querySelectorAll('[data-testid=faq-pregunta][open]').length > 0);
+  const textoAyuda = await pagePub.textContent('[data-testid=ayuda]');
+  if (!/comisión del 5 %/.test(textoAyuda) || !/7 días después de confirmado el pago/.test(textoAyuda) || !/48 horas/.test(textoAyuda)) throw new Error('la ayuda no usa los ajustes vigentes');
+  const whatsappApp = sql(`select coalesce(valor->>'whatsapp', '') from public.ajustes_globales where clave = 'pagos'`);
+  if (whatsappApp && !(await pagePub.$(`[data-testid=ayuda-contacto] a[href*="wa.me/51${whatsappApp}"]`))) throw new Error('la ayuda no muestra el WhatsApp de contacto');
+  await foto(pagePub, 'ayuda');
+  // portada con cifras y novedades; sitemap y robots para buscadores
+  await pagePub.goto(APP + '/');
+  await pagePub.waitForSelector('[data-testid=cifras-comunidad]');
+  const textoPortada = await pagePub.textContent('#main');
+  if (!/cartas vendidas/.test(textoPortada) || !/Últimas ventas/.test(textoPortada) || !/Bulbasaur/.test(textoPortada) || !/Cómo funciona el mercado/.test(textoPortada)) throw new Error('la portada no muestra cifras y últimas ventas');
+  const sitemap = await (await fetch(APP + '/sitemap.xml')).text();
+  for (const u of ['/ayuda', '/tiendas', '/carta/sv03.5-001', '/u/vendedora_lima']) if (!sitemap.includes(u)) throw new Error('el sitemap no incluye ' + u);
+  const robots = await (await fetch(APP + '/robots.txt')).text();
+  if (!/Disallow: \/app/.test(robots) || !/Sitemap: .*\/sitemap\.xml/.test(robots)) throw new Error('robots.txt inesperado: ' + robots);
+  await ctxPub.close();
+  log('público sin sesión: ficha /carta con ventas (' + pen(precioVenta) + ') y JSON-LD, /tiendas con tarifa y mapa, /ayuda con ' + nPreguntas + ' preguntas y buscador, portada con cifras, sitemap y robots');
+
+  // favoritos: el comprador marca una carta sin ofertas; cuando la vendedora la publica recibe el aviso y la ve en su lista de deseos
+  await page.goto(APP + '/app/carta/sv03.5-005');
+  await page.waitForSelector('[data-testid=btn-favorito]');
+  await page.click('[data-testid=btn-favorito]');
+  await page.waitForSelector('.toast:has-text("lista de deseos")');
+  if (num(`select count(*) from public.favoritos where usuario_id = '${CHRIS}' and carta_id = 'sv03.5-005'`) !== 1) throw new Error('el favorito no se guardó');
+  // la vendedora guarda la carta en su caja en venta (se publica sola al precio por defecto) y fija S/ 12 manual
+  const entradaFav = sql(`insert into public.entradas (usuario_id, caja_id, carta_id, cantidad, acabado, idioma, condicion) values ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-005', 1, 'Normal', 'ES', 'LP') returning id`);
+  rpcComo(LUCIA, `update public.publicaciones set tipo_precio = 'manual', precio_pen = 12, estado = 'activa', motivo_pausa = null where entrada_id = '${entradaFav}'`);
+  if (sql(`select estado || ':' || precio_pen from public.publicaciones where entrada_id = '${entradaFav}'`) !== 'activa:12.00') throw new Error('la publicación de la vendedora no quedó activa a S/ 12: ' + sql(`select estado || ':' || precio_pen || ':' || coalesce(motivo_pausa, '') from public.publicaciones where entrada_id = '${entradaFav}'`));
+  if (sql(`select titulo || '|' || enlace from public.notificaciones where usuario_id = '${CHRIS}' and tipo = 'favorito' order by id desc limit 1`) !== '❤️ Charmeleon (MEW 005) está en venta|/app/carta/sv03.5-005') throw new Error('el aviso de favorito no llegó: ' + sql(`select titulo || '|' || enlace from public.notificaciones where usuario_id = '${CHRIS}' and tipo = 'favorito' order by id desc limit 1`));
+  await page.goto(APP + '/app/notificaciones');
+  await page.waitForSelector('text=Charmeleon (MEW 005) está en venta');
+  await page.goto(APP + '/app/mercado');
+  await page.waitForSelector('[data-testid=btn-lista-deseos]:has-text("(1)")');
+  await page.click('[data-testid=btn-lista-deseos]');
+  await page.waitForSelector('[data-testid=fila-deseo]:has-text("1 copia")');
+  if (!/S\/ 12\.00/.test(await page.textContent('[data-testid=fila-deseo]'))) throw new Error('la lista de deseos no muestra la mejor oferta');
+  await foto(page, 'lista-deseos');
+  await page.click('[data-testid=btn-quitar-deseo]');
+  await page.waitForSelector('[data-testid=lista-deseos]', { state: 'detached' });
+  if (num(`select count(*) from public.favoritos where usuario_id = '${CHRIS}'`) !== 0) throw new Error('quitar de la lista no borró el favorito');
+  log('favoritos: ❤️ en la carta → aviso "está en venta" cuando la vendedora publica (S/ 12.00) → lista de deseos en el Mercado → quitar');
+
+  // modo oscuro: se elige en Ajustes, se guarda en el dispositivo y se aplica antes de pintar al recargar
+  await page.goto(APP + '/app/ajustes');
+  await page.waitForSelector('[data-testid=selector-tema]');
+  await page.click('[data-testid=tema-oscuro]');
+  if ((await page.evaluate(() => document.documentElement.getAttribute('data-theme'))) !== 'dark') throw new Error('el tema oscuro no se aplicó');
+  await page.reload();
+  await page.waitForSelector('[data-testid=selector-tema]');
+  if ((await page.evaluate(() => document.documentElement.getAttribute('data-theme'))) !== 'dark' || !(await page.$('[data-testid=tema-oscuro].active'))) throw new Error('el tema oscuro no se conservó al recargar');
+  await foto(page, 'modo-oscuro');
+  await page.click('[data-testid=tema-auto]');
+  if ((await page.evaluate(() => document.documentElement.getAttribute('data-theme'))) !== null) throw new Error('el tema automático no quitó el atributo');
+  log('modo oscuro: Ajustes → Oscuro se conserva al recargar; Automático vuelve al del sistema');
 
   // ---------- app Android (APK): la portada ofrece la descarga cuando existe public/descargas/android.json (test/reiniciar.sh deja uno de prueba)
   const ctxP = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE' });

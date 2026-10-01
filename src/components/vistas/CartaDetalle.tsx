@@ -6,6 +6,7 @@ import type { Entrada } from '@/lib/coleccion';
 import { fmtPen, fmtUsd } from '@/lib/precios-core';
 import { useCatalogo } from '../CatalogoProvider';
 import { useColeccion } from '../ColeccionProvider';
+import { useMercado } from '../MercadoProvider';
 import { usePerfil } from '../PerfilProvider';
 import { usePrecios } from '../PreciosProvider';
 import { useUbicador } from '../useUbicador';
@@ -16,6 +17,7 @@ import { AddEntrySheet } from '../AddEntrySheet';
 import { EntryDetailSheet } from '../EntryDetailSheet';
 import { EstadoPub } from '../PublicarSheet';
 import { OfertasCarta } from '../OfertasCarta';
+import { useToast } from '../Toast';
 import { haceCuanto } from '../ui';
 
 export function CartaDetalle({ id }: { id: string }) {
@@ -24,6 +26,8 @@ export function CartaDetalle({ id }: { id: string }) {
   const { perfil } = usePerfil();
   const precios = usePrecios();
   const ubicador = useUbicador();
+  const mercado = useMercado();
+  const toast = useToast();
   const [agregar, setAgregar] = useState(false);
   const [editar, setEditar] = useState<Entrada | null>(null);
   const carta = cat.carta(id);
@@ -38,6 +42,21 @@ export function CartaDetalle({ id }: { id: string }) {
   const fx = precios.ajustes.fx;
   const grande = urlImagenGrande(carta, set);
   const especie = carta.dex && carta.dex.length ? cat.especie(carta.dex[0]) : undefined;
+  const cartaId = carta.id;
+  const favorita = mercado.esFavorita(cartaId);
+  async function alternarFavorita() {
+    try { const ahora = await mercado.alternarFavorita(cartaId); toast(ahora ? '❤️ En tu lista de deseos: te avisamos cuando alguien la publique' : 'Quitada de tu lista de deseos', ahora ? 'ok' : undefined, 3500); }
+    catch (e) { toast((e as Error).message || 'No se pudo guardar', 'danger'); }
+  }
+  async function compartir() {
+    const url = `${location.origin}/carta/${encodeURIComponent(cartaId)}`;
+    const titulo = `${nombreCarta(cat.carta(cartaId)!, idioma)} · PokéTCG`;
+    try {
+      if (navigator.share) { await navigator.share({ title: titulo, url }); return; }
+      await navigator.clipboard.writeText(url);
+      toast('Enlace copiado: cualquiera puede ver la ficha pública, con precio y ofertas', 'ok', 3500);
+    } catch { /* cancelado */ }
+  }
 
   return (
     <div>
@@ -47,7 +66,13 @@ export function CartaDetalle({ id }: { id: string }) {
           {grande ? /* eslint-disable-next-line @next/next/no-img-element */ <img className="thumb xl" src={grande} alt="" style={{ width: '100%', height: 'auto', maxWidth: 320 }} onError={e => { e.currentTarget.style.display = 'none'; }} /> : <Thumb carta={carta} set={set} className="xl" />}
         </div>
         <div>
-          <h2 style={{ marginTop: 0 }}>{nombreCarta(carta, idioma)}{carta.sd ? <> <span className="badge-sd">sin datos</span></> : null}</h2>
+          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+            <h2 style={{ marginTop: 0 }}>{nombreCarta(carta, idioma)}{carta.sd ? <> <span className="badge-sd">sin datos</span></> : null}</h2>
+            {!carta.sd ? <div className="row" style={{ gap: 4, flex: 'none' }}>
+              <button className={`btn sm ${favorita ? 'primary' : ''}`} onClick={alternarFavorita} title={favorita ? 'Quitar de mi lista de deseos' : 'Agregar a mi lista de deseos'} aria-pressed={favorita} data-testid="btn-favorito">{favorita ? '❤️' : '🤍'}</button>
+              <button className="btn sm" onClick={compartir} title="Compartir la ficha pública" data-testid="btn-compartir">🔗</button>
+            </div> : null}
+          </div>
           <p className="muted">{[carta.n, carta.ns, carta.nj].filter((x, i, a) => x && a.indexOf(x) === i && x !== nombreCarta(carta, idioma)).join(' · ')}</p>
           <dl className="kv">
             <dt>Colección</dt><dd><SimboloSet setId={carta.s} /> {nombreColeccion(set, idioma, true)}{set?.ab ? <span className="faint"> ({set.ab})</span> : null}</dd>

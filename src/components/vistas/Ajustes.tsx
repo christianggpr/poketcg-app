@@ -14,6 +14,7 @@ import { Sheet } from '../Sheet';
 import { useToast } from '../Toast';
 import { Campo, Aviso } from '../ui';
 import { Reconocimiento } from './Reconocimiento';
+import { SelectorTema } from '../Tema';
 
 export function Ajustes() {
   const { perfil, setPerfil } = usePerfil();
@@ -65,6 +66,12 @@ export function Ajustes() {
       </div>
 
       <div className="panel">
+        <h3>Apariencia</h3>
+        <p className="small muted">Modo oscuro para ver la colección de noche. «Automático» sigue el ajuste de tu celular o computadora.</p>
+        <SelectorTema />
+      </div>
+
+      <div className="panel">
         <h3>App en el celular</h3>
         <p className="small muted">Instala PokéTCG como app (Android .apk o desde el navegador) para tenerla con icono y a pantalla completa.</p>
         <Link href="/instalar" className="btn sm" target="_blank">📱 Instalar la app</Link>
@@ -75,6 +82,17 @@ export function Ajustes() {
       <IdiomaCartas />
 
       <Respaldo />
+
+      <div className="panel">
+        <h3>Ayuda y contacto</h3>
+        <p className="small muted">Preguntas frecuentes sobre compras, ventas, entregas y reclamos; tiendas de entrega y textos legales.</p>
+        <div className="row wrap" style={{ gap: 6 }}>
+          <Link href="/ayuda" className="btn sm" target="_blank" data-testid="btn-ayuda">❓ Centro de ayuda</Link>
+          <Link href="/tiendas" className="btn sm ghost" target="_blank">🏪 Tiendas de entrega</Link>
+          <Link href="/terminos" className="btn sm ghost" target="_blank">Términos</Link>
+          <Link href="/privacidad" className="btn sm ghost" target="_blank">Privacidad</Link>
+        </div>
+      </div>
 
       <div className="panel">
         <h3>Sesión</h3>

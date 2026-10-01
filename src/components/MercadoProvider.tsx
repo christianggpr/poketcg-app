@@ -2,6 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { liberarReserva, miCarrito, reservarCopia, type LineaCarrito, type ResultadoReserva } from '@/lib/mercado';
+import { agregarFavorito, misFavoritos, quitarFavorito } from '@/lib/favoritos';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { usePerfil } from './PerfilProvider';
 
@@ -18,6 +19,11 @@ type Ctx = {
   suscribir: (cb: (cartaId: string | null) => void) => () => void;
   /** Cambia con cada aviso del mercado: sirve de dependencia para volver a consultar. */
   version: number;
+  /** Lista de deseos: ids de carta marcadas con ❤️ (más reciente primero). */
+  favoritos: string[];
+  esFavorita: (cartaId: string) => boolean;
+  /** Marca o desmarca una carta; devuelve el estado nuevo. */
+  alternarFavorita: (cartaId: string) => Promise<boolean>;
 };
 
 const MercadoCtx = createContext<Ctx | null>(null);
@@ -27,6 +33,7 @@ export function MercadoProvider({ children }: { children: React.ReactNode }) {
   const [carrito, setCarrito] = useState<LineaCarrito[]>([]);
   const [cargado, setCargado] = useState(false);
   const [version, setVersion] = useState(0);
+  const [favoritos, setFavoritos] = useState<string[]>([]);
   const oyentes = useRef(new Set<(cartaId: string | null) => void>());
   const canal = useRef<RealtimeChannel | null>(null);
 
@@ -37,6 +44,7 @@ export function MercadoProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     recargarCarrito();
+    misFavoritos().then(setFavoritos).catch(() => { /* la tabla puede no existir hasta pegar 0004_fase4.sql */ });
     const sb = supabaseBrowser();
     const avisar = (cartaId: string | null) => { setVersion(v => v + 1); for (const cb of oyentes.current) cb(cartaId); };
     const ch = sb.channel('mercado-' + perfil.id)
@@ -50,7 +58,15 @@ export function MercadoProvider({ children }: { children: React.ReactNode }) {
   }, [perfil.id, recargarCarrito]);
 
   const api = useMemo<Ctx>(() => ({
-    carrito, cargado, version,
+    carrito, cargado, version, favoritos,
+    esFavorita: cartaId => favoritos.includes(cartaId),
+    async alternarFavorita(cartaId) {
+      const era = favoritos.includes(cartaId);
+      setFavoritos(f => (era ? f.filter(x => x !== cartaId) : [cartaId, ...f]));   // optimista
+      try { if (era) await quitarFavorito(cartaId); else await agregarFavorito(cartaId); }
+      catch (e) { setFavoritos(f => (era ? [cartaId, ...f] : f.filter(x => x !== cartaId))); throw e; }
+      return !era;
+    },
     total: Math.round(carrito.reduce((s, l) => s + l.precio_pen * l.cantidad, 0) * 100) / 100,
     unidades: carrito.reduce((s, l) => s + l.cantidad, 0),
     recargarCarrito,
@@ -65,7 +81,7 @@ export function MercadoProvider({ children }: { children: React.ReactNode }) {
       return r.ok;
     },
     suscribir(cb) { oyentes.current.add(cb); return () => { oyentes.current.delete(cb); }; }
-  }), [carrito, cargado, version, recargarCarrito]);
+  }), [carrito, cargado, version, favoritos, recargarCarrito]);
 
   return <MercadoCtx.Provider value={api}>{children}</MercadoCtx.Provider>;
 }

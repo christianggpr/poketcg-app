@@ -12,6 +12,7 @@ import { useColeccion } from '../ColeccionProvider';
 import { useNotificaciones } from '../NotificacionesProvider';
 import { usePerfil } from '../PerfilProvider';
 import { useUbicador } from '../useUbicador';
+import { Sheet } from '../Sheet';
 import { Thumb } from '../Thumb';
 import { LocChip } from '../Ubicacion';
 import { useToast } from '../Toast';
@@ -68,6 +69,7 @@ export function OrdenVendedorDetalle({ id }: { id: string }) {
   const [conCuenta, setConCuenta] = useState<boolean | null>(null);
   const [fecha, setFecha] = useState('');
   const [ocupado, setOcupado] = useState(false);
+  const [rotulo, setRotulo] = useState(false);
   const input = useRef<HTMLInputElement>(null);
 
   async function cargar() {
@@ -145,7 +147,10 @@ export function OrdenVendedorDetalle({ id }: { id: string }) {
         </div>
       </div>
 
-      {tienda ? <div className="panel"><h3 style={{ marginTop: 0 }}>Tienda de entrega</h3><p style={{ margin: 0 }}><b>{tienda.nombre}</b> · {tienda.distrito}<br /><span className="small">{tienda.direccion}{tienda.referencia ? ` (${tienda.referencia})` : ''}{tienda.horario ? ` · ${tienda.horario}` : ''}</span></p></div> : null}
+      {tienda ? <div className="panel"><h3 style={{ marginTop: 0 }}>Tienda de entrega</h3><p style={{ margin: 0 }}><b>{tienda.nombre}</b> · {tienda.distrito}<br /><span className="small">{tienda.direccion}{tienda.referencia ? ` (${tienda.referencia})` : ''}{tienda.horario ? ` · ${tienda.horario}` : ''}</span></p>
+        {orden.estado === 'pago_confirmado' || orden.estado === 'en_tienda' ? <div className="row wrap" style={{ gap: 6, marginTop: 8 }}><button className="btn sm" onClick={() => setRotulo(true)} data-testid="btn-rotulo">🏷️ Rótulo del sobre</button><span className="small muted">Pégalo en el sobre: la tienda ubica la orden al instante.</span></div> : null}
+      </div> : null}
+      {rotulo ? <RotuloSobre orden={orden} items={items} tienda={tienda} comprador={comprador} vendedor={perfil.username} onClose={() => setRotulo(false)} /> : null}
 
       {orden.estado === 'pago_confirmado' ? (
         <div className="panel" data-testid="entrega-vendedor">
@@ -173,5 +178,32 @@ export function OrdenVendedorDetalle({ id }: { id: string }) {
       {orden.estado === 'cancelada' && /^Reclamo/.test(orden.motivo || '') ? <Aviso tipo="danger">{orden.motivo}. Las cartas volvieron a tu colección y están en la tienda: pasa a recogerlas. Queda registrada como falta en tu reputación.</Aviso> : null}
       {orden.foto_entrega_url ? <p className="small"><a href={orden.foto_entrega_url} target="_blank" rel="noreferrer">Ver foto de la entrega</a></p> : null}
     </div>
+  );
+}
+
+
+/** Rótulo imprimible del sobre: n.º de orden, tienda, fecha, usuarios y cartas. Se imprime o se copia como texto. */
+function RotuloSobre({ orden, items, tienda, comprador, vendedor, onClose }: { orden: Orden; items: OrdenItem[]; tienda: Tienda | null; comprador: string; vendedor: string; onClose: () => void }) {
+  const cat = useCatalogo();
+  const { perfil } = usePerfil();
+  const toast = useToast();
+  const lineas = items.map(i => { const c = cat.carta(i.carta_id); const set = c ? cat.setOf(c) : undefined; return `${i.cantidad}× ${c ? nombreCarta(c, perfil.idioma_nombres) : i.carta_id}${c ? ' ' + numLabel(c, set) : ''}${[i.idioma, i.condicion, i.acabado && i.acabado !== 'Normal' ? i.acabado : ''].filter(Boolean).map(x => ' · ' + x).join('')}`; });
+  const fecha = orden.fecha_entrega || orden.fecha_limite;
+  const texto = [`PokéTCG · ORDEN #${orden.numero}`, `Tienda: ${tienda?.nombre || '—'}${tienda?.distrito ? ' (' + tienda.distrito + ')' : ''}`, `Entrega: ${fecha ? fechaDia(fecha) : '—'}`, `Vendedor: @${vendedor}`, `Comprador: @${comprador}`, 'Cartas:', ...lineas.map(l => ' - ' + l), 'Entregar solo con el código de retiro del comprador (app PokéTCG).'].join('\n');
+  async function copiar() { try { await navigator.clipboard.writeText(texto); toast('Rótulo copiado', 'ok'); } catch { toast('No se pudo copiar', 'danger'); } }
+  return (
+    <Sheet titulo={`Rótulo · orden #${orden.numero}`} onClose={onClose} pie={<><button className="btn" onClick={onClose}>Cerrar</button><button className="btn" onClick={copiar} data-testid="btn-copiar-rotulo">📋 Copiar texto</button><button className="btn primary" onClick={() => window.print()} data-testid="btn-imprimir-rotulo">🖨️ Imprimir</button></>}>
+      <p className="small muted">Imprímelo (o escríbelo a mano con estos datos) y pégalo en el sobre. El comprador igual necesita su código de retiro: nadie más puede llevarse las cartas.</p>
+      <div className="rotulo" data-testid="rotulo">
+        <div className="small" style={{ letterSpacing: 2, fontWeight: 700 }}>POKÉTCG · ENTREGA EN TIENDA</div>
+        <div className="num">ORDEN #{orden.numero}</div>
+        <div className="fila"><span>Tienda</span><b>{tienda?.nombre || '—'}{tienda?.distrito ? ` · ${tienda.distrito}` : ''}</b></div>
+        <div className="fila"><span>Entrega</span><b>{fecha ? fechaDia(fecha) : '—'}</b></div>
+        <div className="fila"><span>Vendedor</span><b>@{vendedor}</b></div>
+        <div className="fila"><span>Comprador</span><b>@{comprador}</b></div>
+        <ul>{lineas.map((l, i) => <li key={i}>{l}</li>)}</ul>
+        <div className="aviso">Entregar únicamente con el código de retiro de 6 dígitos que el comprador muestra en su app. {items.reduce((n, i) => n + i.cantidad, 0)} {items.reduce((n, i) => n + i.cantidad, 0) === 1 ? 'carta' : 'cartas'} en este sobre.</div>
+      </div>
+    </Sheet>
   );
 }

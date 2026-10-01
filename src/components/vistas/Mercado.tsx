@@ -80,7 +80,8 @@ export function Mercado() {
           <Link href="/app/ventas" className="btn sm ghost">🏷️ Mis ventas</Link>
         </div>
       </div>
-      <p className="small muted">Cartas que otros coleccionistas tienen en venta. El precio que ves es el que pagas por copia (la comisión la paga el vendedor). El pago en línea llega pronto; por ahora puedes armar tu carrito y las copias quedan reservadas 24 h.</p>
+      <p className="small muted">Cartas que otros coleccionistas tienen en venta. El precio que ves es el que pagas por copia (la comisión la paga el vendedor): pagas por Yape/Plin o con tu saldo y recoges en una tienda aliada con tu código de retiro. Las copias del carrito quedan reservadas 24 h.</p>
+      <ListaDeseos />
       <div className="search-wrap" style={{ marginTop: 8 }}>
         <input className="input" placeholder="Buscar por nombre (ES/EN/JP), número o colección…" value={q} onChange={e => setQ(e.target.value)} />
       </div>
@@ -121,6 +122,43 @@ export function Mercado() {
         <div className="row" style={{ gap: 6, marginTop: 10, justifyContent: 'center' }}>
           <button className="btn sm" disabled={pagina === 0} onClick={() => setPagina(p => p - 1)}>← Anteriores</button>
           <button className="btn sm" disabled={!hayMas} onClick={() => setPagina(p => p + 1)}>Siguientes →</button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Lista de deseos: las cartas marcadas con ❤️, con la mejor oferta actual o "sin ofertas" (la app avisa cuando aparece una). */
+function ListaDeseos() {
+  const cat = useCatalogo();
+  const { perfil } = usePerfil();
+  const mercado = useMercado();
+  const router = useRouter();
+  const [abierta, setAbierta] = useState(false);
+  const [resumen, setResumen] = useState<Map<string, ResumenCarta>>(new Map());
+  const ids = mercado.favoritos;
+  useEffect(() => {
+    if (!ids.length || !abierta) return;
+    resumenMercado({ cartas: ids, limite: 200 }).then(r => setResumen(new Map(r.map(x => [x.carta_id, x])))).catch(() => {});
+  }, [ids, abierta, mercado.version]);
+  if (!ids.length) return null;
+  const enVenta = ids.filter(id => resumen.has(id)).length;
+  return (
+    <div className="panel" style={{ marginTop: 8, padding: '8px 12px' }} data-testid="lista-deseos">
+      <button className="link" style={{ fontWeight: 700 }} onClick={() => setAbierta(a => !a)} data-testid="btn-lista-deseos">❤️ Mi lista de deseos ({ids.length}){abierta && enVenta ? ` · ${enVenta} en venta` : ''} {abierta ? '▴' : '▾'}</button>
+      {abierta ? (
+        <div className="card-list" style={{ marginTop: 6 }}>
+          {ids.map(id => { const c = cat.carta(id); if (!c) return null; const r = resumen.get(id); const set = cat.setOf(c); return (
+            <div key={id} className="card-row" role="button" tabIndex={0} onClick={() => router.push(`/app/carta/${encodeURIComponent(id)}#mercado`)} data-testid="fila-deseo">
+              <Thumb carta={c} set={set} />
+              <div className="card-main">
+                <div className="card-name">{nombreCarta(c, perfil.idioma_nombres)}</div>
+                <div className="card-set"><SimboloSet setId={c.s} /> {nombreColeccion(set, perfil.idioma_nombres)} <span className="num">{numLabel(c, set)}</span></div>
+                <div className="small" style={{ marginTop: 3 }}>{r ? <><b>{r.copias} {r.copias === 1 ? 'copia' : 'copias'}</b> en venta · {r.vendedores.map(v => '@' + v).join(', ')}</> : <span className="muted">Sin ofertas por ahora: te avisamos cuando alguien la publique.</span>}</div>
+              </div>
+              <div className="card-side"><span className="price">{r ? (r.precio_min === r.precio_max ? fmtPen(r.precio_min) : `desde ${fmtPen(r.precio_min)}`) : '—'}</span><button className="btn sm ghost" style={{ marginTop: 4 }} onClick={e => { e.stopPropagation(); mercado.alternarFavorita(id).catch(() => {}); }} title="Quitar de la lista" data-testid="btn-quitar-deseo">✕</button></div>
+            </div>
+          ); })}
         </div>
       ) : null}
     </div>

@@ -994,6 +994,101 @@ $$;
 grant execute on function public.reporte_ordenes(date, date) to authenticated;
 
 -- ----------------------------------------------------------------------------
+-- D. Confianza pública: tiendas visibles sin cuenta (mapa, tarifa de recojo), historial de ventas
+--    por carta, cifras de la comunidad y favoritos (lista de deseos) con aviso cuando aparece una oferta
+-- ----------------------------------------------------------------------------
+alter table public.tiendas add column if not exists tarifa_recojo numeric(10,2) not null default 0;   -- lo que cobra la tienda al recoger (0 = gratis)
+alter table public.tiendas add column if not exists mapa_url text not null default '';                -- enlace "cómo llegar" (Google Maps u otro)
+alter table public.tiendas add column if not exists lat double precision;                             -- coordenadas para el mapa (opcional)
+alter table public.tiendas add column if not exists lon double precision;
+alter table public.tiendas add column if not exists instagram text not null default '';
+
+-- Datos de las tiendas activas que cualquiera puede ver (sin cuenta): no hay datos personales aquí
+create or replace view public.tiendas_publicas as
+  select id, nombre, distrito, direccion, referencia, horario, dias_abierto, telefono, tarifa_recojo, mapa_url, lat, lon, instagram, creada
+    from public.tiendas
+   where activa;
+grant select on public.tiendas_publicas to authenticated, anon;
+
+-- Historial de ventas por carta (órdenes entregadas): precio, estado, idioma y fecha; el comprador nunca se muestra
+create or replace view public.ventas_publicas as
+  select i.carta_id, i.cantidad, i.precio_pen, i.acabado, i.idioma, i.condicion, o.entregada_en, u.username as vendedor
+    from public.orden_items i
+    join public.ordenes o on o.id = i.orden_id
+    join public.perfiles u on u.id = i.vendedor_id
+   where o.estado in ('entregada', 'saldo_liberado') and o.entregada_en is not null;
+grant select on public.ventas_publicas to authenticated, anon;
+
+-- Favoritos / lista de deseos
+create table if not exists public.favoritos (
+  usuario_id uuid not null default auth.uid() references public.perfiles (id) on delete cascade,
+  carta_id   text not null references public.cartas (id),
+  creado     timestamptz not null default now(),
+  primary key (usuario_id, carta_id)
+);
+create index if not exists favoritos_por_carta on public.favoritos (carta_id);
+alter table public.favoritos enable row level security;
+drop policy if exists "favoritos propios" on public.favoritos;
+create policy "favoritos propios" on public.favoritos for all using (usuario_id = auth.uid()) with check (usuario_id = auth.uid());
+grant select, insert, delete on public.favoritos to authenticated;
+
+-- Aviso a quienes tienen la carta en favoritos cuando se publica (o se reactiva) una oferta; como máximo uno al día por carta
+create or replace function public.avisar_favoritos()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  f record;
+  nombre text;
+begin
+  if new.estado <> 'activa' or new.carta_id is null then return new; end if;
+  if tg_op = 'UPDATE' and old.estado = 'activa' then return new; end if;
+  nombre := coalesce(public.nombre_carta_texto(new.carta_id), new.carta_id);
+  for f in select usuario_id from public.favoritos where carta_id = new.carta_id and usuario_id <> new.usuario_id loop
+    if not exists (select 1 from public.notificaciones n where n.usuario_id = f.usuario_id and n.tipo = 'favorito' and n.datos->>'carta_id' = new.carta_id and n.creada > now() - interval '24 hours') then
+      perform public.notificar(f.usuario_id, 'favorito', '❤️ ' || nombre || ' está en venta',
+        'Una carta de tu lista de deseos acaba de publicarse a S/ ' || to_char(new.precio_pen, 'FM999990.00') || '. Entra antes de que se la lleven.',
+        '/app/carta/' || new.carta_id, jsonb_build_object('carta_id', new.carta_id, 'publicacion_id', new.id), '{app,correo}');
+    end if;
+  end loop;
+  return new;
+end;
+$$;
+drop trigger if exists publicaciones_avisar_favoritos on public.publicaciones;
+create trigger publicaciones_avisar_favoritos after insert or update of estado on public.publicaciones for each row execute function public.avisar_favoritos();
+
+-- Cifras de la comunidad y novedades para la portada (sin datos personales; solo nombres de usuario de vendedores)
+create or replace function public.estadisticas_publicas()
+returns jsonb
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select jsonb_build_object(
+    'usuarios', (select count(*) from public.perfiles),
+    'cartas_registradas', (select coalesce(sum(cantidad), 0) from public.entradas),
+    'en_venta', (select coalesce(sum(disponibles), 0) from public.mercado),
+    'publicaciones', (select count(*) from public.mercado),
+    'vendidas', (select coalesce(sum(cantidad), 0) from public.ventas_publicas),
+    'ventas', (select count(*) from public.ordenes where estado in ('entregada', 'saldo_liberado')),
+    'vendedores', (select count(distinct vendedor_id) from public.ordenes where estado in ('entregada', 'saldo_liberado')),
+    'tiendas', (select count(*) from public.tiendas where activa),
+    'ultimas_ventas', (select coalesce(jsonb_agg(x), '[]'::jsonb) from (
+        select carta_id, precio_pen, condicion, idioma, acabado, entregada_en from public.ventas_publicas order by entregada_en desc limit 8) x),
+    'recientes', (select coalesce(jsonb_agg(x), '[]'::jsonb) from (
+        select id, carta_id, precio_pen, condicion, idioma, acabado, vendedor, creada from public.mercado order by creada desc limit 8) x),
+    'mas_vendidas', (select coalesce(jsonb_agg(x), '[]'::jsonb) from (
+        select carta_id, sum(cantidad) as unidades, min(precio_pen) as desde, max(entregada_en) as ultima from public.ventas_publicas where entregada_en > now() - interval '90 days' group by carta_id order by 2 desc, 4 desc limit 8) x),
+    'mas_deseadas', (select coalesce(jsonb_agg(x), '[]'::jsonb) from (
+        select carta_id, count(*) as personas from public.favoritos group by carta_id order by 2 desc limit 8) x)
+  );
+$$;
+grant execute on function public.estadisticas_publicas() to anon, authenticated;
+
+-- ----------------------------------------------------------------------------
 -- Final: recalcular la reputación cacheada con la versión más nueva de actualizar_reputacion
 -- (debe quedar al final del archivo)
 -- ----------------------------------------------------------------------------

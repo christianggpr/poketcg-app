@@ -363,3 +363,54 @@ test('reportes: ventas, comisiones y devoluciones del período por día/semana/m
   assert.ok(ordenes.some(o => o.vendedor === 'f4_vendedor' && /Snorlax/.test(o.cartas) && o.tienda === 'Tienda F4'));
   assert.equal((await como(ids.comprador, async c => (await c.query(`select * from public.reporte_ordenes(current_date - 30, current_date)`)).rows)).length, 0, 'un usuario común no ve el detalle');
 });
+
+// ---------------------------------------------------------------------------------------------
+// D · confianza pública: tiendas y ventas visibles sin cuenta, cifras, favoritos con aviso
+// ---------------------------------------------------------------------------------------------
+test('público: tiendas activas y ventas entregadas se ven sin cuenta (sin datos personales); cifras de la comunidad', async t => {
+  if (!conBase(t)) return;
+  await q(`update public.tiendas set tarifa_recojo = 2.5, instagram = '@tiendaf4', lat = -12.0862, lon = -77.0346 where id = $1`, [tienda]);
+  const tiendas = await como(null, async c => (await c.query(`select nombre, distrito, tarifa_recojo, instagram, lat, lon from public.tiendas_publicas where id = $1`, [tienda])).rows);
+  assert.deepEqual(tiendas, [{ nombre: 'Tienda F4', distrito: 'Lince', tarifa_recojo: 2.5, instagram: '@tiendaf4', lat: -12.0862, lon: -77.0346 }]);
+  await q(`update public.tiendas set activa = false where id = $1`, [tienda]);
+  assert.equal((await como(null, async c => (await c.query(`select 1 from public.tiendas_publicas where id = $1`, [tienda])).rows)).length, 0, 'una tienda inactiva no se publica');
+  await q(`update public.tiendas set activa = true where id = $1`, [tienda]);
+  // ventas entregadas: solo carta, precio, estado, idioma, fecha y vendedor (nunca el comprador)
+  await venderYEntregar('tst4-1', 1, 21, 1);
+  const ventas = await como(null, async c => (await c.query(`select * from public.ventas_publicas where carta_id = 'tst4-1' order by entregada_en desc limit 1`)).rows);
+  assert.equal(ventas.length, 1);
+  assert.equal(ventas[0].precio_pen, 21); assert.equal(ventas[0].vendedor, 'f4_vendedor');
+  assert.ok(!('comprador' in ventas[0]) && !('comprador_id' in ventas[0]) && !('orden_id' in ventas[0]), 'sin datos del comprador');
+  const est = await como(null, async c => (await c.query(`select public.estadisticas_publicas() as e`)).rows[0].e) as Record<string, number> & { ultimas_ventas: { carta_id: string }[]; mas_vendidas: { carta_id: string; unidades: number }[] };
+  assert.ok(Number(est.usuarios) >= 4 && Number(est.vendidas) >= 1 && Number(est.tiendas) >= 1, JSON.stringify(est));
+  assert.ok(est.ultimas_ventas.some(v => v.carta_id === 'tst4-1') && est.mas_vendidas.some(v => v.carta_id === 'tst4-1'));
+});
+
+test('favoritos: solo los propios; aviso (app + correo) a quien tiene la carta en su lista cuando se publica, una vez al día, nunca al propio vendedor', async t => {
+  if (!conBase(t)) return;
+  await q(`delete from public.notificaciones where tipo = 'favorito'`);
+  await como(ids.comprador, c => c.query(`insert into public.favoritos (carta_id) values ('tst4-2')`));
+  await como(ids.vendedor, c => c.query(`insert into public.favoritos (carta_id) values ('tst4-2')`));   // el vendedor también la quiere: no debe avisarse a sí mismo
+  assert.equal((await como(ids.otro, async c => (await c.query(`select * from public.favoritos`)).rows)).length, 0, 'otro usuario no ve favoritos ajenos');
+  assert.equal((await como(ids.comprador, async c => (await c.query(`select carta_id from public.favoritos`)).rows)).length, 1);
+  await assert.rejects(como(ids.otro, c => c.query(`insert into public.favoritos (usuario_id, carta_id) values ($1, 'tst4-1')`, [ids.comprador])), /policy|permission|denied/i);
+  const { pub } = await publicar('tst4-2', 1, 9);
+  const avisos = await q<{ usuario_id: string; titulo: string; enlace: string; canales: string[] }>(`select usuario_id, titulo, enlace, canales from public.notificaciones where tipo = 'favorito' and datos->>'carta_id' = 'tst4-2'`);
+  assert.equal(avisos.length, 1, 'un aviso al comprador y ninguno al vendedor: ' + JSON.stringify(avisos));
+  assert.equal(avisos[0].usuario_id, ids.comprador); assert.match(avisos[0].titulo, /Munchlax.*en venta/); assert.equal(avisos[0].enlace, '/app/carta/tst4-2'); assert.deepEqual(avisos[0].canales, ['app', 'correo']);
+  // segunda publicación el mismo día → sin aviso repetido; pausar y reactivar tampoco
+  await publicar('tst4-2', 1, 8);
+  await como(ids.vendedor, c => c.query(`update public.publicaciones set estado = 'pausada' where id = $1`, [pub]));
+  await como(ids.vendedor, c => c.query(`update public.publicaciones set estado = 'activa' where id = $1`, [pub]));
+  assert.equal((await q(`select 1 from public.notificaciones where tipo = 'favorito' and datos->>'carta_id' = 'tst4-2'`)).length, 1);
+  // al día siguiente, una nueva publicación vuelve a avisar
+  await q(`update public.notificaciones set creada = creada - interval '25 hours' where tipo = 'favorito'`);
+  await publicar('tst4-2', 1, 7);
+  assert.equal((await q(`select 1 from public.notificaciones where tipo = 'favorito' and datos->>'carta_id' = 'tst4-2'`)).length, 2);
+  // quitar de la lista: no más avisos
+  await como(ids.comprador, c => c.query(`delete from public.favoritos where carta_id = 'tst4-2'`));
+  await q(`update public.notificaciones set creada = creada - interval '25 hours' where tipo = 'favorito'`);
+  await publicar('tst4-2', 1, 6);
+  assert.equal((await q(`select 1 from public.notificaciones where tipo = 'favorito' and datos->>'carta_id' = 'tst4-2'`)).length, 2);
+  assert.ok(Number((await como(null, async c => (await c.query(`select public.estadisticas_publicas()->'mas_deseadas' as m`)).rows[0].m) as { carta_id: string; personas: number }[]).find(x => x.carta_id === 'tst4-2')?.personas) >= 1, 'las más deseadas cuentan a quien aún la tiene en favoritos');
+});

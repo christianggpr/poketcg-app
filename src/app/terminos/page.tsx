@@ -52,7 +52,7 @@ export default async function Terminos() {
         <li>Si el vendedor no elige fecha a tiempo o no entrega en la fecha prometida, puedes <b>anular la orden tú mismo</b> desde Mis compras: el dinero vuelve a tu <b>saldo</b> de {APP_NAME} al instante (lo usas en otra compra o lo retiras a tu Yape/Plin/cuenta en el siguiente día de pago). Lo mismo ocurre automáticamente si pasa la fecha límite.</li>
         <li>La tienda registra la recepción («En tienda»). Desde ese momento tienes en la app un <b>código de retiro de 6 dígitos</b>: muéstralo solo a la tienda al recoger tus cartas y no lo compartas con nadie.</li>
         <li>Revisa las cartas al recogerlas y marca «Entregado» en la app (o lo hará la tienda con tu código). Si pasan <b>{pagos.confirmacion_dias} días</b> desde «En tienda» sin novedad, la orden se confirma automáticamente.</li>
-        <li>Las tiendas custodian las cartas de buena fe mientras están en su local; su responsabilidad se limita al valor pagado por la orden.</li>
+        <li>Las tiendas custodian las cartas de buena fe mientras están en su local; su responsabilidad se limita al valor pagado por la orden. Algunas tiendas cobran una <b>tarifa de recojo</b> que se informa antes de elegirlas y se paga directamente en la tienda; {APP_NAME} no la cobra ni la recibe.</li>
       </ul>
 
       <h2>9. Comisión y pagos a los vendedores</h2>

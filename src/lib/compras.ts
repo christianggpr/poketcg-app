@@ -2,7 +2,7 @@
 import { comprimirImagen } from './fotos';
 import { supabaseBrowser } from './supabase/client';
 
-export type Tienda = { id: string; nombre: string; distrito: string; direccion: string; referencia: string; horario: string; dias_abierto: number[]; telefono: string | null; activa: boolean; creada: string; actualizada: string };
+export type Tienda = { id: string; nombre: string; distrito: string; direccion: string; referencia: string; horario: string; dias_abierto: number[]; telefono: string | null; activa: boolean; creada: string; actualizada: string; tarifa_recojo?: number; mapa_url?: string; lat?: number | null; lon?: number | null; instagram?: string };
 export type EstadoPago = 'pendiente' | 'revision' | 'confirmado' | 'rechazado' | 'vencido' | 'cancelado';
 export type EstadoOrden = 'reservada' | 'revision' | 'pago_confirmado' | 'en_tienda' | 'entregada' | 'saldo_liberado' | 'pago_rechazado' | 'cancelada' | 'vencida' | 'disputa';
 export type Pago = { id: string; numero: number; comprador_id: string; tienda_id: string | null; monto: number; monto_saldo?: number; monto_yape?: number | null; estado: EstadoPago; voucher_url: string | null; n_operacion: string | null; motivo: string | null; expira: string; comprobante_en: string | null; revisado_en: string | null; creado: string; actualizado: string };

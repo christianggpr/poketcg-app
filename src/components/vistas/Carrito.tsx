@@ -6,6 +6,7 @@ import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
 import { crearPago, saldoComprador, tiendasActivas, DIAS_CORTOS, type Tienda } from '@/lib/compras';
 import type { LineaCarrito } from '@/lib/mercado';
 import { fmtPen, textoPlazo } from '@/lib/precios-core';
+import { enlaceMapa } from '@/lib/tiendas-core';
 import { reputacionesDe, type VendedorPublico } from '@/lib/reputacion';
 import { VendedorChip } from '../Vendedor';
 import { useCatalogo } from '../CatalogoProvider';
@@ -127,7 +128,7 @@ function ElegirTienda({ total, usarSaldo, onClose, onListo }: { total: number; u
         {(tiendas || []).map(t => (
           <label key={t.id} className="check" style={{ padding: 8, border: '1px solid var(--line)', borderRadius: 10 }} data-testid="tienda-opcion">
             <input type="radio" name="tienda" checked={sel === t.id} onChange={() => setSel(t.id)} />
-            <span><b>{t.nombre}</b>{t.distrito ? ` · ${t.distrito}` : ''}<br /><span className="small muted">{t.direccion}{t.referencia ? ` (${t.referencia})` : ''}{t.horario ? ` · ${t.horario}` : ''} · abre: {t.dias_abierto.map(d => DIAS_CORTOS[d]).join(' ')}</span></span>
+            <span><b>{t.nombre}</b>{t.distrito ? ` · ${t.distrito}` : ''}<br /><span className="small muted">{t.direccion}{t.referencia ? ` (${t.referencia})` : ''}{t.horario ? ` · ${t.horario}` : ''} · abre: {t.dias_abierto.map(d => DIAS_CORTOS[d]).join(' ')}</span><br /><span className="small">{t.tarifa_recojo && t.tarifa_recojo > 0 ? <span className="warn">💵 la tienda cobra {fmtPen(t.tarifa_recojo)} por recojo</span> : <span className="ok">recojo gratis</span>} · <a href={enlaceMapa(t)} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>cómo llegar</a></span></span>
           </label>
         ))}
       </div>

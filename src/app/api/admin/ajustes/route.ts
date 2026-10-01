@@ -37,6 +37,7 @@ export async function POST(req: Request) {
     const v = { ...((actual?.valor as Record<string, unknown>) || {}) };
     if (p.yape_numero != null) { const t = String(p.yape_numero).replace(/\D/g, ''); if (!/^9\d{8}$/.test(t)) return json({ ok: false, error: 'El Yape debe ser un celular de 9 dígitos que empiece en 9.' }, 400); v.yape_numero = t; }
     if (p.yape_nombre != null) v.yape_nombre = String(p.yape_nombre).trim().slice(0, 60);
+    if (p.atencion != null) v.atencion = String(p.atencion).trim().slice(0, 80);   // horario de atención por WhatsApp/correo (centro de ayuda)
     if (p.whatsapp != null) { const t = String(p.whatsapp).replace(/\D/g, ''); if (t && !/^9\d{8}$/.test(t)) return json({ ok: false, error: 'El WhatsApp debe ser un celular de 9 dígitos que empiece en 9.' }, 400); v.whatsapp = t; }
     if (Array.isArray(p.dias_pago)) { const d = [...new Set(p.dias_pago.map(Number).filter(n => Number.isInteger(n) && n >= 0 && n <= 6))].sort(); v.dias_pago = d; }
     if (p.modo_limite != null) { if (p.modo_limite !== 'sabado' && p.modo_limite !== 'dias') return json({ ok: false, error: 'Modo de plazo inválido.' }, 400); v.modo_limite = p.modo_limite; }
