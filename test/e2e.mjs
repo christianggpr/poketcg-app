@@ -512,6 +512,23 @@ try {
   if (!/2 en venta/.test(await page.textContent('[data-testid=faltan-mercado]'))) throw new Error('el botón "las que faltan" no cuenta las ofertas');
   await foto(page, 'album-mercado');
   log('carrito vaciado (copias liberadas); álbum 151 marca 2 faltantes en venta');
+  // Ajustes de layout 2 · 4 (celular): cuadrícula 3×3 (por defecto) · 3×4 · 4×5, recordada al recargar; "Ir a página" y el texto se adaptan
+  const celdasCel = async () => (await page.$$('.album-cell')).length;
+  const opcionesCel = await page.$$eval('[data-testid=selector-cuadricula] button', els => els.map(e => e.textContent.trim()));
+  if (opcionesCel.join(' ') !== '3×3 3×4 4×5' || !(await page.$('[data-testid=cuadricula-3x3].active'))) throw new Error('selector de cuadrícula del celular inesperado: ' + opcionesCel.join(' '));
+  await page.click('[data-testid=cuadricula-3x4]');
+  await page.waitForSelector('[data-testid=pagina-texto]:has-text("de 18")');
+  if ((await celdasCel()) !== 12) throw new Error('3×4 debía mostrar 12 casillas');
+  await page.reload();
+  await page.waitForSelector('[data-testid=hoja-carpeta][data-cuadricula="3x4"]');
+  if ((await celdasCel()) !== 12 || !(await page.$('[data-testid=cuadricula-3x4].active'))) throw new Error('la cuadrícula 3×4 debía recordarse al recargar');
+  await page.click('[data-testid=cuadricula-4x5]');
+  await page.waitForSelector('[data-testid=pagina-texto]:has-text("de 11")');
+  if ((await celdasCel()) !== 20) throw new Error('4×5 debía mostrar 20 casillas');
+  await foto(page, 'album-4x5');
+  await page.click('[data-testid=cuadricula-3x3]');
+  await page.waitForSelector('[data-testid=pagina-texto]:has-text("de 23")');
+  log('cuadrícula del álbum en el celular: 3×3 → 3×4 (12 casillas, 18 páginas, recordada al recargar) → 4×5 (20 casillas, 11 páginas) → 3×3');
 
   // ---------- Fase 2 · D: mazos meta (Limitless simulado en el mock) y "Comprar lo que me falta"
   let tarea = await correrTarea();
@@ -1373,6 +1390,48 @@ try {
   await pagePc.waitForSelector('[data-testid=sec-ventas].active');
   if ((await pagePc.$('[data-testid=menu-lateral]')) || !(await pagePc.$('[data-testid=tab-mercado].active')) || !(await pagePc.isVisible('[data-testid=subtabs]'))) throw new Error('PC: Mis ventas debía mostrarse en el Mercado con chips y sin menú lateral');
   await foto(pagePc, 'pc-ventas');
+  // Ajustes de layout 2 · 4 (PC 1280×800): álbum en 4×5 y 1 página por defecto, la página completa entra sin bajar; selector
+  // 3×3 · 3×4 · 4×4 · 4×5 · 4×6 y 1 / 2 páginas (con 2 páginas, hasta 4×4); panel derecho de ~280 px; se recuerda al recargar
+  await pagePc.goto(APP + '/app/album/sv03.5');
+  await pagePc.waitForSelector('[data-testid=hoja-carpeta][data-cuadricula="4x5"]');
+  const celdasPc = async () => (await pagePc.$$('.album-cell')).length;
+  const medidasPc = async () => pagePc.evaluate(() => { const h = document.querySelector('[data-testid=hoja-carpeta]').getBoundingClientRect(); const l = document.querySelector('[data-testid=album-lateral]').getBoundingClientRect(); return { hojaAbajo: Math.round(h.bottom), hojaAncho: Math.round(h.width), hojaDerecha: Math.round(h.right), alto: innerHeight, scroll: document.documentElement.scrollHeight, lateralAncho: Math.round(l.width), lateralX: Math.round(l.left), celda: getComputedStyle(document.querySelector('[data-testid=hoja-carpeta]')).getPropertyValue('--celda').trim() }; });
+  let m = await medidasPc();
+  const opcionesPc = await pagePc.$$eval('[data-testid=selector-cuadricula-pc] button', els => els.map(e => e.textContent.trim()));
+  if (opcionesPc.join(' ') !== '3×3 3×4 4×4 4×5 4×6' || !(await pagePc.$('[data-testid=cuadricula-4x5-pc].active')) || !(await pagePc.$('[data-testid=paginas-1].active'))) throw new Error('PC: selector de cuadrícula inesperado: ' + opcionesPc.join(' '));
+  if ((await celdasPc()) !== 20 || !/Página 1 de 11/.test(await pagePc.textContent('[data-testid=pagina-texto-pc]'))) throw new Error('PC: 4×5 debía mostrar 20 casillas de 11 páginas');
+  if (m.hojaAbajo > m.alto || m.lateralAncho < 270 || m.lateralAncho > 290 || m.lateralX < m.hojaDerecha) throw new Error('PC: la página completa debía verse sin bajar con el panel de 280 px a la derecha: ' + JSON.stringify(m));
+  if (!/\(11 páginas de 20\)/.test(await pagePc.textContent('[data-testid=ir-a-pagina]'))) throw new Error('PC: "Ir a página" no se adaptó a la cuadrícula');
+  await foto(pagePc, 'pc-album-4x5');
+  // 2 páginas: la cuadrícula baja a 4×4 y las opciones llegan hasta 4×4
+  await pagePc.click('[data-testid=paginas-2]');
+  await pagePc.waitForSelector('[data-testid=hoja-carpeta].doble[data-cuadricula="4x4"]');
+  m = await medidasPc();
+  const opcionesDoble = await pagePc.$$eval('[data-testid=selector-cuadricula-pc] button', els => els.map(e => e.textContent.trim()));
+  if (opcionesDoble.join(' ') !== '3×3 3×4 4×4' || (await celdasPc()) !== 32 || !/Páginas 1 – 2 de 13/.test(await pagePc.textContent('[data-testid=pagina-texto-pc]')) || m.hojaAbajo > m.alto) throw new Error('PC: 2 páginas debía mostrar 4×4 × 2 (32 casillas, 13 páginas) sin bajar: ' + opcionesDoble.join(' ') + ' ' + JSON.stringify(m));
+  await pagePc.click('[data-testid=pagina-siguiente-pc]');
+  await pagePc.waitForSelector('[data-testid=pagina-texto-pc]:has-text("Páginas 3 – 4 de 13")');
+  await foto(pagePc, 'pc-album-doble');
+  await pagePc.click('[data-testid=paginas-1]');
+  await pagePc.waitForSelector('[data-testid=hoja-carpeta]:not(.doble)[data-cuadricula="4x4"]');
+  await pagePc.click('[data-testid=cuadricula-4x6-pc]');
+  await pagePc.waitForSelector('[data-testid=pagina-texto-pc]:has-text("de 9")');
+  if ((await celdasPc()) !== 24) throw new Error('PC: 4×6 debía mostrar 24 casillas');
+  m = await medidasPc();
+  if (m.hojaAbajo > m.alto) throw new Error('PC: en 4×6 la página también debía entrar sin bajar: ' + JSON.stringify(m));
+  await pagePc.reload();
+  await pagePc.waitForSelector('[data-testid=hoja-carpeta][data-cuadricula="4x6"]');
+  if (!(await pagePc.$('[data-testid=cuadricula-4x6-pc].active'))) throw new Error('PC: la cuadrícula 4×6 debía recordarse al recargar');
+  // otro álbum arranca con la última elección (4×6) salvo que tenga la suya
+  await pagePc.goto(APP + '/app/album/base1');
+  await pagePc.waitForSelector('[data-testid=hoja-carpeta][data-cuadricula="4x6"]');
+  await pagePc.click('[data-testid=cuadricula-4x5-pc]');
+  await pagePc.waitForSelector('[data-testid=hoja-carpeta][data-cuadricula="4x5"]');
+  await pagePc.goto(APP + '/app/album/sv03.5');
+  await pagePc.waitForSelector('[data-testid=hoja-carpeta][data-cuadricula="4x6"]');
+  await pagePc.click('[data-testid=cuadricula-4x5-pc]');
+  await pagePc.waitForSelector('[data-testid=hoja-carpeta][data-cuadricula="4x5"]');
+  log('álbum en PC: 4×5 en 1 página por defecto (20 casillas, 11 páginas, completa sin bajar, panel de 280 px); 2 páginas → 4×4 ×2; 4×6 recordado por álbum; otro álbum toma la última elección');
   await ctxPc.close();
   const ctxCel = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'es-PE' });
   const pageCel = await ctxCel.newPage();

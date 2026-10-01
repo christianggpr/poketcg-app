@@ -1,6 +1,6 @@
 'use client';
 import { Icono } from '../Icono';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { Carta, Coleccion } from '@/lib/catalogo';
@@ -26,6 +26,7 @@ import { PorLlegar, Recibidas } from './PorLlegar';
 import { AvisosOrdenar, LlenarAlbumesSheet, OrdenarRepetidasSheet, useOrdenar } from './Repetidas';
 import { PonerEnVentaSheet } from './VentaAlbum';
 import { Campo, useEsPC } from '../ui';
+import { useCuadricula } from '../useCuadricula';
 
 /** Idioma de una entrada para agrupar álbumes: JP para colecciones japonesas, el registrado o "—". */
 function idiomaAlbum(e: Entrada, set: Coleccion | undefined): string {
@@ -148,8 +149,12 @@ export function Albumes() {
   );
 }
 
-/** Álbum de una colección (en un idioma) como hoja de carpeta: 3×3 por página en el celular, dos páginas lado a lado en PC. */
-const POR_PAGINA = 9;
+/**
+ * Álbum de una colección (en un idioma) como hoja de carpeta.
+ * Ajustes de layout 2 · 4: la cuadrícula se elige (3×3, 3×4, 4×4, 4×5, 4×6; en el celular 3×3, 3×4 y 4×5) y en PC se ven 1 o
+ * 2 páginas lado a lado; por defecto PC 4×5 en 1 página y celular 3×3. La elección se recuerda por usuario y por álbum.
+ * En PC la hoja se dimensiona para que una página completa entre en la ventana sin bajar (alto disponible) y usa el ancho que haga falta.
+ */
 export function AlbumColeccion({ setId }: { setId: string }) {
   const cat = useCatalogo();
   const col = useColeccion();
@@ -173,6 +178,11 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   const mercado = useMercado();
   const toast = useToast();
   const set = cat.coleccion(setId);
+  const { cuad, setCuad, opciones } = useCuadricula(perfil.id, set?.id, esPC);
+  const porPagina = cuad.cols * cuad.filas;
+  const dosPaginas = esPC && cuad.paginas === 2;
+  const hojaRef = useRef<HTMLDivElement>(null);
+  const zonaRef = useRef<HTMLDivElement>(null);
   // Fase 2 · C: qué cartas de esta colección están en venta en la red (se actualiza en tiempo real)
   useEffect(() => {
     if (!set) return;
@@ -205,16 +215,42 @@ export function AlbumColeccion({ setId }: { setId: string }) {
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [propias, idsFaltan, cat, precios.version]);
   const lista = useMemo(() => modo === 'tengo' ? cartas.filter(c => propias.has(c.id)) : modo === 'faltan' ? cartas.filter(c => !propias.has(c.id)) : cartas, [cartas, propias, modo]);
-  const totalPaginas = Math.max(1, Math.ceil(lista.length / POR_PAGINA));
+  const totalPaginas = Math.max(1, Math.ceil(lista.length / porPagina));
   useEffect(() => { setPagina(1); }, [modo]);
   useEffect(() => { if (pagina > totalPaginas) setPagina(totalPaginas); }, [pagina, totalPaginas]);
+  // con 2 páginas lado a lado, la de la izquierda siempre es impar (como en una carpeta real)
+  useEffect(() => { if (dosPaginas && pagina % 2 === 0) setPagina(pagina - 1); }, [dosPaginas, pagina]);
   // Mejoras 2 · A: se precargan en segundo plano las imágenes de la página siguiente (la hoja pasa sin esperar)
   useEffect(() => {
     if (!set || typeof window === 'undefined') return;
-    const siguientes = (esPC ? [pagina + 2, pagina + 3] : [pagina + 1]).filter(n => n <= totalPaginas).flatMap(n => lista.slice((n - 1) * POR_PAGINA, n * POR_PAGINA));
+    const siguientes = (dosPaginas ? [pagina + 2, pagina + 3] : [pagina + 1]).filter(n => n <= totalPaginas).flatMap(n => lista.slice((n - 1) * porPagina, n * porPagina));
     const t = setTimeout(() => { for (const c of siguientes) { const u = urlsImagen(c, set, idiomaImagen(idiomaAlb))[0]; if (u) { const im = new Image(); im.decoding = 'async'; im.src = u; } } }, 500);
     return () => clearTimeout(t);
-  }, [pagina, esPC, totalPaginas, lista, set, idiomaAlb]);
+  }, [pagina, dosPaginas, porPagina, totalPaginas, lista, set, idiomaAlb]);
+  // Ajustes de layout 2 · 4 (PC): tamaño de casilla para que la(s) página(s) entren en el alto de la ventana y en el ancho disponible
+  useLayoutEffect(() => {
+    const hoja = hojaRef.current, zona = zonaRef.current;
+    if (!hoja) return;
+    if (!esPC || !zona) { hoja.style.removeProperty('--celda'); return; }
+    const medir = () => {
+      const rect = hoja.getBoundingClientRect();
+      const arriba = rect.top + window.scrollY;                       // distancia desde el inicio del documento
+      const altoDisp = window.innerHeight - arriba - 24;              // margen inferior
+      const anchoDisp = zona.clientWidth - (zona.dataset.flechas ? 2 * 72 : 0);   // punto 5: espacio de las flechas a los costados
+      const relleno = 18, sep = 12, separador = 2 * 18 + 2;           // padding de la hoja, separación entre casillas, lomo entre dos páginas
+      const anchoPagina = (dosPaginas ? (anchoDisp - 2 * relleno - separador) / 2 : anchoDisp - 2 * relleno);
+      const porAncho = (anchoPagina - (cuad.cols - 1) * sep) / cuad.cols;
+      const porAlto = ((altoDisp - 2 * relleno - (cuad.filas - 1) * sep) / cuad.filas) * 63 / 88;
+      const celda = Math.max(48, Math.floor(Math.min(porAncho, porAlto)));
+      hoja.style.setProperty('--celda', `${celda}px`);
+      hoja.classList.toggle('compacta', celda < 92);   // casillas chicas: rótulos más pequeños
+    };
+    medir();
+    window.addEventListener('resize', medir);
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(medir) : null;
+    ro?.observe(zona);
+    return () => { window.removeEventListener('resize', medir); ro?.disconnect(); };
+  }, [esPC, dosPaginas, cuad.cols, cuad.filas, lista.length, modo]);
 
   if (!set) return <div className="empty">Esa colección no existe. <Link href="/app/album">Volver</Link></div>;
   const sinIdioma = idiomaAlb === '—' ? [...propias.values()].flat() : [];
@@ -229,13 +265,26 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   const total = cartas.filter(c => !c.sd).length;
   const pct = total ? Math.round((idsPropias.length / total) * 100) : 0;
   const enVentaFaltan = idsFaltan.filter(id => enRed.has(id)).length;
-  // PC muestra dos páginas (impar + par); celular una. Las páginas se numeran igual en ambos.
-  const inicioPagina = (pagina - 1) * POR_PAGINA;
-  const paginasVista = (esPC ? [pagina, pagina + 1] : [pagina]).filter(n => n <= totalPaginas);
-  const celdas = (n: number) => lista.slice((n - 1) * POR_PAGINA, n * POR_PAGINA);
-  const irA = (n: number) => setPagina(Math.max(1, Math.min(totalPaginas, n)));
-  const pasoPC = 2;
-  const rangoCartas = `${inicioPagina + 1}–${Math.min(lista.length, inicioPagina + POR_PAGINA)}`;
+  // PC con "2 páginas" muestra impar + par; si no, una. Las páginas se numeran igual en todos los modos.
+  const inicioPagina = (pagina - 1) * porPagina;
+  const paginasVista = (dosPaginas ? [pagina, pagina + 1] : [pagina]).filter(n => n <= totalPaginas);
+  const celdas = (n: number) => lista.slice((n - 1) * porPagina, n * porPagina);
+  const paso = dosPaginas ? 2 : 1;
+  const irA = (n: number) => { const m = Math.max(1, Math.min(totalPaginas, n)); setPagina(dosPaginas && m % 2 === 0 ? m - 1 : m); };
+  const rangoCartas = `${inicioPagina + 1}–${Math.min(lista.length, inicioPagina + porPagina)}`;
+  const textoPagina = paginasVista.length > 1 ? `Páginas ${paginasVista[0]} – ${paginasVista[1]} de ${totalPaginas}` : `Página ${pagina} de ${totalPaginas}`;
+  // Selector de cuadrícula (y de 1 o 2 páginas en PC), junto a los filtros Todas / Tengo / Faltan
+  const selectorCuadricula = (sufijo: '' | '-pc') => (
+    <div className="seg selector-cuadricula" role="group" aria-label="Casillas por página" data-testid={`selector-cuadricula${sufijo}`}>
+      {opciones.map(o => <button key={o.id} className={cuad.cols === o.cols && cuad.filas === o.filas ? 'active' : ''} onClick={() => setCuad({ cols: o.cols, filas: o.filas })} title={`${o.cols} columnas × ${o.filas} filas (${o.cols * o.filas} casillas por página)`} aria-pressed={cuad.cols === o.cols && cuad.filas === o.filas} data-testid={`cuadricula-${o.id}${sufijo}`}>{o.cols}×{o.filas}</button>)}
+    </div>
+  );
+  const selectorPaginas = esPC ? (
+    <div className="seg selector-paginas" role="group" aria-label="Páginas a la vez" data-testid="selector-paginas">
+      <button className={cuad.paginas === 1 ? 'active' : ''} onClick={() => setCuad({ paginas: 1 })} aria-pressed={cuad.paginas === 1} data-testid="paginas-1">1 página</button>
+      <button className={cuad.paginas === 2 ? 'active' : ''} onClick={() => setCuad({ paginas: 2 })} aria-pressed={cuad.paginas === 2} title="Dos páginas lado a lado (hasta 4×4)" data-testid="paginas-2">2 páginas</button>
+    </div>
+  ) : null;
   const Celda = ({ c }: { c: Carta }) => {
     const es = propias.get(c.id) || [];
     const qty = es.reduce((n, e) => n + e.cantidad, 0);
@@ -285,24 +334,30 @@ export function AlbumColeccion({ setId }: { setId: string }) {
       {ordenar.candidatas.length ? <button className="btn" onClick={() => setAsistente('llenar')} data-testid="btn-llenar-album"><Icono n="album" /> Traer del Bulk ({ordenar.candidatas.length})</button> : null}
     </div>
   );
+  // "Ir a página" se adapta al número de páginas de la cuadrícula elegida (hasta 10 botones alrededor de la actual)
   const irAPagina = totalPaginas > 1 ? (
     <div className="panel ir-a-pagina solo-pc-block" data-testid="ir-a-pagina">
-      <b>Ir a página</b>
+      <b>Ir a página</b> <span className="small muted">({totalPaginas} páginas de {porPagina})</span>
       <div className="paginas">
-        {(() => { const ini = Math.max(1, Math.min(pagina - 4, totalPaginas - 9)); const fin = Math.min(totalPaginas, ini + 9); const out = []; for (let n = ini; n <= fin; n++) out.push(<button key={n} className={paginasVista.includes(n) ? 'active' : ''} onClick={() => irA(n % 2 === 0 ? n - 1 : n)} aria-current={paginasVista.includes(n) ? 'page' : undefined}>{n}</button>); return out; })()}
+        {(() => { const ini = Math.max(1, Math.min(pagina - 4, totalPaginas - 9)); const fin = Math.min(totalPaginas, ini + 9); const out = []; for (let n = ini; n <= fin; n++) out.push(<button key={n} className={paginasVista.includes(n) ? 'active' : ''} onClick={() => irA(n)} aria-current={paginasVista.includes(n) ? 'page' : undefined}>{n}</button>); return out; })()}
       </div>
     </div>
   ) : null;
 
   return (
     <div className="album-detalle">
-      <p className="small migas solo-pc-block"><Link href="/app/album" className="miga"><Icono n="izquierda" tam={16} /> Mis álbumes</Link></p>
-      <div className="cabecera-seccion">
+      <div className="cabecera-seccion cabecera-album">
+        {/* Ajustes de layout 2 · 4: la miga «Mis álbumes» va en la misma fila que el título para dejarle más alto a la hoja */}
+        <Link href="/app/album" className="miga solo-pc" data-testid="miga-albumes"><Icono n="izquierda" tam={16} /> Mis álbumes</Link>
         <h1 className="titulo-album" style={{ margin: 0 }}>{nombreColeccion(set, idioma, true)}{idiomaAlb && idiomaAlb !== '—' ? <span className={`pill ${idiomaAlb === 'JP' ? 'jp' : 'info'}`} style={{ marginLeft: 10, verticalAlign: 'middle' }}>{idiomaAlb}</span> : null}</h1>
-        <div className="seg filtro-album solo-pc" data-testid="filtro-album-pc">
-          <button className={modo === 'todas' ? 'active' : ''} onClick={() => setModo('todas')}>Todas</button>
-          <button className={modo === 'tengo' ? 'active' : ''} onClick={() => setModo('tengo')}>Tengo · {idsPropias.length}</button>
-          <button className={modo === 'faltan' ? 'active' : ''} onClick={() => setModo('faltan')}>Faltan · {idsFaltan.length}</button>
+        <div className="controles-album solo-pc-flex">
+          <div className="seg filtro-album" data-testid="filtro-album-pc">
+            <button className={modo === 'todas' ? 'active' : ''} onClick={() => setModo('todas')}>Todas</button>
+            <button className={modo === 'tengo' ? 'active' : ''} onClick={() => setModo('tengo')}>Tengo · {idsPropias.length}</button>
+            <button className={modo === 'faltan' ? 'active' : ''} onClick={() => setModo('faltan')}>Faltan · {idsFaltan.length}</button>
+          </div>
+          {selectorCuadricula('-pc')}
+          {selectorPaginas}
         </div>
       </div>
       {sinIdioma.length ? (
@@ -315,12 +370,15 @@ export function AlbumColeccion({ setId }: { setId: string }) {
         </div>
       ) : null}
       <div className="album-cuerpo">
-        <div className="album-principal">
+        <div className="album-principal" ref={zonaRef}>
           <div className="solo-celular">{tarjetaProgreso}</div>
-          <div className="seg filtro-album solo-celular" data-testid="filtro-album" style={{ marginBottom: 10 }}>
-            <button className={modo === 'todas' ? 'active' : ''} onClick={() => setModo('todas')}>Todas</button>
-            <button className={modo === 'tengo' ? 'active' : ''} onClick={() => setModo('tengo')}>Tengo · {idsPropias.length}</button>
-            <button className={modo === 'faltan' ? 'active' : ''} onClick={() => setModo('faltan')}>Faltan · {idsFaltan.length}</button>
+          <div className="controles-album solo-celular" style={{ marginBottom: 10 }}>
+            <div className="seg filtro-album" data-testid="filtro-album">
+              <button className={modo === 'todas' ? 'active' : ''} onClick={() => setModo('todas')}>Todas</button>
+              <button className={modo === 'tengo' ? 'active' : ''} onClick={() => setModo('tengo')}>Tengo · {idsPropias.length}</button>
+              <button className={modo === 'faltan' ? 'active' : ''} onClick={() => setModo('faltan')}>Faltan · {idsFaltan.length}</button>
+            </div>
+            {selectorCuadricula('')}
           </div>
           <div className="nav-pagina solo-celular">
             <button className="btn icon" onClick={() => irA(pagina - 1)} disabled={pagina <= 1} aria-label="Página anterior" data-testid="pagina-anterior"><Icono n="izquierda" tam={22} /></button>
@@ -328,21 +386,21 @@ export function AlbumColeccion({ setId }: { setId: string }) {
             <button className="btn icon" onClick={() => irA(pagina + 1)} disabled={pagina >= totalPaginas} aria-label="Página siguiente" data-testid="pagina-siguiente"><Icono n="derecha" tam={22} /></button>
           </div>
           {!lista.length ? <div className="empty">{modo === 'faltan' ? '¡No te falta ninguna!' : modo === 'tengo' ? 'Todavía no tienes cartas de esta colección.' : 'Esta colección no tiene cartas en el catálogo.'}</div> : (
-            <div className={`hoja-carpeta ${paginasVista.length > 1 ? 'doble' : ''}`} data-testid="hoja-carpeta">
+            <div className={`hoja-carpeta ${paginasVista.length > 1 ? 'doble' : ''}`} data-testid="hoja-carpeta" data-cuadricula={`${cuad.cols}x${cuad.filas}`} ref={hojaRef} style={{ '--cols': cuad.cols } as React.CSSProperties}>
               {paginasVista.map(n => <div key={n} className="pagina-carpeta" data-pagina={n}>{celdas(n).map(c => <Celda key={c.id} c={c} />)}</div>)}
             </div>
           )}
           {totalPaginas > 1 && totalPaginas <= 12 ? <div className="puntos-pagina solo-celular" aria-hidden="true">{Array.from({ length: totalPaginas }, (_, k) => <span key={k} className={k + 1 === pagina ? 'on' : ''} />)}</div> : null}
           {totalPaginas > 1 ? (
             <div className="nav-pagina solo-pc-flex" style={{ marginTop: 14 }}>
-              <button className="btn icon" onClick={() => irA(pagina - pasoPC)} disabled={pagina <= 1} aria-label="Páginas anteriores"><Icono n="izquierda" tam={22} /></button>
-              <div className="texto"><b>{paginasVista.length > 1 ? `Páginas ${paginasVista[0]} – ${paginasVista[1]}` : `Página ${pagina}`} de {totalPaginas}</b></div>
-              <button className="btn icon" onClick={() => irA(pagina + pasoPC)} disabled={pagina + pasoPC > totalPaginas} aria-label="Páginas siguientes"><Icono n="derecha" tam={22} /></button>
+              <button className="btn icon" onClick={() => irA(pagina - paso)} disabled={pagina <= 1} aria-label={dosPaginas ? 'Páginas anteriores' : 'Página anterior'} data-testid="pagina-anterior-pc"><Icono n="izquierda" tam={22} /></button>
+              <div className="texto" data-testid="pagina-texto-pc"><b>{textoPagina}</b><span className="small muted"> · {porPagina} casillas por página</span></div>
+              <button className="btn icon" onClick={() => irA(pagina + paso)} disabled={pagina + paso > totalPaginas} aria-label={dosPaginas ? 'Páginas siguientes' : 'Página siguiente'} data-testid="pagina-siguiente-pc"><Icono n="derecha" tam={22} /></button>
             </div>
           ) : null}
           <div className="solo-celular" style={{ marginTop: 14 }}>{botones}</div>
         </div>
-        <aside className="album-lateral solo-pc-block">
+        <aside className="album-lateral" data-testid="album-lateral">
           {tarjetaProgreso}
           {botones}
           {irAPagina}

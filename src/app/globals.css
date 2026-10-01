@@ -889,6 +889,7 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
 .migas .miga:hover { color: var(--enlace); }
 .album-detalle .titulo-album { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
 .album-cuerpo { display: block; }
+.album-lateral { display: none; }   /* solo PC (ajustes de layout 2 · 4: en rejilla debajo de la hoja entre 1024 y 1279 px, columna fija desde 1280 px) */
 .progreso-album .fila-dato { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; padding: 4px 0; font-size: 14.5px; }
 .progreso-album .fila-dato b { text-align: right; }
 .filtro-album { margin-bottom: 10px; }
@@ -896,7 +897,9 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
 .nav-pagina .texto { text-align: center; flex: 1; min-width: 0; }
 .nav-pagina .btn.icon { width: 48px; height: 48px; border-radius: 50%; flex: none; }
 .hoja-carpeta { background: var(--carpeta); border-radius: 20px; padding: 14px; }
-.pagina-carpeta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+/* Ajustes de layout 2 · 4: columnas según la cuadrícula elegida (--cols); en el celular las casillas llenan el ancho,
+   en PC miden --celda (calculado para que la página entre en el alto de la ventana) */
+.pagina-carpeta { display: grid; grid-template-columns: repeat(var(--cols, 3), var(--celda, minmax(0, 1fr))); gap: 10px; }
 .hoja-carpeta .pocket { text-decoration: none; color: inherit; }
 .hoja-carpeta .pocket .thumb { width: 100%; height: 100%; border-radius: 6px; }
 .hoja-carpeta .pocket.filled { border: 0; background: var(--carpeta-casilla); }
@@ -918,16 +921,35 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
   .solo-pc-block { display: block !important; }
   .solo-pc-grid { display: grid !important; }
   .solo-pc-flex { display: flex !important; }
-  .album-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
-  .album-lateral { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 100px; }
-  .hoja-carpeta { padding: 18px; border-radius: 22px; }
-  .hoja-carpeta.doble { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  /* Ajustes de layout 2 · 4: la hoja usa el alto disponible (una página completa sin bajar) y el panel derecho es más angosto
+     (280 px); entre 1024 y 1279 px el panel va debajo de la hoja */
+  .album-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+  .album-lateral { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; align-items: start; }
+  .album-principal { min-width: 0; }
+  .hoja-carpeta { --celda: 80px; padding: 18px; border-radius: 22px; width: fit-content; max-width: 100%; margin: 0 auto; }
+  .hoja-carpeta.doble { display: grid; grid-template-columns: auto auto; gap: 0; }
   .hoja-carpeta.doble .pagina-carpeta { padding: 0 18px; }
   .hoja-carpeta.doble .pagina-carpeta:first-child { padding-left: 0; border-right: 2px solid var(--carpeta-linea); }
   .hoja-carpeta.doble .pagina-carpeta:last-child { padding-right: 0; }
   .pagina-carpeta { gap: 12px; }
   .nav-pagina.solo-pc-flex { justify-content: center; gap: 14px; }
   .nav-pagina.solo-pc-flex .texto { flex: 0 1 auto; min-width: 200px; }
+  .cabecera-album { margin-bottom: 8px; }
+  .controles-album { margin-left: auto; }
+}
+/* Ajustes de layout 2 · 4: filtros + selector de cuadrícula (+ 1 o 2 páginas en PC) */
+.cabecera-album .miga { display: inline-flex; align-items: center; gap: 2px; min-height: 44px; font-size: 14px; font-weight: 800; color: var(--texto-2); text-decoration: none; }
+.cabecera-album .miga:hover { color: var(--enlace); }
+.hoja-carpeta.compacta .casilla-mercado, .hoja-carpeta.compacta .casilla-sin { font-size: 9px; padding: 2px 4px; line-height: 1.2; }
+.hoja-carpeta.compacta .pocket .casilla-falta { left: 4px; right: 4px; bottom: 20px; }
+.hoja-carpeta.compacta .pocket .pocket-n { font-size: 8.5px; padding: 1px 4px; }
+.hoja-carpeta.compacta .pocket .casilla-cant { font-size: 9px; padding: 1px 4px; }
+.controles-album { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.controles-album .seg { margin: 0; }
+.selector-cuadricula button, .selector-paginas button { padding-left: 12px; padding-right: 12px; font-variant-numeric: tabular-nums; }
+@media (min-width: 1280px) {
+  .album-cuerpo { grid-template-columns: minmax(0, 1fr) 280px; }
+  .album-lateral { display: flex; flex-direction: column; position: sticky; top: 100px; max-height: calc(100vh - 116px); overflow: auto; }
 }
 
 /* Bloque C · Bulk: selector, tarjeta del Bulk, lista (celular) y tabla (PC) */
