@@ -384,6 +384,19 @@ try {
   await page.goto(APP + '/app/mercado');
   await page.waitForSelector('[data-testid=carrusel-precio-item]');
   if ((await page.$$('[data-testid=carrusel-vendidas-item]')).length !== 3 || (await page.$$('[data-testid=carrusel-precio-item]')).length !== 3) throw new Error('los carruseles debían mostrar las 3 cartas con stock');
+  // Ajustes de layout · 1: sin ventas en 30 días el subtítulo dice "más publicadas"; y si la función mercado_destacados
+  // no está en la base (como pasó en producción), los carruseles se arman igual desde la vista `mercado`
+  if (!/más publicadas/.test(await page.textContent('[data-testid=carrusel-vendidas] .nota'))) throw new Error('sin ventas, "Más vendidas" debía decir "más publicadas"');
+  sql('drop function if exists public.mercado_destacados(int)');
+  await page.goto(APP + '/app/mercado');
+  await page.waitForSelector('[data-testid=carrusel-precio-item]');
+  if ((await page.$$('[data-testid=carrusel-vendidas-item]')).length !== 3 || (await page.$$('[data-testid=carrusel-precio-item]')).length !== 3) throw new Error('sin la función en la base, los carruseles debían armarse desde la vista mercado');
+  const masCaraRespaldo = await page.textContent('[data-testid=carrusel-precio-item] >> nth=0');
+  if (!/Charmander/.test(masCaraRespaldo)) throw new Error('"Mayor precio" (respaldo) debía empezar por la más cara: ' + masCaraRespaldo);
+  execSync('su postgres -c "psql -q -d poketcg_test -f supabase/migrations/0007_ajustes_layout.sql"');
+  if (sql("select count(*) from pg_proc where proname = 'mercado_destacados'") !== '1') throw new Error('0007_ajustes_layout.sql no volvió a crear la función');
+  await page.goto(APP + '/app/mercado');
+  await page.waitForSelector('[data-testid=carrusel-precio-item]');
   const masCara = sql(`select carta_id || '|' || precio_pen from public.mercado order by precio_pen desc limit 1`).split('|');
   const primeraCara = await page.textContent('[data-testid=carrusel-precio-item] >> nth=0');
   if (!primeraCara.includes(pen(masCara[1])) || !/Charmander/.test(primeraCara)) throw new Error('"Mayor precio" debía empezar por la oferta más cara (' + masCara.join(' ') + '): ' + primeraCara);

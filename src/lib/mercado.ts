@@ -77,8 +77,34 @@ export type Destacada = { carta_id: string; desde: number; hasta?: number; copia
 export type Destacados = { mas_vendidas: Destacada[]; mayor_precio: Destacada[]; generado: string };
 export async function destacadosMercado(limite = 12): Promise<Destacados> {
   const { data, error } = await supabaseBrowser().rpc('mercado_destacados', { p_limite: limite });
-  if (error) throw new Error(error.message);
+  // Ajustes de layout · 1: si la función no está en la base (o falla), los carruseles se arman desde la vista
+  // pública `mercado` (las más caras y las más publicadas) para no mostrar "no hay cartas" con publicaciones activas.
+  if (error) return destacadosDeRespaldo(limite);
   const d = (data || { mas_vendidas: [], mayor_precio: [], generado: '' }) as Destacados;
   const n = (x: Destacada): Destacada => ({ ...x, desde: Number(x.desde), hasta: x.hasta == null ? undefined : Number(x.hasta), copias: Number(x.copias), ofertas: Number(x.ofertas), vendidas: Number(x.vendidas || 0), deseadas: Number(x.deseadas || 0) });
   return { ...d, mas_vendidas: (d.mas_vendidas || []).map(n), mayor_precio: (d.mayor_precio || []).map(n) };
+}
+
+/** Respaldo sin la función `mercado_destacados`: resumen por carta de la vista `mercado` + ventas públicas de 30 días. */
+async function destacadosDeRespaldo(limite: number): Promise<Destacados> {
+  const sb = supabaseBrowser();
+  const { data, error } = await sb.from('mercado').select('carta_id, precio_pen, disponibles, creada');
+  if (error) throw new Error(error.message);
+  const porCarta = new Map<string, Destacada>();
+  for (const o of (data || []) as { carta_id: string; precio_pen: number; disponibles: number }[]) {
+    const d = porCarta.get(o.carta_id) || { carta_id: o.carta_id, desde: Infinity, hasta: 0, copias: 0, ofertas: 0, vendidas: 0, deseadas: 0, motivo: 'publicada' as const };
+    d.desde = Math.min(d.desde, Number(o.precio_pen)); d.hasta = Math.max(d.hasta || 0, Number(o.precio_pen)); d.copias += Number(o.disponibles); d.ofertas += 1;
+    porCarta.set(o.carta_id, d);
+  }
+  try {
+    const desde = new Date(Date.now() - 30 * 86400000).toISOString();
+    const { data: ventas } = await sb.from('ventas_publicas').select('carta_id, cantidad').gte('entregada_en', desde);
+    for (const v of (ventas || []) as { carta_id: string; cantidad: number }[]) { const d = porCarta.get(v.carta_id); if (d) { d.vendidas = (d.vendidas || 0) + Number(v.cantidad); d.motivo = 'vendida'; } }
+  } catch { /* sin ventas públicas: se ordena por copias */ }
+  const todas = [...porCarta.values()];
+  return {
+    mas_vendidas: todas.slice().sort((a, b) => (b.vendidas || 0) - (a.vendidas || 0) || b.ofertas - a.ofertas || b.copias - a.copias).slice(0, limite),
+    mayor_precio: todas.slice().sort((a, b) => (b.hasta || 0) - (a.hasta || 0) || b.desde - a.desde).slice(0, limite),
+    generado: new Date().toISOString()
+  };
 }

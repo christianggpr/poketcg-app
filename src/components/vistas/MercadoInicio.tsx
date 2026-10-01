@@ -26,7 +26,7 @@ export function MercadoInicio() {
   const idsMias = new Set(col.entradas.map(e => e.carta_id).filter((x): x is string => !!x));
   return (
     <div data-testid="mercado-inicio">
-      {destacados ? <CarruselMercado titulo="Más vendidas" icono="fuego" nota="últimos 30 días" items={destacados.mas_vendidas} testid="carrusel-vendidas" vacio="Todavía no hay cartas en venta." /> : <p className="small muted"><span className="spinner" /> Cargando destacados…</p>}
+      {destacados ? <CarruselMercado titulo="Más vendidas" icono="fuego" nota={destacados.mas_vendidas.some(d => (d.vendidas || 0) > 0) ? 'últimos 30 días' : 'sin ventas en 30 días: las más publicadas'} items={destacados.mas_vendidas} testid="carrusel-vendidas" vacio="Todavía no hay cartas en venta." /> : <p className="small muted"><span className="spinner" /> Cargando destacados…</p>}
       {destacados ? <CarruselMercado titulo="Mayor precio" icono="gema" nota="disponibles ahora" items={destacados.mayor_precio} testid="carrusel-precio" vacio="Todavía no hay cartas en venta." /> : null}
       <div className="bloque recien">
         <h3><span>Recién publicadas</span><Link href="/app/mercado/buscar" className="small">Ver todo</Link></h3>
