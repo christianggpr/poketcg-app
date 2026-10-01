@@ -757,7 +757,9 @@ try {
   const pageP = await ctxP.newPage();
   await pageP.goto(APP + '/');
   await pageP.waitForSelector('[data-testid=instalar-app] [data-testid=btn-apk]');
-  if (!/v1\.0\.0/.test(await pageP.textContent('[data-testid=btn-apk]')) || !/1\.2 MB/.test(await pageP.textContent('[data-testid=btn-apk]'))) throw new Error('el botón del APK no muestra versión y tamaño: ' + await pageP.textContent('[data-testid=btn-apk]'));
+  const infoApk = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'public', 'descargas', 'android.json'), 'utf8'));
+  const textoApk = await pageP.textContent('[data-testid=btn-apk]');
+  if (!textoApk.includes('versión ' + infoApk.version) || !textoApk.includes((infoApk.bytes / 1048576).toFixed(1).replace('.0', '') + ' MB')) throw new Error('el botón del APK no muestra versión y tamaño: ' + textoApk);
   const apk = await pageP.request.get(APP + '/descargas/poketcg.apk');
   if (!apk.ok() || apk.headers()['content-type'] !== 'application/vnd.android.package-archive' || !/attachment/.test(apk.headers()['content-disposition'] || '')) throw new Error('el APK no se sirve como descarga: ' + apk.status() + ' ' + apk.headers()['content-type']);
   const enlaces = await (await fetch(APP + '/.well-known/assetlinks.json')).json();
@@ -766,7 +768,7 @@ try {
   await pageP.waitForSelector('[data-testid=instalar-app] [data-testid=btn-apk]');
   await foto(pageP, 'portada-apk');
   await ctxP.close();
-  log('portada e /instalar: descarga de la app Android (.apk v1.0.0, 1.2 MB) y assetlinks.json para la app');
+  log('portada e /instalar: descarga de la app Android (.apk v' + infoApk.version + ') y assetlinks.json para la app');
 
   // ---------- álbum automático
   await page.goto(APP + '/app/album');
