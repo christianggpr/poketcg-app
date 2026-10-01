@@ -1,0 +1,1190 @@
+Imágenes del catálogo 2026-09-30.2 · comprobado el 2026-10-01 · 23,763 peticiones, 451 errores, 938 s
+Cartas comprobadas: 34,487 (sin contar 5 casillas "sin datos", que no tienen imagen posible)
+Con imagen: 31,471 (91,25 %) · sin imagen: 3,016
+  · Colecciones con fuente pública (TCGdex, pokemontcg.io, Limitless): 31,471 de 32,300 con imagen (97,43 %)
+  · Colecciones japonesas de 1996–2006 sin fuente pública (26 colecciones, 2,187 cartas): sin imagen
+Por fuente: TCGdex 26,983 · TCGdex en español (respaldo) 466 · pokemontcg.io 726 · Limitless 3,296 · ninguna 3,016
+Cartas completadas a mano que ya están en TCGdex (se les quita la marca sinTcgdex): 44
+
+Por colección (id · nombre · con imagen/total · TCGdex por idioma · respaldos · sin imagen):
+miscp · Miscellaneous Promos · 0/1 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 001
+jp-PMCG1 · 拡張パック · 0/102 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+jp-PMCG2 · ポケモンジャングル · 0/48 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+jp-PMCG3 · 化石の秘密 · 0/48 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+jp-PMCG4 · ロケット団 · 0/65 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+jp-PMCG5 · リーダーズスタジアム · 0/96 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+base1 · Base Set · 102/102 (100,00 %) · TCGdex en 102, es 0
+base2 · Jungle · 64/64 (100,00 %) · TCGdex en 64, es 0
+jp-PMCG6 · 闇からの挑戦 · 0/98 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+basep · Wizards Black Star Promos · 53/53 (100,00 %) · TCGdex en 53, es 0
+base3 · Fossil · 62/62 (100,00 %) · TCGdex en 62, es 0
+jp-neo1 · 金、銀、新世界へ... · 0/96 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+base4 · Base Set 2 · 130/130 (100,00 %) · TCGdex en 130, es 0
+base5 · Team Rocket · 83/83 (100,00 %) · TCGdex en 83, es 0
+jp-neo2 · 遺跡をこえて... · 0/57 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+gym1 · Gym Heroes · 132/132 (100,00 %) · TCGdex en 132, es 0
+gym2 · Gym Challenge · 132/132 (100,00 %) · TCGdex en 132, es 0
+jp-neo3 · めざめる伝説 · 0/57 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+neo1 · Neo Genesis · 111/111 (100,00 %) · TCGdex en 111, es 0
+jp-neo4 · 闇、そして光へ... · 0/113 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+neo2 · Neo Discovery · 75/75 (100,00 %) · TCGdex en 75, es 0
+jp-VS1 · ポケモンカード★VS · 0/145 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+si1 · Southern Islands · 18/18 (100,00 %) · TCGdex en 18, es 0
+neo3 · Neo Revelation · 66/66 (100,00 %) · TCGdex en 66, es 0
+jp-web1 · ポケモンカード★web · 0/48 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+jp-E1 · 基本拡張パック · 0/128 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+neo4 · Neo Destiny · 113/113 (100,00 %) · TCGdex en 113, es 0
+jp-E2 · 地図にない町 · 0/92 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+jp-E3 · 海からの風 · 0/90 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+lc · Legendary Collection · 110/110 (100,00 %) · TCGdex en 110, es 0
+jp-E4 · 裂けた大地 · 0/91 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+ecard1 · Expedition Base Set · 165/165 (100,00 %) · TCGdex en 165, es 0
+jp-E5 · 神秘なる山 · 0/91 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+bog · Best of game · 9/9 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 9
+ecard2 · Aquapolis · 182/190 (95,79 %) · TCGdex en 150, es 0 · respaldo: pokemontcg 32 · sin imagen: 50a, 50b, 74a, 74b, 95a, 95b, 103a, 103b
+ecard3 · Skyridge · 182/182 (100,00 %) · TCGdex en 150, es 0 · respaldo: pokemontcg 32
+ex1 · Ruby & Sapphire · 109/109 (100,00 %) · TCGdex en 109, es 0
+ex2 · Sandstorm · 100/100 (100,00 %) · TCGdex en 100, es 0
+np · Nintendo Black Star Promos · 40/40 (100,00 %) · TCGdex en 40, es 0
+ex3 · Dragon · 100/100 (100,00 %) · TCGdex en 100, es 0
+ex4 · Team Magma vs Team Aqua · 97/97 (100,00 %) · TCGdex en 97, es 0
+jp-PCG1 · 伝説の飛翔 · 0/82 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+ex5 · Hidden Legends · 102/102 (100,00 %) · TCGdex en 102, es 0
+ex5.5 · Poké Card Creator Pack · 0/5 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5
+jp-PCG2 · 蒼空の激突 · 0/82 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+tk-ex-latia · EX trainer Kit (Latias) · 10/10 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 10
+tk-ex-latio · EX trainer Kit (Latios) · 10/10 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 10
+ex6 · FireRed & LeafGreen · 116/116 (100,00 %) · TCGdex en 116, es 0
+pop1 · POP Series 1 · 17/17 (100,00 %) · TCGdex en 17, es 0
+jp-PCG3 · ロケット団の逆襲 · 0/85 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+ex7 · Team Rocket Returns · 111/111 (100,00 %) · TCGdex en 111, es 0
+ex8 · Deoxys · 108/108 (100,00 %) · TCGdex en 108, es 0
+jp-PCG4 · 金の空、銀の海 · 0/106 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+ex9 · Emerald · 107/107 (100,00 %) · TCGdex en 107, es 0
+jp-PCG5 · まぼろしの森 · 0/86 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+pop2 · POP Series 2 · 17/17 (100,00 %) · TCGdex en 17, es 0
+ex10 · Unseen Forces · 117/117 (100,00 %) · TCGdex en 117, es 0
+exu · Unseen Forces Unown Collection · 0/28 (0,00 %) · TCGdex en 0, es 0 · sin imagen: !, %3F, A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z
+jp-PCG6 · ホロンの研究塔 · 0/86 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+ex11 · Delta Species · 114/114 (100,00 %) · TCGdex en 114, es 0
+jp-PCG7 · ホロンの幻影 · 0/52 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+ex12 · Legend Maker · 93/93 (100,00 %) · TCGdex en 93, es 0
+tk-ex-m · EX trainer Kit 2 (Minun) · 12/12 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 12
+tk-ex-p · EX trainer Kit 2 (Plusle) · 12/12 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 12
+jp-PCG8 · きせきの結晶 · 0/75 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+pop3 · POP Series 3 · 17/17 (100,00 %) · TCGdex en 17, es 0
+ex13 · Holon Phantoms · 111/111 (100,00 %) · TCGdex en 111, es 0
+jp-PCG9 · さいはての攻防 · 0/68 (0,00 %) · TCGdex ja 0 · sin imagen: todas (sin fuente pública)
+pop4 · POP Series 4 · 17/17 (100,00 %) · TCGdex en 17, es 0
+ex14 · Crystal Guardians · 100/100 (100,00 %) · TCGdex en 100, es 0
+ex15 · Dragon Frontiers · 101/101 (100,00 %) · TCGdex en 101, es 0
+ex16 · Power Keepers · 108/108 (100,00 %) · TCGdex en 108, es 0
+pop5 · POP Series 5 · 17/17 (100,00 %) · TCGdex en 17, es 0
+dp1 · Diamond & Pearl · 130/130 (100,00 %) · TCGdex en 130, es 0
+dpp · DP Black Star Promos · 56/56 (100,00 %) · TCGdex en 56, es 0
+dp2 · Mysterious Treasures · 124/124 (100,00 %) · TCGdex en 124, es 0
+pop6 · POP Series 6 · 17/17 (100,00 %) · TCGdex en 15, es 0 · respaldo: pokemontcg 2
+tk-dp-l · DP trainer Kit (Lucario) · 0/11 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
+tk-dp-m · DP trainer Kit (Manaphy) · 0/12 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+dp3 · Secret Wonders · 132/132 (100,00 %) · TCGdex en 132, es 0
+dp4 · Great Encounters · 106/106 (100,00 %) · TCGdex en 106, es 0
+pop7 · POP Series 7 · 17/17 (100,00 %) · TCGdex en 17, es 0
+dp5 · Majestic Dawn · 100/100 (100,00 %) · TCGdex en 100, es 0
+dp6 · Legends Awakened · 146/146 (100,00 %) · TCGdex en 146, es 0
+pop8 · POP Series 8 · 17/17 (100,00 %) · TCGdex en 17, es 0
+dp7 · Stormfront · 106/106 (100,00 %) · TCGdex en 106, es 0
+pl1 · Platinum · 133/133 (100,00 %) · TCGdex en 133, es 0
+pop9 · POP Series 9 · 17/17 (100,00 %) · TCGdex en 17, es 0
+pl2 · Rising Rivals · 120/120 (100,00 %) · TCGdex en 119, es 0 · respaldo: pokemontcg 1
+pl3 · Supreme Victors · 153/162 (94,44 %) · TCGdex en 153, es 0 · sin imagen: AR1, AR2, AR3, AR4, AR5, AR6, AR7, AR8, AR9
+pl4 · Arceus · 111/111 (100,00 %) · TCGdex en 111, es 0
+ru1 · Pokémon Rumble · 16/16 (100,00 %) · TCGdex en 16, es 0
+hgss1 · HeartGold SoulSilver · 124/124 (100,00 %) · TCGdex en 124, es 121
+hgssp · HGSS Black Star Promos · 24/25 (96,00 %) · TCGdex en 16, es 0 · respaldo: pokemontcg 8 · sin imagen: HGSS18
+tk-hs-g · HS trainer Kit (Gyarados) · 0/30 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30
+tk-hs-r · HS trainer Kit (Raichu) · 0/30 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30
+hgss2 · Unleashed · 96/96 (100,00 %) · TCGdex en 96, es 51
+hgss3 · Undaunted · 91/91 (100,00 %) · TCGdex en 91, es 21
+hgss4 · Triumphant · 103/103 (100,00 %) · TCGdex en 78, es 57 · respaldo: tcgdex-es 15, pokemontcg 10
+col1 · Call of Legends · 106/106 (100,00 %) · TCGdex en 106, es 97
+bw1 · Black & White · 115/115 (100,00 %) · TCGdex en 115, es 115
+bwp · BW Black Star Promos · 101/101 (100,00 %) · TCGdex en 98, es 0 · respaldo: pokemontcg 3
+2011bw · McDonald's Collection 2011 · 12/12 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 12
+bw2 · Emerging Powers · 98/98 (100,00 %) · TCGdex en 98, es 98
+tk-bw-e · BW trainer Kit (Excadrill) · 30/30 (100,00 %) · TCGdex en 0, es 30 · respaldo: tcgdex-es 30
+tk-bw-z · BW trainer Kit (Zoroark) · 30/30 (100,00 %) · TCGdex en 0, es 30 · respaldo: tcgdex-es 30
+bw3 · Noble Victories · 102/102 (100,00 %) · TCGdex en 102, es 102
+bw4 · Next Destinies · 103/103 (100,00 %) · TCGdex en 103, es 103
+bw5 · Dark Explorers · 111/111 (100,00 %) · TCGdex en 111, es 111
+2012bw · McDonald's Collection 2012 · 12/12 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 12
+bw6 · Dragons Exalted · 128/128 (100,00 %) · TCGdex en 128, es 128
+dv1 · Dragon Vault · 21/21 (100,00 %) · TCGdex en 21, es 21
+bw7 · Boundaries Crossed · 153/153 (100,00 %) · TCGdex en 153, es 153
+bw8 · Plasma Storm · 138/138 (100,00 %) · TCGdex en 138, es 138
+bw9 · Plasma Freeze · 122/122 (100,00 %) · TCGdex en 122, es 122
+bw10 · Plasma Blast · 105/105 (100,00 %) · TCGdex en 105, es 105
+xyp · XY Black Star Promos · 216/216 (100,00 %) · TCGdex en 213, es 199 · respaldo: pokemontcg 3
+2013bw · Collection McDonald's 2013 · 0/12 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+bw11 · Legendary Treasures · 140/140 (100,00 %) · TCGdex en 140, es 130
+xy0 · Kalos Starter Set · 39/39 (100,00 %) · TCGdex en 39, es 39
+xy1 · XY · 146/146 (100,00 %) · TCGdex en 146, es 146
+xya · Yellow A Alternate · 0/6 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 24a, 28a, 54a, 55a, 92a, 107a
+tk-xy-n · XY trainer Kit (Noivern) · 30/30 (100,00 %) · TCGdex en 0, es 30 · respaldo: tcgdex-es 30
+tk-xy-sy · XY trainer Kit (Sylveon) · 30/30 (100,00 %) · TCGdex en 0, es 30 · respaldo: tcgdex-es 30
+xy2 · Flashfire · 110/110 (100,00 %) · TCGdex en 110, es 110
+2014xy · McDonald's Collection 2014 · 0/12 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+xy3 · Furious Fists · 114/114 (100,00 %) · TCGdex en 114, es 114
+tk-xy-b · XY trainer Kit (Bisharp) · 30/30 (100,00 %) · TCGdex en 0, es 30 · respaldo: tcgdex-es 30
+tk-xy-w · XY trainer Kit (Wigglytuff) · 30/30 (100,00 %) · TCGdex en 0, es 30 · respaldo: tcgdex-es 30
+xy4 · Phantom Forces · 124/124 (100,00 %) · TCGdex en 124, es 124
+jp-CP1 · マグマ団VSアクア団 ダブルクライシス · 34/34 (100,00 %) · TCGdex ja 0 · respaldo: limitless 34
+xy5 · Primal Clash · 164/164 (100,00 %) · TCGdex en 164, es 164
+dc1 · Double Crisis · 34/34 (100,00 %) · TCGdex en 34, es 34
+tk-xy-latia · XY trainer Kit (Latias) · 30/30 (100,00 %) · TCGdex en 0, es 30 · respaldo: tcgdex-es 30
+tk-xy-latio · XY trainer Kit (Latios) · 30/30 (100,00 %) · TCGdex en 0, es 30 · respaldo: tcgdex-es 30
+xy6 · Roaring Skies · 112/112 (100,00 %) · TCGdex en 112, es 112
+jp-CP2 · 伝説キラコレクション · 27/27 (100,00 %) · TCGdex ja 0 · respaldo: limitless 27
+xy7 · Ancient Origins · 101/101 (100,00 %) · TCGdex en 101, es 101
+xy8 · BREAKthrough · 165/165 (100,00 %) · TCGdex en 164, es 165 · respaldo: tcgdex-es 1
+2015xy · McDonald's Collection 2015 · 0/12 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+xy9 · BREAKpoint · 126/126 (100,00 %) · TCGdex en 126, es 126
+g1 · Generations · 117/117 (100,00 %) · TCGdex en 117, es 117
+tk-xy-p · XY trainer Kit (Pikachu Libre) · 30/30 (100,00 %) · TCGdex en 0, es 30 · respaldo: tcgdex-es 30
+tk-xy-su · XY trainer Kit (Suicune) · 30/30 (100,00 %) · TCGdex en 0, es 30 · respaldo: tcgdex-es 30
+xy10 · Fates Collide · 129/129 (100,00 %) · TCGdex en 129, es 129
+xy11 · Steam Siege · 116/116 (100,00 %) · TCGdex en 116, es 116
+2016xy · McDonald's Collection 2016 · 12/12 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 12
+xy12 · Evolutions · 113/113 (100,00 %) · TCGdex en 113, es 113
+jp-SM1M · Collection Moon · 66/73 (90,41 %) · TCGdex ja 66 · sin imagen: 067, 068, 069, 070, 071, 072, 073
+jp-SM1S · Collection Sun · 66/73 (90,41 %) · TCGdex ja 66 · sin imagen: 067, 068, 069, 070, 071, 072, 073
+jp-SM1p · サン＆ムーン · 58/68 (85,29 %) · TCGdex ja 0 · respaldo: limitless 58 · sin imagen: 059, 060, 061, 062, 063, 064, 065, 066, 067, 068
+sm1 · Sun & Moon · 172/172 (100,00 %) · TCGdex en 172, es 163
+smp · SM Black Star Promos · 248/248 (100,00 %) · TCGdex en 181, es 0 · respaldo: pokemontcg 67
+jp-SM2K · Islands Await You · 55/61 (90,16 %) · TCGdex ja 0 · respaldo: limitless 55 · sin imagen: 056, 057, 058, 059, 060, 061
+jp-SM2L · Alolan Moonlight · 55/62 (88,71 %) · TCGdex ja 55 · sin imagen: 056, 057, 058, 059, 060, 061, 062
+jp-SM2p · 新たなる試練の向こう · 57/65 (87,69 %) · TCGdex ja 0 · respaldo: limitless 57 · sin imagen: 058, 059, 060, 061, 062, 063, 064, 065
+tk-sm-l · SM trainer Kit (Lycanroc) · 18/18 (100,00 %) · TCGdex en 0, es 18 · respaldo: tcgdex-es 18
+tk-sm-r · SM trainer Kit (Alolan Raichu) · 19/30 (63,33 %) · TCGdex en 0, es 19 · respaldo: tcgdex-es 19 · sin imagen: 1, 3, 5, 7, 8, 9, 10, 12, 24, 27, 28
+sm2 · Guardians Rising · 169/169 (100,00 %) · TCGdex en 168, es 169 · respaldo: tcgdex-es 1
+jp-SM3H · To Have Seen the Battle Rainbow · 57/64 (89,06 %) · TCGdex ja 57 · sin imagen: 058, 059, 060, 061, 062, 063, 064
+jp-SM3N · Darkness that Consumes Light · 57/64 (89,06 %) · TCGdex ja 57 · sin imagen: 058, 059, 060, 061, 062, 063, 064
+jp-SM3p · ひかる伝説 · 77/82 (93,90 %) · TCGdex ja 0 · respaldo: limitless 77 · sin imagen: 078, 079, 080, 081, 082
+2017sm · McDonald's Collection 2017 · 0/12 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+sm3 · Burning Shadows · 169/169 (100,00 %) · TCGdex en 169, es 169
+jp-SM4A · Ultradimensional Beasts · 55/61 (90,16 %) · TCGdex ja 55 · sin imagen: 056, 057, 058, 059, 060, 061
+jp-SM4S · Awakened Heroes · 55/62 (88,71 %) · TCGdex ja 55 · sin imagen: 056, 057, 058, 059, 060, 061, 062
+sm3.5 · Shining Legends · 78/78 (100,00 %) · TCGdex en 2, es 78 · respaldo: tcgdex-es 76
+jp-SM4p · GXバトルブースト · 120/125 (96,00 %) · TCGdex ja 0 · respaldo: limitless 120 · sin imagen: 121, 122, 123, 124, 125
+sm4 · Crimson Invasion · 125/125 (100,00 %) · TCGdex en 125, es 125
+jp-SM5M · Ultra Moon · 72/78 (92,31 %) · TCGdex ja 72 · sin imagen: 073, 074, 075, 076, 077, 078
+jp-SM5S · Ultra Sun · 72/78 (92,31 %) · TCGdex ja 72 · sin imagen: 073, 074, 075, 076, 077, 078
+jp-SM5p · ウルトラフォース · 56/63 (88,89 %) · TCGdex ja 0 · respaldo: limitless 56 · sin imagen: 057, 058, 059, 060, 061, 062, 063
+sm5 · Ultra Prism · 173/173 (100,00 %) · TCGdex en 173, es 173
+jp-SM6 · Forbidden Light · 102/110 (92,73 %) · TCGdex ja 101 · respaldo: limitless 1 · sin imagen: 103, 104, 105, 106, 107, 108, 109, 110
+jp-SM6a · Dragon Storm · 59/66 (89,39 %) · TCGdex ja 59 · sin imagen: 060, 061, 062, 063, 064, 065, 066
+sm6 · Forbidden Light · 146/146 (100,00 %) · TCGdex en 140, es 146 · respaldo: tcgdex-es 6
+jp-SM6b · Champion Road · 77/86 (89,53 %) · TCGdex ja 65 · respaldo: limitless 12 · sin imagen: 078, 079, 080, 081, 082, 083, 084, 085, 086
+jp-SM7 · Charisma of the Wrecked Sky · 104/112 (92,86 %) · TCGdex ja 100 · respaldo: limitless 4 · sin imagen: 105, 106, 107, 108, 109, 110, 111, 112
+2018sm-fr · Collection McDonald's 2018 · 0/40 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40
+jp-SM7a · Thunderclap Spark · 66/73 (90,41 %) · TCGdex ja 61 · respaldo: limitless 5 · sin imagen: 067, 068, 069, 070, 071, 072, 073
+jp-SM7b · Fairy Rise · 56/63 (88,89 %) · TCGdex ja 39 · respaldo: limitless 17 · sin imagen: 057, 058, 059, 060, 061, 062, 063
+sm7 · Celestial Storm · 183/183 (100,00 %) · TCGdex en 183, es 183
+jp-SM8 · Super-Burst Impact · 103/111 (92,79 %) · TCGdex ja 99 · respaldo: limitless 4 · sin imagen: 104, 105, 106, 107, 108, 109, 110, 111
+sm7.5 · Dragon Majesty · 78/78 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 78
+jp-SM8a · Dark Order · 58/65 (89,23 %) · TCGdex ja 55 · respaldo: limitless 3 · sin imagen: 059, 060, 061, 062, 063, 064, 065
+jp-SM8b · GX Ultra Shiny · 243/250 (97,20 %) · TCGdex ja 210 · respaldo: limitless 33 · sin imagen: 244, 245, 246, 247, 248, 249, 250
+2018sm · McDonald's Collection 2018 · 0/12 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+sm8 · Lost Thunder · 236/236 (100,00 %) · TCGdex en 236, es 236
+jp-SM9 · Tag Bolt · 109/118 (92,37 %) · TCGdex ja 92 · respaldo: limitless 17 · sin imagen: 110, 111, 112, 113, 114, 115, 116, 117, 118
+jp-SM9a · Night Unison · 63/70 (90,00 %) · TCGdex ja 63 · sin imagen: 064, 065, 066, 067, 068, 069, 070
+sm9 · Team Up · 196/196 (100,00 %) · TCGdex en 196, es 196
+jp-SM9b · Full Metal Wall · 62/69 (89,86 %) · TCGdex ja 62 · sin imagen: 063, 064, 065, 066, 067, 068, 069
+jp-SM10 · Double Blaze · 107/116 (92,24 %) · TCGdex ja 107 · sin imagen: 108, 109, 110, 111, 112, 113, 114, 115, 116
+det1 · Detective Pikachu · 18/18 (100,00 %) · TCGdex en 18, es 18
+jp-SM10a · GG End · 62/69 (89,86 %) · TCGdex ja 0 · respaldo: limitless 62 · sin imagen: 063, 064, 065, 066, 067, 068, 069
+jp-SM10b · Sky Legend · 62/69 (89,86 %) · TCGdex ja 62 · sin imagen: 063, 064, 065, 066, 067, 068, 069
+sm10 · Unbroken Bonds · 234/234 (100,00 %) · TCGdex en 234, es 234
+jp-SM11 · Miracle Twin · 115/115 (100,00 %) · TCGdex ja 115
+jp-SM11a · Remix Bout · 73/80 (91,25 %) · TCGdex ja 73 · sin imagen: 074, 075, 076, 077, 078, 079, 080
+jp-SM11b · Dream League · 68/75 (90,67 %) · TCGdex ja 68 · sin imagen: 069, 070, 071, 072, 073, 074, 075
+sm11 · Unified Minds · 258/258 (100,00 %) · TCGdex en 258, es 258
+sm115 · Hidden Fates · 69/69 (100,00 %) · TCGdex en 69, es 69
+sma · Hidden Fates Shiny Vault · 94/94 (100,00 %) · TCGdex en 94, es 0
+jp-SM12 · Alter Genesis · 108/117 (92,31 %) · TCGdex ja 108 · sin imagen: 109, 110, 111, 112, 113, 114, 115, 116, 117
+jp-SM12a · Tag Team GX All Stars · 210/226 (92,92 %) · TCGdex ja 210 · sin imagen: 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226
+2019sm · McDonald's Collection 2019 · 12/12 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 12
+2019sm-fr · Collection McDonald's 2019 · 0/41 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 33b, 34, 35, 36, 37, 38, 39, 40
+sm12 · Cosmic Eclipse · 271/271 (100,00 %) · TCGdex en 271, es 271
+swshp · SWSH Black Star Promos · 304/307 (99,02 %) · TCGdex en 285, es 285 · respaldo: pokemontcg 19 · sin imagen: SWSH299, SWSH300, SWSH301
+swsh1 · Sword & Shield · 216/216 (100,00 %) · TCGdex en 216, es 216
+swsh2 · Rebel Clash · 209/209 (100,00 %) · TCGdex en 209, es 209
+swsh3 · Darkness Ablaze · 201/201 (100,00 %) · TCGdex en 201, es 201
+fut2020 · Pokémon Futsal 2020 · 5/5 (100,00 %) · TCGdex en 5, es 0
+swsh3.5 · Champion's Path · 80/80 (100,00 %) · TCGdex en 80, es 80
+swsh4 · Vivid Voltage · 203/203 (100,00 %) · TCGdex en 203, es 203
+jp-S5I · Single Strike Master · 81/91 (89,01 %) · TCGdex ja 81 · sin imagen: 082, 083, 084, 085, 086, 087, 088, 089, 090, 091
+2021swsh · McDonald's Collection 2021 · 25/25 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 25
+swsh4.5 · Shining Fates · 73/73 (100,00 %) · TCGdex en 73, es 73
+swsh4.5sv · Shining Fates Shiny Vault · 122/122 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 122
+swsh5 · Battle Styles · 183/183 (100,00 %) · TCGdex en 183, es 183
+jp-S6H · Silver Lance · 83/95 (87,37 %) · TCGdex ja 83 · sin imagen: 084, 085, 086, 087, 088, 089, 090, 091, 092, 093, 094, 095
+jp-S6K · Jet-Black Spirit · 83/95 (87,37 %) · TCGdex ja 83 · sin imagen: 084, 085, 086, 087, 088, 089, 090, 091, 092, 093, 094, 095
+swsh6 · Chilling Reign · 233/233 (100,00 %) · TCGdex en 233, es 233
+jp-S7D · Skyscraping Perfection · 79/90 (87,78 %) · TCGdex ja 79 · sin imagen: 080, 081, 082, 083, 084, 085, 086, 087, 088, 089, 090
+swsh7 · Evolving Skies · 237/237 (100,00 %) · TCGdex en 237, es 237
+jp-S8 · Fusion Arts · 115/129 (89,15 %) · TCGdex ja 115 · sin imagen: 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129
+cel25 · Celebrations · 25/25 (100,00 %) · TCGdex en 24, es 24 · respaldo: pokemontcg 1
+cel25cc · Celebrations Classic Collection · 0/25 (0,00 %) · TCGdex en 0, es 0 · sin imagen: CC001, CC002, CC003, CC004, CC005, CC006, CC007, CC008, CC009, CC010, CC011, CC012, CC013, CC014, CC015, CC016, CC017, CC018, CC019, CC020, CC021, CC022, CC023, CC024, CC025
+swsh8 · Fusion Strike · 284/284 (100,00 %) · TCGdex en 284, es 284
+jp-S8b · VMAX Climax · 277/285 (97,19 %) · TCGdex ja 265 · respaldo: limitless 12 · sin imagen: 278, 279, 280, 281, 282, 283, 284, 285
+jp-S9 · Star Birth · 127/127 (100,00 %) · TCGdex ja 127
+jp-S9a · Battle Region · 93/93 (100,00 %) · TCGdex ja 93
+swsh9 · Brilliant Stars · 186/186 (100,00 %) · TCGdex en 186, es 186
+swsh9tg · Brilliant Stars Trainer Gallery · 30/30 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 30
+jp-S10P · Space Juggler · 88/88 (100,00 %) · TCGdex ja 88
+jp-S10a · Dark Phantasma · 99/99 (100,00 %) · TCGdex ja 99
+swsh10 · Astral Radiance · 216/216 (100,00 %) · TCGdex en 216, es 216
+swsh10tg · Astral Radiance Trainer Gallery · 30/30 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 30
+swsh10.5 · Pokémon GO · 88/88 (100,00 %) · TCGdex en 88, es 88
+jp-S11 · Lost Abyss · 127/127 (100,00 %) · TCGdex ja 127
+2022swsh · McDonald's Collection 2022 · 15/15 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 15
+jp-S11a · Incandescent Arcana · 94/94 (100,00 %) · TCGdex ja 94
+swsh11 · Lost Origin · 217/217 (100,00 %) · TCGdex en 217, es 217
+swsh11tg · Lost Origin Trainer Gallery · 30/30 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 30
+jp-S12 · Paradigm Trigger · 125/125 (100,00 %) · TCGdex ja 125
+swsh12 · Silver Tempest · 215/215 (100,00 %) · TCGdex en 215, es 215
+swsh12tg · Silver Tempest Trainer Gallery · 30/30 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 30
+jp-SV-P · SV Promo · 289/290 (99,66 %) · TCGdex ja 0 · respaldo: limitless 289 · sin imagen: 154
+jp-S12a · VSTAR Universe · 255/262 (97,33 %) · TCGdex ja 255 · sin imagen: 251, 252, 253, 254, 255, 256, 257
+jp-SV1S · Scarlet ex · 108/108 (100,00 %) · TCGdex ja 108
+jp-SV1V · Violet ex · 108/108 (100,00 %) · TCGdex ja 108
+swsh12.5 · Crown Zenith · 160/160 (100,00 %) · TCGdex en 160, es 160
+swsh12.5gg · Crown Zenith Galarian Gallery · 70/70 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 70
+jp-SV1a · Triplet Beat · 103/103 (100,00 %) · TCGdex ja 103
+sv01 · Scarlet & Violet · 258/258 (100,00 %) · TCGdex en 258, es 258
+sve · Scarlet & Violet Energy · 24/24 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 16, limitless 8
+svp · SVP Black Star Promos · 225/226 (99,56 %) · TCGdex en 211, es 184 · respaldo: pokemontcg 1, limitless 13 · sin imagen: 190
+jp-SV2D · Clay Burst · 99/99 (100,00 %) · TCGdex ja 99
+jp-SV2P · Snow Hazard · 99/99 (100,00 %) · TCGdex ja 99
+sv02 · Paldea Evolved · 279/279 (100,00 %) · TCGdex en 279, es 279
+jp-SV2a · Pokémon Card 151 · 210/210 (100,00 %) · TCGdex ja 210
+jp-SV3 · Ruler of the Black Flame · 141/141 (100,00 %) · TCGdex ja 141
+2023sv · McDonald's Collection 2023 · 0/15 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+sv03 · Obsidian Flames · 230/230 (100,00 %) · TCGdex en 200, es 230 · respaldo: tcgdex-es 30
+jp-SV3a · Raging Surf · 92/92 (100,00 %) · TCGdex ja 92
+sv03.5 · 151 · 207/207 (100,00 %) · TCGdex en 207, es 207
+mfb · My First Battle · 0/34 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34
+jp-SV4K · Ancient Roar · 95/95 (100,00 %) · TCGdex ja 95
+jp-SV4M · Future Flash · 95/95 (100,00 %) · TCGdex ja 95
+sv04 · Paradox Rift · 266/266 (100,00 %) · TCGdex en 266, es 266
+jp-SV4a · Shiny Treasure ex · 360/360 (100,00 %) · TCGdex ja 360
+jp-SV5K · Wild Force · 100/100 (100,00 %) · TCGdex ja 100
+jp-SV5M · Cyber Judge · 100/100 (100,00 %) · TCGdex ja 100
+sv04.5 · Paldean Fates · 245/245 (100,00 %) · TCGdex en 245, es 245
+jp-SV5a · Crimson Haze · 96/96 (100,00 %) · TCGdex ja 96
+sv05 · Temporal Forces · 218/218 (100,00 %) · TCGdex en 218, es 218
+jp-SV6 · Mask of Change · 133/133 (100,00 %) · TCGdex ja 133
+sv06 · Twilight Masquerade · 226/226 (100,00 %) · TCGdex en 226, es 226
+jp-SV6a · Night Wanderer · 94/94 (100,00 %) · TCGdex ja 94
+jp-SV7 · Stellar Miracle · 135/135 (100,00 %) · TCGdex ja 135
+jp-SVK · デッキビルドBOX ステラミラクル · 44/44 (100,00 %) · TCGdex ja 44
+sv06.5 · Shrouded Fable · 99/99 (100,00 %) · TCGdex en 99, es 99
+jp-SVLN · スターターセット テラスタイプ：ステラ ニンフィアex · 22/22 (100,00 %) · TCGdex ja 22
+jp-SVLS · スターターセット テラスタイプ：ステラ ソウブレイズex · 22/22 (100,00 %) · TCGdex ja 22
+jp-SV7a · Paradise Dragona · 94/94 (100,00 %) · TCGdex ja 94
+sv07 · Stellar Crown · 175/175 (100,00 %) · TCGdex en 175, es 175
+jp-SV8 · Super Electric Breaker · 138/138 (100,00 %) · TCGdex ja 138
+sv08 · Surging Sparks · 252/252 (100,00 %) · TCGdex en 252, es 252
+2024sv · McDonald's Collection 2024 · 0/15 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+jp-SV8a · Terastal Festival ex · 237/237 (100,00 %) · TCGdex ja 237
+sv08.5 · Prismatic Evolutions · 180/180 (100,00 %) · TCGdex en 180, es 180
+jp-SV9 · Battle Partners · 132/132 (100,00 %) · TCGdex ja 132
+jp-SV9a · Heat Wave Arena · 92/92 (100,00 %) · TCGdex ja 92
+sv09 · Journey Together · 190/190 (100,00 %) · TCGdex en 190, es 190
+jp-SV10 · The Glory of Team Rocket · 132/132 (100,00 %) · TCGdex ja 132
+sv10 · Destined Rivals · 244/244 (100,00 %) · TCGdex en 244, es 244
+jp-SV11B · Black Bolt · 174/174 (100,00 %) · TCGdex ja 1 · respaldo: limitless 173
+jp-SV11W · White Flare · 174/174 (100,00 %) · TCGdex ja 0 · respaldo: limitless 174
+sv10.5b · Black Bolt · 172/172 (100,00 %) · TCGdex en 172, es 172
+sv10.5w · White Flare · 173/173 (100,00 %) · TCGdex en 173, es 173
+jp-M-P · Mega Promo · 125/161 (77,64 %) · TCGdex ja 0 · respaldo: limitless 125 · sin imagen: 052, 077, 078, 079, 080, 081, 082, 083, 084, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127
+jp-M1L · Mega Brave · 92/92 (100,00 %) · TCGdex ja 0 · respaldo: limitless 92
+jp-M1S · Mega Symphonia · 92/92 (100,00 %) · TCGdex ja 92
+mee · Mega Evolution Energy · 16/16 (100,00 %) · TCGdex en 0, es 0 · respaldo: limitless 16
+jp-M2 · Inferno X · 116/116 (100,00 %) · TCGdex ja 0 · respaldo: limitless 116
+me01 · Mega Evolution · 188/188 (100,00 %) · TCGdex en 188, es 188
+mep · MEP Black Star Promos · 100/119 (84,03 %) · TCGdex en 40, es 0 · respaldo: limitless 60 · sin imagen: 093, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 120, Museum
+me02 · Phantasmal Flames · 130/130 (100,00 %) · TCGdex en 130, es 130
+jp-M2a · Mega Dream ex · 250/250 (100,00 %) · TCGdex ja 0 · respaldo: limitless 250
+jp-MC · スタートデッキ100 バトルコレクション · 766/774 (98,97 %) · TCGdex ja 0 · respaldo: limitless 766 · sin imagen: DAR, FIG, FIR, GRA, LIG, MET, PSY, WAT
+jp-M3 · ムニキスゼロ · 117/117 (100,00 %) · TCGdex ja 0 · respaldo: limitless 117
+me02.5 · Ascended Heroes · 295/295 (100,00 %) · TCGdex en 295, es 295
+jp-M4 · ニンジャスピナー · 120/120 (100,00 %) · TCGdex ja 115 · respaldo: limitless 5
+me03 · Perfect Order · 124/124 (100,00 %) · TCGdex en 124, es 124
+jp-M5 · アビスアイ · 118/118 (100,00 %) · TCGdex ja 0 · respaldo: limitless 118
+me04 · Chaos Rising · 122/122 (100,00 %) · TCGdex en 122, es 122
+me05 · Pitch Black · 120/120 (100,00 %) · TCGdex en 120, es 120
+jp-M6 · ストームエメラルダ · 113/113 (100,00 %) · TCGdex ja 0 · respaldo: limitless 113
+30th · 30th Celebration · 158/161 (98,14 %) · TCGdex en 158, es 158 · sin imagen: B, G, R
+30th-c · 30th Classic Collection · 30/30 (100,00 %) · TCGdex en 0, es 0 · respaldo: limitless 30
+jp-M6a · 30th CELEBRATION · 133/176 (75,57 %) · TCGdex ja 0 · respaldo: limitless 133 · sin imagen: 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, B, DAR, FIG, FIR, G, GRA, LIG, MET, PSY, R, WAT
+jp-MF · 30th CELEBRATION プレミアムデッキセット エーフィ・ブラッキー · 44/49 (89,80 %) · TCGdex ja 0 · respaldo: limitless 44 · sin imagen: DAR, FIR, GRA, LIG, PSY
+
+Cartas sin imagen en colecciones con fuente pública (829):
+miscp-001 · 001 · Ancient Mew · ミュウ · Miscellaneous Promos
+ecard2-50a · 50a · Golduck · ゴルダック · Aquapolis
+ecard2-50b · 50b · Golduck · ゴルダック · Aquapolis
+ecard2-74a · 74a · Drowzee · スリープ · Aquapolis
+ecard2-74b · 74b · Drowzee · スリープ · Aquapolis
+ecard2-95a · 95a · Mr. Mime · バリヤード · Aquapolis
+ecard2-95b · 95b · Mr. Mime · バリヤード · Aquapolis
+ecard2-103a · 103a · Porygon · ポリゴン · Aquapolis
+ecard2-103b · 103b · Porygon · ポリゴン · Aquapolis
+ex5.5-1 · 1 · Treecko · キモリ · Poké Card Creator Pack
+ex5.5-2 · 2 · Wurmple · ケムッソ · Poké Card Creator Pack
+ex5.5-3 · 3 · Torchic · アチャモ · Poké Card Creator Pack
+ex5.5-4 · 4 · Mudkip · ミズゴロウ · Poké Card Creator Pack
+ex5.5-5 · 5 · Pikachu · ピカチュウ · Poké Card Creator Pack
+exu-! · ! · Unown · アンノーン · Unseen Forces Unown Collection
+exu-%3F · %3F · Unown · アンノーン · Unseen Forces Unown Collection
+exu-A · A · Unown · アンノーン · Unseen Forces Unown Collection
+exu-B · B · Unown · アンノーン · Unseen Forces Unown Collection
+exu-C · C · Unown · アンノーン · Unseen Forces Unown Collection
+exu-D · D · Unown · アンノーン · Unseen Forces Unown Collection
+exu-E · E · Unown · アンノーン · Unseen Forces Unown Collection
+exu-F · F · Unown · アンノーン · Unseen Forces Unown Collection
+exu-G · G · Unown · アンノーン · Unseen Forces Unown Collection
+exu-H · H · Unown · アンノーン · Unseen Forces Unown Collection
+exu-I · I · Unown · アンノーン · Unseen Forces Unown Collection
+exu-J · J · Unown · アンノーン · Unseen Forces Unown Collection
+exu-K · K · Unown · アンノーン · Unseen Forces Unown Collection
+exu-L · L · Unown · アンノーン · Unseen Forces Unown Collection
+exu-M · M · Unown · アンノーン · Unseen Forces Unown Collection
+exu-N · N · Unown · アンノーン · Unseen Forces Unown Collection
+exu-O · O · Unown · アンノーン · Unseen Forces Unown Collection
+exu-P · P · Unown · アンノーン · Unseen Forces Unown Collection
+exu-Q · Q · Unown · アンノーン · Unseen Forces Unown Collection
+exu-R · R · Unown · アンノーン · Unseen Forces Unown Collection
+exu-S · S · Unown · アンノーン · Unseen Forces Unown Collection
+exu-T · T · Unown · アンノーン · Unseen Forces Unown Collection
+exu-U · U · Unown · アンノーン · Unseen Forces Unown Collection
+exu-V · V · Unown · アンノーン · Unseen Forces Unown Collection
+exu-W · W · Unown · アンノーン · Unseen Forces Unown Collection
+exu-X · X · Unown · アンノーン · Unseen Forces Unown Collection
+exu-Y · Y · Unown · アンノーン · Unseen Forces Unown Collection
+exu-Z · Z · Unown · アンノーン · Unseen Forces Unown Collection
+tk-dp-l-1 · 1 · Geodude · イシツブテ · DP trainer Kit (Lucario)
+tk-dp-l-2 · 2 · Graveler · ゴローン · DP trainer Kit (Lucario)
+tk-dp-l-3 · 3 · Lucario · ルカリオ · DP trainer Kit (Lucario)
+tk-dp-l-4 · 4 · Machoke · ゴーリキー · DP trainer Kit (Lucario)
+tk-dp-l-5 · 5 · Machop · ワンリキー · DP trainer Kit (Lucario)
+tk-dp-l-6 · 6 · Riolu · リオル · DP trainer Kit (Lucario)
+tk-dp-l-7 · 7 · Starly · ムックル · DP trainer Kit (Lucario)
+tk-dp-l-8 · 8 · Energy Search · DP trainer Kit (Lucario)
+tk-dp-l-9 · 9 · Potion · DP trainer Kit (Lucario)
+tk-dp-l-10 · 10 · Quick Ball · DP trainer Kit (Lucario)
+tk-dp-l-11 · 11 · Fighting Energy · DP trainer Kit (Lucario)
+tk-dp-m-1 · 1 · Buizel · ブイゼル · DP trainer Kit (Manaphy)
+tk-dp-m-2 · 2 · Floatzel · フローゼル · DP trainer Kit (Manaphy)
+tk-dp-m-3 · 3 · Goldeen · トサキント · DP trainer Kit (Manaphy)
+tk-dp-m-4 · 4 · Manaphy · マナフィ · DP trainer Kit (Manaphy)
+tk-dp-m-5 · 5 · Piplup · ポッチャマ · DP trainer Kit (Manaphy)
+tk-dp-m-6 · 6 · Prinplup · ポッタイシ · DP trainer Kit (Manaphy)
+tk-dp-m-7 · 7 · Seaking · アズマオウ · DP trainer Kit (Manaphy)
+tk-dp-m-8 · 8 · Totodile · ワニノコ · DP trainer Kit (Manaphy)
+tk-dp-m-9 · 9 · Dusk Ball · DP trainer Kit (Manaphy)
+tk-dp-m-10 · 10 · Energy Search · DP trainer Kit (Manaphy)
+tk-dp-m-11 · 11 · Potion · DP trainer Kit (Manaphy)
+tk-dp-m-12 · 12 · Water Energy · DP trainer Kit (Manaphy)
+pl3-AR1 · AR1 · Arceus · アルセウス · Supreme Victors
+pl3-AR2 · AR2 · Arceus · アルセウス · Supreme Victors
+pl3-AR3 · AR3 · Arceus · アルセウス · Supreme Victors
+pl3-AR4 · AR4 · Arceus · アルセウス · Supreme Victors
+pl3-AR5 · AR5 · Arceus · アルセウス · Supreme Victors
+pl3-AR6 · AR6 · Arceus · アルセウス · Supreme Victors
+pl3-AR7 · AR7 · Arceus · アルセウス · Supreme Victors
+pl3-AR8 · AR8 · Arceus · アルセウス · Supreme Victors
+pl3-AR9 · AR9 · Arceus · アルセウス · Supreme Victors
+hgssp-HGSS18 · HGSS18 · Tropical Tidal Wave · HGSS Black Star Promos
+tk-hs-g-1 · 1 · Totodile · ワニノコ · HS trainer Kit (Gyarados)
+tk-hs-g-2 · 2 · Water Energy · HS trainer Kit (Gyarados)
+tk-hs-g-3 · 3 · Water Energy · HS trainer Kit (Gyarados)
+tk-hs-g-4 · 4 · Water Energy · HS trainer Kit (Gyarados)
+tk-hs-g-5 · 5 · Bill · HS trainer Kit (Gyarados)
+tk-hs-g-6 · 6 · Water Energy · HS trainer Kit (Gyarados)
+tk-hs-g-7 · 7 · Water Energy · HS trainer Kit (Gyarados)
+tk-hs-g-8 · 8 · Water Energy · HS trainer Kit (Gyarados)
+tk-hs-g-9 · 9 · Water Energy · HS trainer Kit (Gyarados)
+tk-hs-g-10 · 10 · Water Energy · HS trainer Kit (Gyarados)
+tk-hs-g-11 · 11 · Water Energy · HS trainer Kit (Gyarados)
+tk-hs-g-12 · 12 · Magikarp · コイキング · HS trainer Kit (Gyarados)
+tk-hs-g-13 · 13 · Croconaw · アリゲイツ · HS trainer Kit (Gyarados)
+tk-hs-g-14 · 14 · Totodile · ワニノコ · HS trainer Kit (Gyarados)
+tk-hs-g-15 · 15 · Marill · マリル · HS trainer Kit (Gyarados)
+tk-hs-g-16 · 16 · Water Energy · HS trainer Kit (Gyarados)
+tk-hs-g-17 · 17 · Croconaw · アリゲイツ · HS trainer Kit (Gyarados)
+tk-hs-g-18 · 18 · Bill · HS trainer Kit (Gyarados)
+tk-hs-g-19 · 19 · Magikarp · コイキング · HS trainer Kit (Gyarados)
+tk-hs-g-20 · 20 · Gyarados · ギャラドス · HS trainer Kit (Gyarados)
+tk-hs-g-21 · 21 · Energy Switch · HS trainer Kit (Gyarados)
+tk-hs-g-22 · 22 · Pokémon Communication · HS trainer Kit (Gyarados)
+tk-hs-g-23 · 23 · Poké Ball · HS trainer Kit (Gyarados)
+tk-hs-g-24 · 24 · Marill · マリル · HS trainer Kit (Gyarados)
+tk-hs-g-25 · 25 · Professor Elm's Training Method · HS trainer Kit (Gyarados)
+tk-hs-g-26 · 26 · Water Energy · HS trainer Kit (Gyarados)
+tk-hs-g-27 · 27 · Pokémon Communication · HS trainer Kit (Gyarados)
+tk-hs-g-28 · 28 · Switch · HS trainer Kit (Gyarados)
+tk-hs-g-29 · 29 · Water Energy · HS trainer Kit (Gyarados)
+tk-hs-g-30 · 30 · Gyarados · ギャラドス · HS trainer Kit (Gyarados)
+tk-hs-r-1 · 1 · Moomoo Milk · HS trainer Kit (Raichu)
+tk-hs-r-2 · 2 · Pikachu · ピカチュウ · HS trainer Kit (Raichu)
+tk-hs-r-3 · 3 · Flaaffy · モココ · HS trainer Kit (Raichu)
+tk-hs-r-4 · 4 · Meowth · ニャース · HS trainer Kit (Raichu)
+tk-hs-r-5 · 5 · Lightning Energy · HS trainer Kit (Raichu)
+tk-hs-r-6 · 6 · Lightning Energy · HS trainer Kit (Raichu)
+tk-hs-r-7 · 7 · Lightning Energy · HS trainer Kit (Raichu)
+tk-hs-r-8 · 8 · Lightning Energy · HS trainer Kit (Raichu)
+tk-hs-r-9 · 9 · Lightning Energy · HS trainer Kit (Raichu)
+tk-hs-r-10 · 10 · Lightning Energy · HS trainer Kit (Raichu)
+tk-hs-r-11 · 11 · Lightning Energy · HS trainer Kit (Raichu)
+tk-hs-r-12 · 12 · Meowth · ニャース · HS trainer Kit (Raichu)
+tk-hs-r-13 · 13 · Mareep · メリープ · HS trainer Kit (Raichu)
+tk-hs-r-14 · 14 · Lightning Energy · HS trainer Kit (Raichu)
+tk-hs-r-15 · 15 · Lightning Energy · HS trainer Kit (Raichu)
+tk-hs-r-16 · 16 · Pikachu · ピカチュウ · HS trainer Kit (Raichu)
+tk-hs-r-17 · 17 · Flaaffy · モココ · HS trainer Kit (Raichu)
+tk-hs-r-18 · 18 · Lightning Energy · HS trainer Kit (Raichu)
+tk-hs-r-19 · 19 · Raichu · ライチュウ · HS trainer Kit (Raichu)
+tk-hs-r-20 · 20 · Mareep · メリープ · HS trainer Kit (Raichu)
+tk-hs-r-21 · 21 · Copycat · HS trainer Kit (Raichu)
+tk-hs-r-22 · 22 · Pokémon Collector · HS trainer Kit (Raichu)
+tk-hs-r-23 · 23 · Lightning Energy · HS trainer Kit (Raichu)
+tk-hs-r-24 · 24 · Switch · HS trainer Kit (Raichu)
+tk-hs-r-25 · 25 · Poké Ball · HS trainer Kit (Raichu)
+tk-hs-r-26 · 26 · Moomoo Milk · HS trainer Kit (Raichu)
+tk-hs-r-27 · 27 · Pokémon Collector · HS trainer Kit (Raichu)
+tk-hs-r-28 · 28 · Lightning Energy · HS trainer Kit (Raichu)
+tk-hs-r-29 · 29 · Energy Switch · HS trainer Kit (Raichu)
+tk-hs-r-30 · 30 · Raichu · ライチュウ · HS trainer Kit (Raichu)
+2013bw-1 · 1 · Phyllali · リーフィア · Collection McDonald's 2013
+2013bw-2 · 2 · Pyroli · ブースター · Collection McDonald's 2013
+2013bw-3 · 3 · Aquali · シャワーズ · Collection McDonald's 2013
+2013bw-4 · 4 · Givrali · グレイシア · Collection McDonald's 2013
+2013bw-5 · 5 · Pikachu · ピカチュウ · Collection McDonald's 2013
+2013bw-6 · 6 · Voltali · サンダース · Collection McDonald's 2013
+2013bw-7 · 7 · Mentali · エーフィ · Collection McDonald's 2013
+2013bw-8 · 8 · Charpenti · ドッコラー · Collection McDonald's 2013
+2013bw-9 · 9 · Noctali · ブラッキー · Collection McDonald's 2013
+2013bw-10 · 10 · Baggiguane · ズルッグ · Collection McDonald's 2013
+2013bw-11 · 11 · Zorua · ゾロア · Collection McDonald's 2013
+2013bw-12 · 12 · Évoli · イーブイ · Collection McDonald's 2013
+xya-24a · 24a · M Manectric-EX · MライボルトEX · Yellow A Alternate
+xya-28a · 28a · Jolteon-EX · サンダースEX · Yellow A Alternate
+xya-54a · 54a · Zygarde-EX · ジガルデEX · Yellow A Alternate
+xya-55a · 55a · M Lucario-EX · MルカリオEX · Yellow A Alternate
+xya-92a · 92a · Trainers’ Mail · Yellow A Alternate
+xya-107a · 107a · Professor Sycamore · Yellow A Alternate
+2014xy-1 · 1 · Weedle · ビードル · McDonald's Collection 2014
+2014xy-2 · 2 · Chespin · ハリマロン · McDonald's Collection 2014
+2014xy-3 · 3 · Fennekin · フォッコ · McDonald's Collection 2014
+2014xy-4 · 4 · Froakie · ケロマツ · McDonald's Collection 2014
+2014xy-5 · 5 · Pikachu · ピカチュウ · McDonald's Collection 2014
+2014xy-6 · 6 · Inkay · マーイーカ · McDonald's Collection 2014
+2014xy-7 · 7 · Honedge · ヒトツキ · McDonald's Collection 2014
+2014xy-8 · 8 · Snubbull · ブルー · McDonald's Collection 2014
+2014xy-9 · 9 · Swirlix · ペロッパフ · McDonald's Collection 2014
+2014xy-10 · 10 · Bunnelby · ホルビー · McDonald's Collection 2014
+2014xy-11 · 11 · Fletchling · ヤヤコマ · McDonald's Collection 2014
+2014xy-12 · 12 · Furfrou · トリミアン · McDonald's Collection 2014
+2015xy-1 · 1 · Treecko · キモリ · McDonald's Collection 2015
+2015xy-2 · 2 · Lotad · ハスボー · McDonald's Collection 2015
+2015xy-3 · 3 · Torchic · アチャモ · McDonald's Collection 2015
+2015xy-4 · 4 · Staryu · ヒトデマン · McDonald's Collection 2015
+2015xy-5 · 5 · Mudkip · ミズゴロウ · McDonald's Collection 2015
+2015xy-6 · 6 · Pikachu · ピカチュウ · McDonald's Collection 2015
+2015xy-7 · 7 · Electrike · ラクライ · McDonald's Collection 2015
+2015xy-8 · 8 · Rhyhorn · サイホーン · McDonald's Collection 2015
+2015xy-9 · 9 · Meditite · アサナン · McDonald's Collection 2015
+2015xy-10 · 10 · Marill · マリル · McDonald's Collection 2015
+2015xy-11 · 11 · Zigzagoon · ジグザグマ · McDonald's Collection 2015
+2015xy-12 · 12 · Skitty · エネコ · McDonald's Collection 2015
+jp-SM1M-067 · 067 · Lurantis-GX · ラランテスGX · Collection Moon
+jp-SM1M-068 · 068 · Lunala-GX · ルナアーラGX · Collection Moon
+jp-SM1M-069 · 069 · Umbreon-GX · ブラッキーGX · Collection Moon
+jp-SM1M-070 · 070 · Tauros-GX · ケンタロスGX · Collection Moon
+jp-SM1M-071 · 071 · ネストボール · ネストボール · Collection Moon
+jp-SM1M-072 · 072 · ポケモンいれかえ · ポケモンいれかえ · Collection Moon
+jp-SM1M-073 · 073 · 基本超エネルギー · 基本超エネルギー · Collection Moon
+jp-SM1S-067 · 067 · Lapras-GX · ラプラスGX · Collection Sun
+jp-SM1S-068 · 068 · Espeon-GX · エーフィGX · Collection Sun
+jp-SM1S-069 · 069 · Solgaleo-GX · ソルガレオGX · Collection Sun
+jp-SM1S-070 · 070 · Gumshoos-GX · デカグースGX · Collection Sun
+jp-SM1S-071 · 071 · ハイパーボール · ハイパーボール · Collection Sun
+jp-SM1S-072 · 072 · ロトム図鑑 · ロトム図鑑 · Collection Sun
+jp-SM1S-073 · 073 · 基本鋼エネルギー · 基本鋼エネルギー · Collection Sun
+jp-SM1p-059 · 059 · Decidueye-GX · ジュナイパーGX · サン＆ムーン
+jp-SM1p-060 · 060 · Incineroar-GX · ガオガエンGX · サン＆ムーン
+jp-SM1p-061 · 061 · Primarina-GX · アシレーヌGX · サン＆ムーン
+jp-SM1p-062 · 062 · Vikavolt-GX · クワガノンGX · サン＆ムーン
+jp-SM1p-063 · 063 · Toxapex-GX · ドヒドイデGX · サン＆ムーン
+jp-SM1p-064 · 064 · Sylveon-GX · ニンフィアGX · サン＆ムーン
+jp-SM1p-065 · 065 · Drampa-GX · ジジーロンGX · サン＆ムーン
+jp-SM1p-066 · 066 · ふしぎなアメ · ふしぎなアメ · サン＆ムーン
+jp-SM1p-067 · 067 · ダブル無色エネルギー · ダブル無色エネルギー · サン＆ムーン
+jp-SM1p-068 · 068 · 基本草エネルギー · 基本草エネルギー · サン＆ムーン
+jp-SM2K-056 · 056 · Turtonator-GX · バクガメスGX · Islands Await You
+jp-SM2K-057 · 057 · Alolan Ninetales-GX · アローラキュウコンGX · Islands Await You
+jp-SM2K-058 · 058 · Tapu Koko-GX · カプ・コケコGX · Islands Await You
+jp-SM2K-059 · 059 · Kommo-o-GX · ジャラランガGX · Islands Await You
+jp-SM2K-060 · 060 · フィールドブロアー · フィールドブロアー · Islands Await You
+jp-SM2K-061 · 061 · まんたんのくすり · まんたんのくすり · Islands Await You
+jp-SM2L-056 · 056 · Wishiwashi-GX · ヨワシGX · Alolan Moonlight
+jp-SM2L-057 · 057 · Tapu Lele-GX · カプ・テテフGX · Alolan Moonlight
+jp-SM2L-058 · 058 · Lycanroc-GX · ルガルガンGX · Alolan Moonlight
+jp-SM2L-059 · 059 · Metagross-GX · メタグロスGX · Alolan Moonlight
+jp-SM2L-060 · 060 · アクアパッチ · アクアパッチ · Alolan Moonlight
+jp-SM2L-061 · 061 · 改造ハンマー · 改造ハンマー · Alolan Moonlight
+jp-SM2L-062 · 062 · 基本闘エネルギー · 基本闘エネルギー · Alolan Moonlight
+jp-SM2p-058 · 058 · Tapu Bulu-GX · カプ・ブルルGX · 新たなる試練の向こう
+jp-SM2p-059 · 059 · Salazzle-GX · エンニュートGX · 新たなる試練の向こう
+jp-SM2p-060 · 060 · Tapu Fini-GX · カプ・レヒレGX · 新たなる試練の向こう
+jp-SM2p-061 · 061 · Machamp-GX · カイリキーGX · 新たなる試練の向こう
+jp-SM2p-062 · 062 · Lycanroc-GX · ルガルガンGX · 新たなる試練の向こう
+jp-SM2p-063 · 063 · Darkrai-GX · ダークライGX · 新たなる試練の向こう
+jp-SM2p-064 · 064 · こだわりハチマキ · こだわりハチマキ · 新たなる試練の向こう
+jp-SM2p-065 · 065 · マルチつけかえ · マルチつけかえ · 新たなる試練の向こう
+tk-sm-r-1 · 1 · Lightning Energy · SM trainer Kit (Alolan Raichu)
+tk-sm-r-3 · 3 · Lightning Energy · SM trainer Kit (Alolan Raichu)
+tk-sm-r-5 · 5 · Lightning Energy · SM trainer Kit (Alolan Raichu)
+tk-sm-r-7 · 7 · Lightning Energy · SM trainer Kit (Alolan Raichu)
+tk-sm-r-8 · 8 · Lightning Energy · SM trainer Kit (Alolan Raichu)
+tk-sm-r-9 · 9 · Lightning Energy · SM trainer Kit (Alolan Raichu)
+tk-sm-r-10 · 10 · Lightning Energy · SM trainer Kit (Alolan Raichu)
+tk-sm-r-12 · 12 · Lightning Energy · SM trainer Kit (Alolan Raichu)
+tk-sm-r-24 · 24 · Psychic Energy · SM trainer Kit (Alolan Raichu)
+tk-sm-r-27 · 27 · Psychic Energy · SM trainer Kit (Alolan Raichu)
+tk-sm-r-28 · 28 · Psychic Energy · SM trainer Kit (Alolan Raichu)
+jp-SM3H-058 · 058 · Charizard-GX · リザードンGX · To Have Seen the Battle Rainbow
+jp-SM3H-059 · 059 · Ho-Oh-GX · ホウオウGX · To Have Seen the Battle Rainbow
+jp-SM3H-060 · 060 · Alolan Muk-GX · アローラベトベトンGX · To Have Seen the Battle Rainbow
+jp-SM3H-061 · 061 · Noivern-GX · オンバーンGX · To Have Seen the Battle Rainbow
+jp-SM3H-062 · 062 · あなぬけのヒモ · あなぬけのヒモ · To Have Seen the Battle Rainbow
+jp-SM3H-063 · 063 · ムキムキダンベル · ムキムキダンベル · To Have Seen the Battle Rainbow
+jp-SM3H-064 · 064 · 基本炎エネルギー · 基本炎エネルギー · To Have Seen the Battle Rainbow
+jp-SM3N-058 · 058 · Golisopod-GX · グソクムシャGX · Darkness that Consumes Light
+jp-SM3N-059 · 059 · Necrozma-GX · ネクロズマGX · Darkness that Consumes Light
+jp-SM3N-060 · 060 · Marshadow-GX · マーシャドーGX · Darkness that Consumes Light
+jp-SM3N-061 · 061 · Gardevoir-GX · サーナイトGX · Darkness that Consumes Light
+jp-SM3N-062 · 062 · スーパーポケモン回収 · スーパーポケモン回収 · Darkness that Consumes Light
+jp-SM3N-063 · 063 · レスキュータンカ · レスキュータンカ · Darkness that Consumes Light
+jp-SM3N-064 · 064 · 基本フェアリーエネルギー · 基本フェアリーエネルギー · Darkness that Consumes Light
+jp-SM3p-078 · 078 · Entei-GX · エンテイGX · ひかる伝説
+jp-SM3p-079 · 079 · Raichu-GX · ライチュウGX · ひかる伝説
+jp-SM3p-080 · 080 · Mewtwo-GX · ミュウツーGX · ひかる伝説
+jp-SM3p-081 · 081 · Zoroark-GX · ゾロアークGX · ひかる伝説
+jp-SM3p-082 · 082 · Mewtwo-GX · ミュウツーGX · ひかる伝説
+2017sm-1 · 1 · Rowlet · モクロー · McDonald's Collection 2017
+2017sm-2 · 2 · Grubbin · アゴジムシ · McDonald's Collection 2017
+2017sm-3 · 3 · Litten · ニャビー · McDonald's Collection 2017
+2017sm-4 · 4 · Popplio · アシマリ · McDonald's Collection 2017
+2017sm-5 · 5 · Pikachu · ピカチュウ · McDonald's Collection 2017
+2017sm-6 · 6 · Cosmog · コスモッグ · McDonald's Collection 2017
+2017sm-7 · 7 · Crabrawler · マケンカニ · McDonald's Collection 2017
+2017sm-8 · 8 · Alolan Meowth · アローラニャース · McDonald's Collection 2017
+2017sm-9 · 9 · Alolan Diglett · アローラディグダ · McDonald's Collection 2017
+2017sm-10 · 10 · Cutiefly · アブリー · McDonald's Collection 2017
+2017sm-11 · 11 · Pikipek · ツツケラ · McDonald's Collection 2017
+2017sm-12 · 12 · Yungoos · ヤングース · McDonald's Collection 2017
+jp-SM4A-056 · 056 · Gyarados-GX · ギャラドスGX · Ultradimensional Beasts
+jp-SM4A-057 · 057 · Nihilego-GX · ウツロイドGX · Ultradimensional Beasts
+jp-SM4A-058 · 058 · Guzzlord-GX · アクジキングGX · Ultradimensional Beasts
+jp-SM4A-059 · 059 · Alolan Exeggutor-GX · アローラナッシーGX · Ultradimensional Beasts
+jp-SM4A-060 · 060 · ねがいのバトン · ねがいのバトン · Ultradimensional Beasts
+jp-SM4A-061 · 061 · カウンターエネルギー · カウンターエネルギー · Ultradimensional Beasts
+jp-SM4S-056 · 056 · Alolan Golem-GX · アローラゴローニャGX · Awakened Heroes
+jp-SM4S-057 · 057 · Buzzwole-GX · マッシブーンGX · Awakened Heroes
+jp-SM4S-058 · 058 · Kartana-GX · カミツルギGX · Awakened Heroes
+jp-SM4S-059 · 059 · Silvally-GX · シルヴァディGX · Awakened Heroes
+jp-SM4S-060 · 060 · カウンターキャッチャー · カウンターキャッチャー · Awakened Heroes
+jp-SM4S-061 · 061 · ワープエネルギー · ワープエネルギー · Awakened Heroes
+jp-SM4S-062 · 062 · 基本鋼エネルギー · 基本鋼エネルギー · Awakened Heroes
+jp-SM4p-121 · 121 · Pheromosa-GX · フェローチェGX · GXバトルブースト
+jp-SM4p-122 · 122 · Xurkitree-GX · デンジュモクGX · GXバトルブースト
+jp-SM4p-123 · 123 · Celesteela-GX · テッカグヤGX · GXバトルブースト
+jp-SM4p-124 · 124 · Lunala-GX · ルナアーラGX · GXバトルブースト
+jp-SM4p-125 · 125 · Solgaleo-GX · ソルガレオGX · GXバトルブースト
+jp-SM5M-073 · 073 · Glaceon-GX · グレイシアGX · Ultra Moon
+jp-SM5M-074 · 074 · Necrozma-GX · ネクロズマ あかつきのつばさGX · Ultra Moon
+jp-SM5M-075 · 075 · Palkia-GX · パルキアGX · Ultra Moon
+jp-SM5M-076 · 076 · クラッシュハンマー · クラッシュハンマー · Ultra Moon
+jp-SM5M-077 · 077 · エスケープボード · エスケープボード · Ultra Moon
+jp-SM5M-078 · 078 · ユニットエネルギー雷超鋼 · ユニットエネルギー雷超鋼 · Ultra Moon
+jp-SM5S-073 · 073 · Leafeon-GX · リーフィアGX · Ultra Sun
+jp-SM5S-074 · 074 · Necrozma-GX · ネクロズマ たそがれのたてがみGX · Ultra Sun
+jp-SM5S-075 · 075 · Dialga-GX · ディアルガGX · Ultra Sun
+jp-SM5S-076 · 076 · のぞきみレッドカード · のぞきみレッドカード · Ultra Sun
+jp-SM5S-077 · 077 · ミッシングクローバー · ミッシングクローバー · Ultra Sun
+jp-SM5S-078 · 078 · ユニットエネルギー草炎水 · ユニットエネルギー草炎水 · Ultra Sun
+jp-SM5p-057 · 057 · Palkia-GX · パルキアGX · ウルトラフォース
+jp-SM5p-058 · 058 · Naganadel-GX · アーゴヨンGX · ウルトラフォース
+jp-SM5p-059 · 059 · Lucario-GX · ルカリオGX · ウルトラフォース
+jp-SM5p-060 · 060 · Dialga-GX · ディアルガGX · ウルトラフォース
+jp-SM5p-061 · 061 · エネルギーリサイクル · エネルギーリサイクル · ウルトラフォース
+jp-SM5p-062 · 062 · ビーストリング · ビーストリング · ウルトラフォース
+jp-SM5p-063 · 063 · 鋼鉄のフライパン · 鋼鉄のフライパン · ウルトラフォース
+jp-SM6-103 · 103 · Greninja-GX · ゲッコウガGX · Forbidden Light
+jp-SM6-104 · 104 · Zygarde-GX · ジガルデGX · Forbidden Light
+jp-SM6-105 · 105 · Yveltal-GX · イベルタルGX · Forbidden Light
+jp-SM6-106 · 106 · Xerneas-GX · ゼルネアスGX · Forbidden Light
+jp-SM6-107 · 107 · Necrozma-GX · ウルトラネクロズマGX · Forbidden Light
+jp-SM6-108 · 108 · エネポーター · エネポーター · Forbidden Light
+jp-SM6-109 · 109 · ミステリートレジャー · ミステリートレジャー · Forbidden Light
+jp-SM6-110 · 110 · ユニットエネルギー闘悪妖 · ユニットエネルギー闘悪妖 · Forbidden Light
+jp-SM6a-060 · 060 · Reshiram-GX · レシラムGX · Dragon Storm
+jp-SM6a-061 · 061 · Kingdra-GX · キングドラGX · Dragon Storm
+jp-SM6a-062 · 062 · Dragonite-GX · カイリューGX · Dragon Storm
+jp-SM6a-063 · 063 · Kyurem-GX · ホワイトキュレムGX · Dragon Storm
+jp-SM6a-064 · 064 · いれかえフロート · いれかえフロート · Dragon Storm
+jp-SM6a-065 · 065 · 火打石 · 火打石 · Dragon Storm
+jp-SM6a-066 · 066 · 竜の鉤爪 · 竜の鉤爪 · Dragon Storm
+jp-SM6b-078 · 078 · Articuno-GX · フリーザーGX · Champion Road
+jp-SM6b-079 · 079 · Electrode-GX · マルマインGX · Champion Road
+jp-SM6b-080 · 080 · Mr. Mime-GX · バリヤードGX · Champion Road
+jp-SM6b-081 · 081 · Banette-GX · ジュペッタGX · Champion Road
+jp-SM6b-082 · 082 · Scizor-GX · ハッサムGX · Champion Road
+jp-SM6b-083 · 083 · Salamence-GX · ボーマンダGX · Champion Road
+jp-SM6b-084 · 084 · ふっかつそう · ふっかつそう · Champion Road
+jp-SM6b-085 · 085 · ポケナビ · ポケナビ · Champion Road
+jp-SM6b-086 · 086 · レインボーエネルギー · レインボーエネルギー · Champion Road
+jp-SM7-105 · 105 · Shiftry-GX · ダーテングGX · Charisma of the Wrecked Sky
+jp-SM7-106 · 106 · Blaziken-GX · バシャーモGX · Charisma of the Wrecked Sky
+jp-SM7-107 · 107 · Stakataka-GX · ツンデツンデGX · Charisma of the Wrecked Sky
+jp-SM7-108 · 108 · Altaria-GX · チルタリスGX · Charisma of the Wrecked Sky
+jp-SM7-109 · 109 · Rayquaza-GX · レックウザGX · Charisma of the Wrecked Sky
+jp-SM7-110 · 110 · ダートじてんしゃ · ダートじてんしゃ · Charisma of the Wrecked Sky
+jp-SM7-111 · 111 · レインボーブラシ · レインボーブラシ · Charisma of the Wrecked Sky
+jp-SM7-112 · 112 · ハッスルベルト · ハッスルベルト · Charisma of the Wrecked Sky
+2018sm-fr-1 · 1 · Feuillajou · ヤナップ · Collection McDonald's 2018
+2018sm-fr-2 · 2 · Croquine · アマカジ · Collection McDonald's 2018
+2018sm-fr-3 · 3 · Sovkipou · コソクムシ · Collection McDonald's 2018
+2018sm-fr-4 · 4 · Salamèche · ヒトカゲ · Collection McDonald's 2018
+2018sm-fr-5 · 5 · Caninos · ガーディ · Collection McDonald's 2018
+2018sm-fr-6 · 6 · Chartor · コータス · Collection McDonald's 2018
+2018sm-fr-7 · 7 · Flamajou · バオップ · Collection McDonald's 2018
+2018sm-fr-8 · 8 · Sabelette d'Alola · サンド · Collection McDonald's 2018
+2018sm-fr-9 · 9 · Goupix d'Alola · ロコン · Collection McDonald's 2018
+2018sm-fr-10 · 10 · Psykokwak · コダック · Collection McDonald's 2018
+2018sm-fr-11 · 11 · Ptitard · ニョロモ · Collection McDonald's 2018
+2018sm-fr-12 · 12 · Cadoizo · デリバード · Collection McDonald's 2018
+2018sm-fr-13 · 13 · Goélise · キャモメ · Collection McDonald's 2018
+2018sm-fr-14 · 14 · Wailmer · ホエルコ · Collection McDonald's 2018
+2018sm-fr-15 · 15 · Flotajou · ヒヤップ · Collection McDonald's 2018
+2018sm-fr-16 · 16 · Froussardine · ヨワシ · Collection McDonald's 2018
+2018sm-fr-17 · 17 · Pikachu · ピカチュウ · Collection McDonald's 2018
+2018sm-fr-18 · 18 · Racaillou d'Alola · イシツブテ · Collection McDonald's 2018
+2018sm-fr-19 · 19 · Loupio · チョンチー · Collection McDonald's 2018
+2018sm-fr-20 · 20 · Togedemaru · トゲデマル · Collection McDonald's 2018
+2018sm-fr-21 · 21 · Ramoloss · ヤドン · Collection McDonald's 2018
+2018sm-fr-22 · 22 · Machoc · ワンリキー · Collection McDonald's 2018
+2018sm-fr-23 · 23 · Makuhita · マクノシタ · Collection McDonald's 2018
+2018sm-fr-24 · 24 · Riolu · リオル · Collection McDonald's 2018
+2018sm-fr-25 · 25 · Rocabot · イワンコ · Collection McDonald's 2018
+2018sm-fr-26 · 26 · Tiboudet · ドロバンコ · Collection McDonald's 2018
+2018sm-fr-27 · 27 · Cornèbre · ヤミカラス · Collection McDonald's 2018
+2018sm-fr-28 · 28 · Farfuret · ニューラ · Collection McDonald's 2018
+2018sm-fr-29 · 29 · Airmure · エアームド · Collection McDonald's 2018
+2018sm-fr-30 · 30 · Mélofée · ピッピ · Collection McDonald's 2018
+2018sm-fr-31 · 31 · Tarsal · ラルトス · Collection McDonald's 2018
+2018sm-fr-32 · 32 · Minidraco · ミニリュウ · Collection McDonald's 2018
+2018sm-fr-33 · 33 · Mucuscule · ヌメラ · Collection McDonald's 2018
+2018sm-fr-34 · 34 · Bébécaille · ジャラコ · Collection McDonald's 2018
+2018sm-fr-35 · 35 · Miaouss · ニャース · Collection McDonald's 2018
+2018sm-fr-36 · 36 · Leveinard · ラッキー · Collection McDonald's 2018
+2018sm-fr-37 · 37 · Évoli · イーブイ · Collection McDonald's 2018
+2018sm-fr-38 · 38 · Passerouge · ヤヤコマ · Collection McDonald's 2018
+2018sm-fr-39 · 39 · Passerouge · ヤヤコマ · Collection McDonald's 2018
+2018sm-fr-40 · 40 · Nounourson · ヌイコグマ · Collection McDonald's 2018
+jp-SM7a-067 · 067 · Virizion-GX · ビリジオンGX · Thunderclap Spark
+jp-SM7a-068 · 068 · Magcargo-GX · マグカルゴGX · Thunderclap Spark
+jp-SM7a-069 · 069 · Zeraora-GX · ゼラオラGX · Thunderclap Spark
+jp-SM7a-070 · 070 · Genesect-GX · ゲノセクトGX · Thunderclap Spark
+jp-SM7a-071 · 071 · エレキパワー · エレキパワー · Thunderclap Spark
+jp-SM7a-072 · 072 · カスタムキャッチャー · カスタムキャッチャー · Thunderclap Spark
+jp-SM7a-073 · 073 · カウンターゲイン · カウンターゲイン · Thunderclap Spark
+jp-SM7b-057 · 057 · Sceptile-GX · ジュカインGX · Fairy Rise
+jp-SM7b-058 · 058 · Sigilyph-GX · シンボラーGX · Fairy Rise
+jp-SM7b-059 · 059 · Alolan Ninetales-GX · アローラキュウコンGX · Fairy Rise
+jp-SM7b-060 · 060 · Mimikyu-GX · ミミッキュGX · Fairy Rise
+jp-SM7b-061 · 061 · ネットボール · ネットボール · Fairy Rise
+jp-SM7b-062 · 062 · ぼうけんのカバン · ぼうけんのカバン · Fairy Rise
+jp-SM7b-063 · 063 · のろいのおふだ · のろいのおふだ · Fairy Rise
+jp-SM8-104 · 104 · Shuckle-GX · ツボツボGX · Super-Burst Impact
+jp-SM8-105 · 105 · Blacephalon-GX · ズガドーンGX · Super-Burst Impact
+jp-SM8-106 · 106 · Suicune-GX · スイクンGX · Super-Burst Impact
+jp-SM8-107 · 107 · Tyranitar-GX · バンギラスGX · Super-Burst Impact
+jp-SM8-108 · 108 · Lugia-GX · ルギアGX · Super-Burst Impact
+jp-SM8-109 · 109 · あとだしハンマー · あとだしハンマー · Super-Burst Impact
+jp-SM8-110 · 110 · ロストミキサー · ロストミキサー · Super-Burst Impact
+jp-SM8-111 · 111 · こだわりメット · こだわりメット · Super-Burst Impact
+jp-SM8a-059 · 059 · Ampharos-GX · デンリュウGX · Dark Order
+jp-SM8a-060 · 060 · Hoopa-GX · フーパGX · Dark Order
+jp-SM8a-061 · 061 · Incineroar-GX · ガオガエンGX · Dark Order
+jp-SM8a-062 · 062 · Cobalion-GX · コバルオンGX · Dark Order
+jp-SM8a-063 · 063 · エレキチャージャー · エレキチャージャー · Dark Order
+jp-SM8a-064 · 064 · デンジャラスドリル · デンジャラスドリル · Dark Order
+jp-SM8a-065 · 065 · メタルゴーグル · メタルゴーグル · Dark Order
+jp-SM8b-244 · 244 · Tapu Bulu-GX · カプ・ブルルGX · GX Ultra Shiny
+jp-SM8b-245 · 245 · Tapu Fini-GX · カプ・レヒレGX · GX Ultra Shiny
+jp-SM8b-246 · 246 · Tapu Koko-GX · カプ・コケコGX · GX Ultra Shiny
+jp-SM8b-247 · 247 · Tapu Lele-GX · カプ・テテフGX · GX Ultra Shiny
+jp-SM8b-248 · 248 · Lunala-GX · ルナアーラGX · GX Ultra Shiny
+jp-SM8b-249 · 249 · Solgaleo-GX · ソルガレオGX · GX Ultra Shiny
+jp-SM8b-250 · 250 · Necrozma-GX · ウルトラネクロズマGX · GX Ultra Shiny
+2018sm-1 · 1 · Growlithe · ガーディ · McDonald's Collection 2018
+2018sm-2 · 2 · Psyduck · コダック · McDonald's Collection 2018
+2018sm-3 · 3 · Horsea · タッツー · McDonald's Collection 2018
+2018sm-4 · 4 · Pikachu · ピカチュウ · McDonald's Collection 2018
+2018sm-5 · 5 · Slowpoke · ヤドン · McDonald's Collection 2018
+2018sm-6 · 6 · Machop · ワンリキー · McDonald's Collection 2018
+2018sm-7 · 7 · Cubone · カラカラ · McDonald's Collection 2018
+2018sm-8 · 8 · Magnemite · コイル · McDonald's Collection 2018
+2018sm-9 · 9 · Dratini · ミニリュウ · McDonald's Collection 2018
+2018sm-10 · 10 · Chansey · ラッキー · McDonald's Collection 2018
+2018sm-11 · 11 · Eevee · イーブイ · McDonald's Collection 2018
+2018sm-12 · 12 · Porygon · ポリゴン · McDonald's Collection 2018
+jp-SM9-110 · 110 · Celebi & Venusaur-GX · セレビィ&フシギバナGX · Tag Bolt
+jp-SM9-111 · 111 · Magikarp & Wailord-GX · コイキング&ホエルオーGX · Tag Bolt
+jp-SM9-112 · 112 · Pikachu & Zekrom-GX · ピカチュウ&ゼクロムGX · Tag Bolt
+jp-SM9-113 · 113 · Gengar & Mimikyu-GX · ゲンガー&ミミッキュGX · Tag Bolt
+jp-SM9-114 · 114 · Latias & Latios-GX · ラティアス&ラティオスGX · Tag Bolt
+jp-SM9-115 · 115 · Eevee & Snorlax-GX · イーブイ&カビゴンGX · Tag Bolt
+jp-SM9-116 · 116 · ポケモン通信 · ポケモン通信 · Tag Bolt
+jp-SM9-117 · 117 · ジャッジマンホイッスル · ジャッジマンホイッスル · Tag Bolt
+jp-SM9-118 · 118 · せせらぎの丘 · せせらぎの丘 · Tag Bolt
+jp-SM9a-064 · 064 · Venomoth-GX · モルフォンGX · Night Unison
+jp-SM9a-065 · 065 · Dedenne-GX · デデンネGX · Night Unison
+jp-SM9a-066 · 066 · Greninja & Zoroark-GX · ゲッコウガ&ゾロアークGX · Night Unison
+jp-SM9a-067 · 067 · Gardevoir & Sylveon-GX · サーナイト&ニンフィアGX · Night Unison
+jp-SM9a-068 · 068 · 電磁レーダー · 電磁レーダー · Night Unison
+jp-SM9a-069 · 069 · ポケギア3.0 · ポケギア3.0 · Night Unison
+jp-SM9a-070 · 070 · エーテルパラダイス保護区 · エーテルパラダイス保護区 · Night Unison
+jp-SM9b-063 · 063 · Pheromosa & Buzzwole-GX · フェローチェ&マッシブーンGX · Full Metal Wall
+jp-SM9b-064 · 064 · Blastoise-GX · カメックスGX · Full Metal Wall
+jp-SM9b-065 · 065 · Lucario & Melmetal-GX · ルカリオ&メルメタルGX · Full Metal Wall
+jp-SM9b-066 · 066 · Celesteela-GX · テッカグヤGX · Full Metal Wall
+jp-SM9b-067 · 067 · ビーストブリンガー · ビーストブリンガー · Full Metal Wall
+jp-SM9b-068 · 068 · メタルコアバリア · メタルコアバリア · Full Metal Wall
+jp-SM9b-069 · 069 · テンガン山 · テンガン山 · Full Metal Wall
+jp-SM10-108 · 108 · Reshiram & Charizard-GX · レシラム&リザードンGX · Double Blaze
+jp-SM10-109 · 109 · Muk & Alolan Muk-GX · ベトベトン&アローラベトベトンGX · Double Blaze
+jp-SM10-110 · 110 · Marshadow & Machamp-GX · マーシャドー&カイリキーGX · Double Blaze
+jp-SM10-111 · 111 · Honchkrow-GX · ドンカラスGX · Double Blaze
+jp-SM10-112 · 112 · Whimsicott-GX · エルフーンGX · Double Blaze
+jp-SM10-113 · 113 · Persian-GX · ペルシアンGX · Double Blaze
+jp-SM10-114 · 114 · 炎の結晶 · 炎の結晶 · Double Blaze
+jp-SM10-115 · 115 · 戒めの祠 · 戒めの祠 · Double Blaze
+jp-SM10-116 · 116 · トリプル加速エネルギー · トリプル加速エネルギー · Double Blaze
+jp-SM10a-063 · 063 · Heatran-GX · ヒードランGX · GG End
+jp-SM10a-064 · 064 · Raichu & Alolan Raichu-GX · ライチュウ&アローラライチュウGX · GG End
+jp-SM10a-065 · 065 · Mawile-GX · クチートGX · GG End
+jp-SM10a-066 · 066 · Garchomp & Giratina-GX · ガブリアス&ギラティナGX · GG End
+jp-SM10a-067 · 067 · タッグスイッチ · タッグスイッチ · GG End
+jp-SM10a-068 · 068 · リセットスタンプ · リセットスタンプ · GG End
+jp-SM10a-069 · 069 · くろおび · くろおび · GG End
+jp-SM10b-063 · 063 · Rowlet & Alolan Exeggutor-GX · モクロー&アローラナッシーGX · Sky Legend
+jp-SM10b-064 · 064 · Keldeo-GX · ケルディオGX · Sky Legend
+jp-SM10b-065 · 065 · Naganadel-GX · アーゴヨンGX · Sky Legend
+jp-SM10b-066 · 066 · Moltres & Zapdos & Articuno-GX · ファイヤー&サンダー&フリーザーGX · Sky Legend
+jp-SM10b-067 · 067 · Uターンボード · Uターンボード · Sky Legend
+jp-SM10b-068 · 068 · トキワの森 · トキワの森 · Sky Legend
+jp-SM10b-069 · 069 · リサイクルエネルギー · リサイクルエネルギー · Sky Legend
+jp-SM11a-074 · 074 · Venusaur & Snivy-GX · フシギバナ&ツタージャGX · Remix Bout
+jp-SM11a-075 · 075 · Charizard & Braixen-GX · リザードン&テールナーGX · Remix Bout
+jp-SM11a-076 · 076 · Blastoise & Piplup-GX · カメックス&ポッチャマGX · Remix Bout
+jp-SM11a-077 · 077 · Alolan Persian-GX · アローラペルシアンGX · Remix Bout
+jp-SM11a-078 · 078 · グレートキャッチャー · グレートキャッチャー · Remix Bout
+jp-SM11a-079 · 079 · 格闘道場 · 格闘道場 · Remix Bout
+jp-SM11a-080 · 080 · ドローエネルギー · ドローエネルギー · Remix Bout
+jp-SM11b-069 · 069 · Vileplume-GX · ラフレシアGX · Dream League
+jp-SM11b-070 · 070 · Solgaleo & Lunala-GX · ソルガレオ&ルナアーラGX · Dream League
+jp-SM11b-071 · 071 · Reshiram & Zekrom-GX · レシラム&ゼクロムGX · Dream League
+jp-SM11b-072 · 072 · Silvally-GX · シルヴァディGX · Dream League
+jp-SM11b-073 · 073 · スイレンのつりざお · スイレンのつりざお · Dream League
+jp-SM11b-074 · 074 · リーリエのピッピ人形 · リーリエのピッピ人形 · Dream League
+jp-SM11b-075 · 075 · 無人発電所 · 無人発電所 · Dream League
+jp-SM12-109 · 109 · Volcarona-GX · ウルガモスGX · Alter Genesis
+jp-SM12-110 · 110 · Oricorio-GX · オドリドリGX · Alter Genesis
+jp-SM12-111 · 111 · Flygon-GX · フライゴンGX · Alter Genesis
+jp-SM12-112 · 112 · Arceus & Dialga & Palkia-GX · アルセウス&ディアルガ&パルキアGX · Alter Genesis
+jp-SM12-113 · 113 · Naganadel & Guzzlord-GX · アーゴヨン&アクジキングGX · Alter Genesis
+jp-SM12-114 · 114 · Lopunny & Jigglypuff-GX · メガミミロップ&プリンGX · Alter Genesis
+jp-SM12-115 · 115 · タッグコール · タッグコール · Alter Genesis
+jp-SM12-116 · 116 · しまめぐりのあかし · しまめぐりのあかし · Alter Genesis
+jp-SM12-117 · 117 · 巨大なカマド · 巨大なカマド · Alter Genesis
+jp-SM12a-211 · 211 · Wishiwashi-GX · ヨワシGX · Tag Team GX All Stars
+jp-SM12a-212 · 212 · Espeon & Deoxys-GX · エーフィ&デオキシスGX · Tag Team GX All Stars
+jp-SM12a-213 · 213 · Trevenant & Dusknoir-GX · オーロット&ヨノワールGX · Tag Team GX All Stars
+jp-SM12a-214 · 214 · Jirachi-GX · ジラーチGX · Tag Team GX All Stars
+jp-SM12a-215 · 215 · Umbreon & Darkrai-GX · ブラッキー&ダークライGX · Tag Team GX All Stars
+jp-SM12a-216 · 216 · Weavile-GX · マニューラGX · Tag Team GX All Stars
+jp-SM12a-217 · 217 · Lucario & Melmetal-GX · ルカリオ&メルメタルGX · Tag Team GX All Stars
+jp-SM12a-218 · 218 · Togepi & Cleffa & Igglybuff-GX · トゲピー&ピィ&ププリンGX · Tag Team GX All Stars
+jp-SM12a-219 · 219 · Eevee-GX · イーブイGX · Tag Team GX All Stars
+jp-SM12a-220 · 220 · Reshiram & Charizard-GX · レシラム&リザードンGX · Tag Team GX All Stars
+jp-SM12a-221 · 221 · Pikachu & Zekrom-GX · ピカチュウ&ゼクロムGX · Tag Team GX All Stars
+jp-SM12a-222 · 222 · Mewtwo & Mew-GX · ミュウツー&ミュウGX · Tag Team GX All Stars
+jp-SM12a-223 · 223 · Greninja & Zoroark-GX · ゲッコウガ&ゾロアークGX · Tag Team GX All Stars
+jp-SM12a-224 · 224 · Lucario & Melmetal-GX · ルカリオ&メルメタルGX · Tag Team GX All Stars
+jp-SM12a-225 · 225 · Garchomp & Giratina-GX · ガブリアス&ギラティナGX · Tag Team GX All Stars
+jp-SM12a-226 · 226 · Moltres & Zapdos & Articuno-GX · ファイヤー&サンダー&フリーザーGX · Tag Team GX All Stars
+2019sm-fr-1 · 1 · Bulbizarre · フシギダネ · Collection McDonald's 2019
+2019sm-fr-2 · 2 · Chenipan · キャタピー · Collection McDonald's 2019
+2019sm-fr-3 · 3 · Paras · パラス · Collection McDonald's 2019
+2019sm-fr-4 · 4 · Chétiflor · マダツボミ · Collection McDonald's 2019
+2019sm-fr-5 · 5 · Noadkoko d'Alola · ナッシー · Collection McDonald's 2019
+2019sm-fr-6 · 6 · Saquedeneu · モンジャラ · Collection McDonald's 2019
+2019sm-fr-7 · 7 · Insécateur · ストライク · Collection McDonald's 2019
+2019sm-fr-8 · 8 · Scarabrute · カイロス · Collection McDonald's 2019
+2019sm-fr-9 · 9 · Salamèche · ヒトカゲ · Collection McDonald's 2019
+2019sm-fr-10 · 10 · Magmar · ブーバー · Collection McDonald's 2019
+2019sm-fr-11 · 11 · Sulfura · ファイヤー · Collection McDonald's 2019
+2019sm-fr-12 · 12 · Sabelette d'Alola · サンド · Collection McDonald's 2019
+2019sm-fr-13 · 13 · Goupix d'Alola · ロコン · Collection McDonald's 2019
+2019sm-fr-14 · 14 · Ramoloss · ヤドン · Collection McDonald's 2019
+2019sm-fr-15 · 15 · Hypotrempe · タッツー · Collection McDonald's 2019
+2019sm-fr-16 · 16 · Stari · ヒトデマン · Collection McDonald's 2019
+2019sm-fr-17 · 17 · Magicarpe · コイキング · Collection McDonald's 2019
+2019sm-fr-18 · 18 · Lokhlass · ラプラス · Collection McDonald's 2019
+2019sm-fr-19 · 19 · Artikodin · フリーザー · Collection McDonald's 2019
+2019sm-fr-20 · 20 · Pikachu · ピカチュウ · Collection McDonald's 2019
+2019sm-fr-21 · 21 · Raichu d'Alola · ライチュウ · Collection McDonald's 2019
+2019sm-fr-22 · 22 · Racaillou d'Alola · イシツブテ · Collection McDonald's 2019
+2019sm-fr-23 · 23 · Magnéti · コイル · Collection McDonald's 2019
+2019sm-fr-24 · 24 · Voltorbe · ビリリダマ · Collection McDonald's 2019
+2019sm-fr-25 · 25 · Élektek · エレブー · Collection McDonald's 2019
+2019sm-fr-26 · 26 · Électhor · サンダー · Collection McDonald's 2019
+2019sm-fr-27 · 27 · Fantominus · ゴース · Collection McDonald's 2019
+2019sm-fr-28 · 28 · Férosinge · マンキー · Collection McDonald's 2019
+2019sm-fr-29 · 29 · Onix · イワーク · Collection McDonald's 2019
+2019sm-fr-30 · 30 · Osselait · カラカラ · Collection McDonald's 2019
+2019sm-fr-31 · 31 · Rhinocorne · サイホーン · Collection McDonald's 2019
+2019sm-fr-32 · 32 · Miaouss d'Alola · ニャース · Collection McDonald's 2019
+2019sm-fr-33 · 33 · Taupiqueur d'Alola · ディグダ · Collection McDonald's 2019
+2019sm-fr-33b · 33b · Taupiqueur d'Alola · ディグダ · Collection McDonald's 2019
+2019sm-fr-34 · 34 · Triopikeur d'Alola · ダグトリオ · Collection McDonald's 2019
+2019sm-fr-35 · 35 · Rondoudou · プリン · Collection McDonald's 2019
+2019sm-fr-36 · 36 · Minidraco · ミニリュウ · Collection McDonald's 2019
+2019sm-fr-37 · 37 · Excelangue · ベロリンガ · Collection McDonald's 2019
+2019sm-fr-38 · 38 · Leveinard · ラッキー · Collection McDonald's 2019
+2019sm-fr-39 · 39 · Kangourex · ガルーラ · Collection McDonald's 2019
+2019sm-fr-40 · 40 · Évoli · イーブイ · Collection McDonald's 2019
+swshp-SWSH299 · SWSH299 · Jirachi V · ジラーチV · SWSH Black Star Promos
+swshp-SWSH300 · SWSH300 · Unown V · アンノーンV · SWSH Black Star Promos
+swshp-SWSH301 · SWSH301 · Lugia V · ルギアV · SWSH Black Star Promos
+jp-S5I-082 · 082 · Flapple VMAX · アップリューVMAX · Single Strike Master
+jp-S5I-083 · 083 · Tapu Koko VMAX · カプ・コケコVMAX · Single Strike Master
+jp-S5I-084 · 084 · Urshifu VMAX · いちげきウーラオスVMAX · Single Strike Master
+jp-S5I-085 · 085 · Urshifu VMAX · いちげきウーラオスVMAX · Single Strike Master
+jp-S5I-086 · 086 · シバ · シバ · Single Strike Master
+jp-S5I-087 · 087 · フヨウ · フヨウ · Single Strike Master
+jp-S5I-088 · 088 · マスタード いちげきのかた · マスタード いちげきのかた · Single Strike Master
+jp-S5I-089 · 089 · Houndoom · ヘルガー · Single Strike Master
+jp-S5I-090 · 090 · 学習装置 · 学習装置 · Single Strike Master
+jp-S5I-091 · 091 · いちげきエネルギー · いちげきエネルギー · Single Strike Master
+jp-S6H-084 · 084 · Calyrex VMAX · はくばバドレックスVMAX · Silver Lance
+jp-S6H-085 · 085 · Calyrex VMAX · はくばバドレックスVMAX · Silver Lance
+jp-S6H-086 · 086 · Sandaconda VMAX · サダイジャVMAX · Silver Lance
+jp-S6H-087 · 087 · Tornadus VMAX · トルネロスVMAX · Silver Lance
+jp-S6H-088 · 088 · アスナ · アスナ · Silver Lance
+jp-S6H-089 · 089 · ドクター · ドクター · Silver Lance
+jp-S6H-090 · 090 · ピオニー · ピオニー · Silver Lance
+jp-S6H-091 · 091 · メロン · メロン · Silver Lance
+jp-S6H-092 · 092 · Bronzong · ドータクン · Silver Lance
+jp-S6H-093 · 093 · おむかえちょうちん · おむかえちょうちん · Silver Lance
+jp-S6H-094 · 094 · いかついメット · いかついメット · Silver Lance
+jp-S6H-095 · 095 · 基本水エネルギー · 基本水エネルギー · Silver Lance
+jp-S6K-084 · 084 · Celebi VMAX · セレビィVMAX · Jet-Black Spirit
+jp-S6K-085 · 085 · Calyrex VMAX · こくばバドレックスVMAX · Jet-Black Spirit
+jp-S6K-086 · 086 · Calyrex VMAX · こくばバドレックスVMAX · Jet-Black Spirit
+jp-S6K-087 · 087 · Metagross VMAX · メタグロスVMAX · Jet-Black Spirit
+jp-S6K-088 · 088 · カトレア · カトレア · Jet-Black Spirit
+jp-S6K-089 · 089 · キクコ · キクコ · Jet-Black Spirit
+jp-S6K-090 · 090 · シャクヤ · シャクヤ · Jet-Black Spirit
+jp-S6K-091 · 091 · ズミ · ズミ · Jet-Black Spirit
+jp-S6K-092 · 092 · Electrode · マルマイン · Jet-Black Spirit
+jp-S6K-093 · 093 · 霧の水晶 · 霧の水晶 · Jet-Black Spirit
+jp-S6K-094 · 094 · やまびこホーン · やまびこホーン · Jet-Black Spirit
+jp-S6K-095 · 095 · 基本超エネルギー · 基本超エネルギー · Jet-Black Spirit
+jp-S7D-080 · 080 · Lycanroc VMAX · ルガルガンVMAX · Skyscraping Perfection
+jp-S7D-081 · 081 · Garbodor VMAX · ダストダスVMAX · Skyscraping Perfection
+jp-S7D-082 · 082 · Duraludon VMAX · ジュラルドンVMAX · Skyscraping Perfection
+jp-S7D-083 · 083 · Duraludon VMAX · ジュラルドンVMAX · Skyscraping Perfection
+jp-S7D-084 · 084 · キバナ · キバナ · Skyscraping Perfection
+jp-S7D-085 · 085 · スクールガール · スクールガール · Skyscraping Perfection
+jp-S7D-086 · 086 · モノマネむすめ · モノマネむすめ · Skyscraping Perfection
+jp-S7D-087 · 087 · Cresselia · クレセリア · Skyscraping Perfection
+jp-S7D-088 · 088 · フルフェイスガード · フルフェイスガード · Skyscraping Perfection
+jp-S7D-089 · 089 · 結晶の洞窟 · 結晶の洞窟 · Skyscraping Perfection
+jp-S7D-090 · 090 · 基本鋼エネルギー · 基本鋼エネルギー · Skyscraping Perfection
+jp-S8-116 · 116 · Chandelure VMAX · シャンデラVMAX · Fusion Arts
+jp-S8-117 · 117 · Boltund VMAX · パルスワンVMAX · Fusion Arts
+jp-S8-118 · 118 · Mew VMAX · ミュウVMAX · Fusion Arts
+jp-S8-119 · 119 · Mew VMAX · ミュウVMAX · Fusion Arts
+jp-S8-120 · 120 · Greedent VMAX · ヨクバリスVMAX · Fusion Arts
+jp-S8-121 · 121 · カゲツ · カゲツ · Fusion Arts
+jp-S8-122 · 122 · カミツレのきらめき · カミツレのきらめき · Fusion Arts
+jp-S8-123 · 123 · ダンサー · ダンサー · Fusion Arts
+jp-S8-124 · 124 · ポッドとデントとコーン · ポッドとデントとコーン · Fusion Arts
+jp-S8-125 · 125 · Flaaffy · モココ · Fusion Arts
+jp-S8-126 · 126 · トレーニングコート · トレーニングコート · Fusion Arts
+jp-S8-127 · 127 · 基本草エネルギー · 基本草エネルギー · Fusion Arts
+jp-S8-128 · 128 · 基本炎エネルギー · 基本炎エネルギー · Fusion Arts
+jp-S8-129 · 129 · パワータブレット · パワータブレット · Fusion Arts
+cel25cc-CC001 · CC001 · Blastoise · カメックス · Celebrations Classic Collection
+cel25cc-CC002 · CC002 · Charizard · リザードン · Celebrations Classic Collection
+cel25cc-CC003 · CC003 · Venusaur · フシギバナ · Celebrations Classic Collection
+cel25cc-CC004 · CC004 · Imposter Professor Oak · Celebrations Classic Collection
+cel25cc-CC005 · CC005 · Dark Gyarados · わるいギャラドス · Celebrations Classic Collection
+cel25cc-CC006 · CC006 · Here Comes Team Rocket! · Celebrations Classic Collection
+cel25cc-CC007 · CC007 · Rocket's Zapdos · ロケット団のサンダー · Celebrations Classic Collection
+cel25cc-CC008 · CC008 · _____'s Pikachu · Celebrations Classic Collection
+cel25cc-CC009 · CC009 · Cleffa · ピィ · Celebrations Classic Collection
+cel25cc-CC010 · CC010 · Shining Magikarp · ひかるコイキング · Celebrations Classic Collection
+cel25cc-CC011 · CC011 · Team Magma's Groudon · マグマ団のグラードン · Celebrations Classic Collection
+cel25cc-CC012 · CC012 · Rocket's Admin. · Celebrations Classic Collection
+cel25cc-CC013 · CC013 · Mew ex · ミュウex · Celebrations Classic Collection
+cel25cc-CC014 · CC014 · Gardevoir ex · サーナイトex · Celebrations Classic Collection
+cel25cc-CC015 · CC015 · Umbreon ☆ · ブラッキー · Celebrations Classic Collection
+cel25cc-CC016 · CC016 · Claydol · ネンドール · Celebrations Classic Collection
+cel25cc-CC017 · CC017 · Luxray GL LV.X · レントラー · Celebrations Classic Collection
+cel25cc-CC018 · CC018 · Garchomp C LV.X · ガブリアス · Celebrations Classic Collection
+cel25cc-CC019 · CC019 · Donphan · ドンファン · Celebrations Classic Collection
+cel25cc-CC020 · CC020 · Reshiram · レシラム · Celebrations Classic Collection
+cel25cc-CC021 · CC021 · Zekrom · ゼクロム · Celebrations Classic Collection
+cel25cc-CC022 · CC022 · Mewtwo EX · ミュウツーEX · Celebrations Classic Collection
+cel25cc-CC023 · CC023 · Xerneas EX · ゼルネアスEX · Celebrations Classic Collection
+cel25cc-CC024 · CC024 · M Rayquaza EX · MレックウザEX · Celebrations Classic Collection
+cel25cc-CC025 · CC025 · Tapu Lele GX · カプ・テテフGX · Celebrations Classic Collection
+jp-S8b-278 · 278 · Calyrex VMAX · はくばバドレックスVMAX · VMAX Climax
+jp-S8b-279 · 279 · Pikachu VMAX · ピカチュウVMAX · VMAX Climax
+jp-S8b-280 · 280 · Mew VMAX · ミュウVMAX · VMAX Climax
+jp-S8b-281 · 281 · Calyrex VMAX · こくばバドレックスVMAX · VMAX Climax
+jp-S8b-282 · 282 · Urshifu VMAX · いちげきウーラオスVMAX · VMAX Climax
+jp-S8b-283 · 283 · Urshifu VMAX · れんげきウーラオスVMAX · VMAX Climax
+jp-S8b-284 · 284 · Rayquaza VMAX · レックウザVMAX · VMAX Climax
+jp-S8b-285 · 285 · Duraludon VMAX · ジュラルドンVMAX · VMAX Climax
+jp-SV-P-154 · 154 · Nemona · ネモ · SV Promo
+jp-S12a-251 · 251 · Grass Energy · 基本草エネルギー · VSTAR Universe
+jp-S12a-252 · 252 · Fire Energy · 基本炎エネルギー · VSTAR Universe
+jp-S12a-253 · 253 · Water Energy · 基本水エネルギー · VSTAR Universe
+jp-S12a-254 · 254 · Lightning Energy · 基本雷エネルギー · VSTAR Universe
+jp-S12a-255 · 255 · 基本超エネルギー · 基本超エネルギー · VSTAR Universe
+jp-S12a-256 · 256 · 基本闘エネルギー · 基本闘エネルギー · VSTAR Universe
+jp-S12a-257 · 257 · 基本悪エネルギー · 基本悪エネルギー · VSTAR Universe
+svp-190 · 190 · Pikachu · ピカチュウ · SVP Black Star Promos
+2023sv-1 · 1 · Sprigatito · ニャオハ · McDonald's Collection 2023
+2023sv-2 · 2 · Fuecoco · ホゲータ · McDonald's Collection 2023
+2023sv-3 · 3 · Quaxly · クワッス · McDonald's Collection 2023
+2023sv-4 · 4 · Cetoddle · アルクジラ · McDonald's Collection 2023
+2023sv-5 · 5 · Cetitan · ハルクジラ · McDonald's Collection 2023
+2023sv-6 · 6 · Pikachu · ピカチュウ · McDonald's Collection 2023
+2023sv-7 · 7 · Pawmi · パモ · McDonald's Collection 2023
+2023sv-8 · 8 · Kilowattrel · タイカイデン · McDonald's Collection 2023
+2023sv-9 · 9 · Flittle · ヒラヒナ · McDonald's Collection 2023
+2023sv-10 · 10 · Sandaconda · サダイジャ · McDonald's Collection 2023
+2023sv-11 · 11 · Klawf · ガケガニ · McDonald's Collection 2023
+2023sv-12 · 12 · Blissey · ハピナス · McDonald's Collection 2023
+2023sv-13 · 13 · Tandemaus · ワッカネズミ · McDonald's Collection 2023
+2023sv-14 · 14 · Cyclizar · モトトカゲ · McDonald's Collection 2023
+2023sv-15 · 15 · Kirlia · キルリア · McDonald's Collection 2023
+mfb-1 · 1 · Bulbasaur · フシギダネ · My First Battle
+mfb-2 · 2 · Ivysaur · フシギソウ · My First Battle
+mfb-3 · 3 · Oddish · ナゾノクサ · My First Battle
+mfb-4 · 4 · Gloom · クサイハナ · My First Battle
+mfb-5 · 5 · Exeggcute · タマタマ · My First Battle
+mfb-6 · 6 · Exeggutor · ナッシー · My First Battle
+mfb-7 · 7 · Scyther · ストライク · My First Battle
+mfb-8 · 8 · Grass Energy · My First Battle
+mfb-9 · 9 · Charmander · ヒトカゲ · My First Battle
+mfb-10 · 10 · Charmeleon · リザード · My First Battle
+mfb-11 · 11 · Vulpix · ロコン · My First Battle
+mfb-12 · 12 · Ninetales · キュウコン · My First Battle
+mfb-13 · 13 · Growlithe · ガーディ · My First Battle
+mfb-14 · 14 · Arcanine · ウインディ · My First Battle
+mfb-15 · 15 · Magmar · ブーバー · My First Battle
+mfb-16 · 16 · Fire Energy · My First Battle
+mfb-17 · 17 · Pikachu · ピカチュウ · My First Battle
+mfb-18 · 18 · Raichu · ライチュウ · My First Battle
+mfb-19 · 19 · Magnemite · コイル · My First Battle
+mfb-20 · 20 · Magneton · レアコイル · My First Battle
+mfb-21 · 21 · Voltorb · ビリリダマ · My First Battle
+mfb-22 · 22 · Electrode · ギャラドス · My First Battle
+mfb-23 · 23 · Electabuzz · エレブー · My First Battle
+mfb-24 · 24 · Lightning Energy · My First Battle
+mfb-25 · 25 · Squirtle · ゼニガメ · My First Battle
+mfb-26 · 26 · Wartortle · カメール · My First Battle
+mfb-27 · 27 · Poliwag · ニョロモ · My First Battle
+mfb-28 · 28 · Poliwhirl · ニョロゾ · My First Battle
+mfb-29 · 29 · Magikarp · コイキング · My First Battle
+mfb-30 · 30 · Gyarados · ギャラドス · My First Battle
+mfb-31 · 31 · Lapras · コイキング · My First Battle
+mfb-32 · 32 · Water Energy · My First Battle
+mfb-33 · 33 · Potion · My First Battle
+mfb-34 · 34 · Switch · My First Battle
+2024sv-1 · 1 · Charizard · リザードン · McDonald's Collection 2024
+2024sv-2 · 2 · Pikachu · ピカチュウ · McDonald's Collection 2024
+2024sv-3 · 3 · Miraidon · ミライドン · McDonald's Collection 2024
+2024sv-4 · 4 · Jigglypuff · プリン · McDonald's Collection 2024
+2024sv-5 · 5 · Hatenna · ミブリム · McDonald's Collection 2024
+2024sv-6 · 6 · Dragapult · ドラパルト · McDonald's Collection 2024
+2024sv-7 · 7 · Quagsire · ヌオー · McDonald's Collection 2024
+2024sv-8 · 8 · Koraidon · コライドン · McDonald's Collection 2024
+2024sv-9 · 9 · Umbreon · ブラッキー · McDonald's Collection 2024
+2024sv-10 · 10 · Hydreigon · サザンドラ · McDonald's Collection 2024
+2024sv-11 · 11 · Roaring Moon · トドロクツキ · McDonald's Collection 2024
+2024sv-12 · 12 · Dragonite · カイリュー · McDonald's Collection 2024
+2024sv-13 · 13 · Eevee · イーブイ · McDonald's Collection 2024
+2024sv-14 · 14 · Rayquaza · レックウザ · McDonald's Collection 2024
+2024sv-15 · 15 · Drampa · ジジーロン · McDonald's Collection 2024
+jp-M-P-052 · 052 · Poké Pad · ポケパッド · Mega Promo
+jp-M-P-077 · 077 · Jumbo Ice Cream · ジャンボアイス · Mega Promo
+jp-M-P-078 · 078 · Ultra Ball · ハイパーボール · Mega Promo
+jp-M-P-079 · 079 · Rare Candy · ふしぎなアメ · Mega Promo
+jp-M-P-080 · 080 · Pokégear 3.0 · ポケギア3.0 · Mega Promo
+jp-M-P-081 · 081 · Air Balloon · ふうせん · Mega Promo
+jp-M-P-082 · 082 · Waitress · ウエートレス · Mega Promo
+jp-M-P-083 · 083 · Brock's Scouting · タケシのスカウト · Mega Promo
+jp-M-P-084 · 084 · Boss's Orders · ボスの指令 · Mega Promo
+jp-M-P-101 · 101 · Bulbasaur · フシギダネ · Mega Promo
+jp-M-P-102 · 102 · Charmander · ヒトカゲ · Mega Promo
+jp-M-P-103 · 103 · Squirtle · ゼニガメ · Mega Promo
+jp-M-P-104 · 104 · Chikorita · チコリータ · Mega Promo
+jp-M-P-105 · 105 · Cyndaquil · ヒノアラシ · Mega Promo
+jp-M-P-106 · 106 · Totodile · ワニノコ · Mega Promo
+jp-M-P-107 · 107 · Treecko · キモリ · Mega Promo
+jp-M-P-108 · 108 · Torchic · アチャモ · Mega Promo
+jp-M-P-109 · 109 · Mudkip · ミズゴロウ · Mega Promo
+jp-M-P-110 · 110 · Turtwig · ナエトル · Mega Promo
+jp-M-P-111 · 111 · Chimchar · ヒコザル · Mega Promo
+jp-M-P-112 · 112 · Piplup · ポッチャマ · Mega Promo
+jp-M-P-113 · 113 · Snivy · ツタージャ · Mega Promo
+jp-M-P-114 · 114 · Tepig · ポカブ · Mega Promo
+jp-M-P-115 · 115 · Oshawott · ミジュマル · Mega Promo
+jp-M-P-116 · 116 · Chespin · ハリマロン · Mega Promo
+jp-M-P-117 · 117 · Fennekin · フォッコ · Mega Promo
+jp-M-P-118 · 118 · Froakie · ケロマツ · Mega Promo
+jp-M-P-119 · 119 · Rowlet · モクロー · Mega Promo
+jp-M-P-120 · 120 · Litten · ニャビー · Mega Promo
+jp-M-P-121 · 121 · Popplio · アシマリ · Mega Promo
+jp-M-P-122 · 122 · Grookey · サルノリ · Mega Promo
+jp-M-P-123 · 123 · Scorbunny · ヒバニー · Mega Promo
+jp-M-P-124 · 124 · Sobble · メッソン · Mega Promo
+jp-M-P-125 · 125 · Sprigatito · ニャオハ · Mega Promo
+jp-M-P-126 · 126 · Fuecoco · ホゲータ · Mega Promo
+jp-M-P-127 · 127 · Quaxly · クワッス · Mega Promo
+mep-093 · 093 · Pikachu · ピカチュウ · MEP Black Star Promos
+mep-102 · 102 · Victini · ビクティニ · MEP Black Star Promos
+mep-103 · 103 · Zeraora · ゼラオラ · MEP Black Star Promos
+mep-104 · 104 · Mewtwo · ミュウツー · MEP Black Star Promos
+mep-105 · 105 · Mew · ミュウ · MEP Black Star Promos
+mep-106 · 106 · Ditto · メタモン · MEP Black Star Promos
+mep-107 · 107 · Pikachu ex · ピカチュウex · MEP Black Star Promos
+mep-108 · 108 · Espeon ex · エーフィex · MEP Black Star Promos
+mep-109 · 109 · Pikachu ex · ピカチュウex · MEP Black Star Promos
+mep-110 · 110 · Umbreon ex · ブラッキーex · MEP Black Star Promos
+mep-111 · 111 · Masquerain · MEP Black Star Promos
+mep-112 · 112 · Magmortar · MEP Black Star Promos
+mep-113 · 113 · Enamorus · MEP Black Star Promos
+mep-114 · 114 · Kommo-o · MEP Black Star Promos
+mep-115 · 115 · Spritzee · MEP Black Star Promos
+mep-116 · 116 · Seel · MEP Black Star Promos
+mep-117 · 117 · Kyogre · MEP Black Star Promos
+mep-120 · 120 · Celebratory Fanfare · MEP Black Star Promos
+mep-Museum · Museum · Pikachu at the Museum · ピカチュウ · MEP Black Star Promos
+jp-MC-DAR · DAR · 基本悪エネルギー · 基本悪エネルギー · スタートデッキ100 バトルコレクション
+jp-MC-FIG · FIG · 基本闘エネルギー · 基本闘エネルギー · スタートデッキ100 バトルコレクション
+jp-MC-FIR · FIR · 基本炎エネルギー · 基本炎エネルギー · スタートデッキ100 バトルコレクション
+jp-MC-GRA · GRA · 基本草エネルギー · 基本草エネルギー · スタートデッキ100 バトルコレクション
+jp-MC-LIG · LIG · 基本雷エネルギー · 基本雷エネルギー · スタートデッキ100 バトルコレクション
+jp-MC-MET · MET · 基本鋼エネルギー · 基本鋼エネルギー · スタートデッキ100 バトルコレクション
+jp-MC-PSY · PSY · 基本超エネルギー · 基本超エネルギー · スタートデッキ100 バトルコレクション
+jp-MC-WAT · WAT · 基本水エネルギー · 基本水エネルギー · スタートデッキ100 バトルコレクション
+30th-B · B · Mew · ミュウ · 30th Celebration
+30th-G · G · Mew · ミュウ · 30th Celebration
+30th-R · R · Mew · ミュウ · 30th Celebration
+jp-M6a-104 · 104 · Alolan Exeggutor · アローラ ナッシー · 30th CELEBRATION
+jp-M6a-105 · 105 · Moltres · ファイヤー · 30th CELEBRATION
+jp-M6a-106 · 106 · Lapras · ラプラス · 30th CELEBRATION
+jp-M6a-107 · 107 · Articuno · フリーザー · 30th CELEBRATION
+jp-M6a-108 · 108 · Zapdos · サンダー · 30th CELEBRATION
+jp-M6a-109 · 109 · Toxtricity · ストリンダー · 30th CELEBRATION
+jp-M6a-110 · 110 · Morpeko · モルペコ · 30th CELEBRATION
+jp-M6a-111 · 111 · Drifloon · フワンテ · 30th CELEBRATION
+jp-M6a-112 · 112 · Chandelure · シャンデラ · 30th CELEBRATION
+jp-M6a-113 · 113 · Lycanroc · ルガルガン · 30th CELEBRATION
+jp-M6a-114 · 114 · Nidorina · ニドリーナ · 30th CELEBRATION
+jp-M6a-115 · 115 · Alolan Meowth · アローラ ニャース · 30th CELEBRATION
+jp-M6a-116 · 116 · Scraggy · ズルッグ · 30th CELEBRATION
+jp-M6a-117 · 117 · Galarian Meowth · ガラル ニャース · 30th CELEBRATION
+jp-M6a-118 · 118 · Gholdengo · サーフゴー · 30th CELEBRATION
+jp-M6a-119 · 119 · Kommo-o · ジャラランガ · 30th CELEBRATION
+jp-M6a-120 · 120 · Meowth · ニャース · 30th CELEBRATION
+jp-M6a-121 · 121 · Ditto · メタモン · 30th CELEBRATION
+jp-M6a-122 · 122 · Hisuian Zorua · ヒスイ ゾロア · 30th CELEBRATION
+jp-M6a-123 · 123 · Maushold · イッカネズミ · 30th CELEBRATION
+jp-M6a-124 · 124 · Fuecoco ex · ホゲータex · 30th CELEBRATION
+jp-M6a-125 · 125 · Greninja ex · ゲッコウガex · 30th CELEBRATION
+jp-M6a-126 · 126 · Pikachu ex · ピカチュウex · 30th CELEBRATION
+jp-M6a-127 · 127 · Pikachu ex · ピカチュウex · 30th CELEBRATION
+jp-M6a-128 · 128 · Mewtwo ex · ミュウツーex · 30th CELEBRATION
+jp-M6a-129 · 129 · Mew ex · ミュウex · 30th CELEBRATION
+jp-M6a-130 · 130 · Sylveon ex · ニンフィアex · 30th CELEBRATION
+jp-M6a-131 · 131 · Gengar ex · ゲンガーex · 30th CELEBRATION
+jp-M6a-132 · 132 · Jirachi ex · ジラーチex · 30th CELEBRATION
+jp-M6a-133 · 133 · Salamence ex · ボーマンダex · 30th CELEBRATION
+jp-M6a-134 · 134 · Mewtwo ex · ミュウツーex · 30th CELEBRATION
+jp-M6a-135 · 135 · Mew ex · ミュウex · 30th CELEBRATION
+jp-M6a-B · B · Mew · ミュウ · 30th CELEBRATION
+jp-M6a-DAR · DAR · 基本悪エネルギー · 基本悪エネルギー · 30th CELEBRATION
+jp-M6a-FIG · FIG · 基本闘エネルギー · 基本闘エネルギー · 30th CELEBRATION
+jp-M6a-FIR · FIR · 基本炎エネルギー · 基本炎エネルギー · 30th CELEBRATION
+jp-M6a-G · G · Mew · ミュウ · 30th CELEBRATION
+jp-M6a-GRA · GRA · 基本草エネルギー · 基本草エネルギー · 30th CELEBRATION
+jp-M6a-LIG · LIG · 基本雷エネルギー · 基本雷エネルギー · 30th CELEBRATION
+jp-M6a-MET · MET · 基本鋼エネルギー · 基本鋼エネルギー · 30th CELEBRATION
+jp-M6a-PSY · PSY · 基本超エネルギー · 基本超エネルギー · 30th CELEBRATION
+jp-M6a-R · R · Mew · ミュウ · 30th CELEBRATION
+jp-M6a-WAT · WAT · 基本水エネルギー · 基本水エネルギー · 30th CELEBRATION
+jp-MF-DAR · DAR · 基本悪エネルギー · 基本悪エネルギー · 30th CELEBRATION プレミアムデッキセット エーフィ・ブラッキー
+jp-MF-FIR · FIR · 基本炎エネルギー · 基本炎エネルギー · 30th CELEBRATION プレミアムデッキセット エーフィ・ブラッキー
+jp-MF-GRA · GRA · 基本草エネルギー · 基本草エネルギー · 30th CELEBRATION プレミアムデッキセット エーフィ・ブラッキー
+jp-MF-LIG · LIG · 基本雷エネルギー · 基本雷エネルギー · 30th CELEBRATION プレミアムデッキセット エーフィ・ブラッキー
+jp-MF-PSY · PSY · 基本超エネルギー · 基本超エネルギー · 30th CELEBRATION プレミアムデッキセット エーフィ・ブラッキー
+
+Colecciones japonesas sin fuente pública (26):
+jp-PMCG1 · 拡張パック · 102 cartas · 1996-10-20
+jp-PMCG2 · ポケモンジャングル · 48 cartas · 1997-03-05
+jp-PMCG3 · 化石の秘密 · 48 cartas · 1997-06-21
+jp-PMCG4 · ロケット団 · 65 cartas · 1997-11-21
+jp-PMCG5 · リーダーズスタジアム · 96 cartas · 1998-10-24
+jp-PMCG6 · 闇からの挑戦 · 98 cartas · 1999-06-25
+jp-neo1 · 金、銀、新世界へ... · 96 cartas · 2000-02-04
+jp-neo2 · 遺跡をこえて... · 57 cartas · 2000-07-07
+jp-neo3 · めざめる伝説 · 57 cartas · 2000-11-23
+jp-neo4 · 闇、そして光へ... · 113 cartas · 2001-04-20
+jp-VS1 · ポケモンカード★VS · 145 cartas · 2001-07-19
+jp-web1 · ポケモンカード★web · 48 cartas · 2001-10-20
+jp-E1 · 基本拡張パック · 128 cartas · 2001-12-01
+jp-E2 · 地図にない町 · 92 cartas · 2002-03-08
+jp-E3 · 海からの風 · 90 cartas · 2002-05-24
+jp-E4 · 裂けた大地 · 91 cartas · 2002-08-23
+jp-E5 · 神秘なる山 · 91 cartas · 2002-10-04
+jp-PCG1 · 伝説の飛翔 · 82 cartas · 2004-04-09
+jp-PCG2 · 蒼空の激突 · 82 cartas · 2004-07-01
+jp-PCG3 · ロケット団の逆襲 · 85 cartas · 2004-10-15
+jp-PCG4 · 金の空、銀の海 · 106 cartas · 2005-04-08
+jp-PCG5 · まぼろしの森 · 86 cartas · 2005-06-30
+jp-PCG6 · ホロンの研究塔 · 86 cartas · 2005-10-28
+jp-PCG7 · ホロンの幻影 · 52 cartas · 2006-01-27
+jp-PCG8 · きせきの結晶 · 75 cartas · 2006-03-10
+jp-PCG9 · さいはての攻防 · 68 cartas · 2006-06-29
