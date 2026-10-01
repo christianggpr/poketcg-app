@@ -65,6 +65,9 @@ export type Album = {
   paginas: number;
   columnas: number;
   filas: number;
+  /** Mejoras 3 · A: color de la portada (#RRGGBB) y marca de agua (emblema | llamas | olas | hojas | rayos | estrellas | ninguna). Faltan si la base aún no tiene 0008. */
+  color?: string | null;
+  marca_agua?: string | null;
   creado_en: string;
   actualizado_en: string;
 };

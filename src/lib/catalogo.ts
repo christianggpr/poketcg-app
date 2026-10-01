@@ -250,6 +250,16 @@ export function urlSimbolo(s: Coleccion | undefined): string | null {
   if (!s || s.rg === 'ja') return null;
   return s.sym || `https://assets.tcgdex.net/en/${s.s}/${s.id}/symbol.webp`;
 }
+/**
+ * Mejoras 3 · A: logo oficial de la colección para la portada del álbum: TCGdex (set.logo) y, si no, pokemontcg.io
+ * (images.logo). Las colecciones japonesas no tienen logo en ninguna fuente pública (se muestra el nombre).
+ */
+export function urlsLogo(s: Coleccion | undefined): string[] {
+  if (!s || s.rg === 'ja') return [];
+  const u = [`https://assets.tcgdex.net/en/${s.s}/${s.id}/logo.webp`];
+  if (s.p) u.push(`https://images.pokemontcg.io/${s.p}/logo.png`);
+  return u;
+}
 
 // ---- orden -----------------------------------------------------------------------------------
 

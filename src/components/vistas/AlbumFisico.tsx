@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Carta, Coleccion } from '@/lib/catalogo';
 import { fold, nombreCarta, nombreColeccion } from '@/lib/catalogo';
-import type { Casilla, Entrada } from '@/lib/coleccion';
+import type { Album, Casilla, Entrada } from '@/lib/coleccion';
+import { marcaAgua } from '@/lib/portadas';
+import { EditorAlbumPropio } from '../EditorAlbumPropio';
 import { fmtPen } from '@/lib/precios-core';
 import { useCatalogo } from '../CatalogoProvider';
 import { useColeccion } from '../ColeccionProvider';
@@ -19,7 +21,6 @@ import { AddEntrySheet } from '../AddEntrySheet';
 import { Sheet, Confirmar } from '../Sheet';
 import { usePedirPrecios } from '../Precio';
 import { useToast } from '../Toast';
-import { Campo } from '../ui';
 
 /** Álbum físico: páginas de bolsillos; cada bolsillo tiene (o no) una carta asignada. */
 export function AlbumFisico({ id }: { id: string }) {
@@ -128,7 +129,7 @@ export function AlbumFisico({ id }: { id: string }) {
         <div><h2 style={{ margin: 0 }}>{album.nombre}</h2><div className="small muted">{album.paginas} páginas de {album.columnas} × {album.filas}{album.descripcion ? ` · ${album.descripcion}` : ''}</div></div>
         <div className="row" style={{ gap: 6 }}>
           <button className="btn sm" onClick={() => setRellenar(true)}>Rellenar con una colección</button>
-          <button className="btn sm" onClick={() => setEditar(true)}>Editar</button>
+          <button className="btn sm" onClick={() => setEditar(true)} data-testid="btn-editar-album">Editar</button>
           <button className="btn sm danger" onClick={() => setBorrar(true)}>Eliminar</button>
         </div>
       </div>
@@ -219,21 +220,12 @@ function RellenarSheet({ desde, onClose, onElegir }: { desde: number; onClose: (
   );
 }
 
-function EditorAlbum({ album, onClose }: { album: { id: string; nombre: string; descripcion: string; paginas: number; columnas: number; filas: number }; onClose: () => void }) {
+/** Mejoras 3 · A: editar un álbum personalizado con el mismo editor que al crearlo (portada, color, marca de agua, tamaño). */
+function EditorAlbum({ album, onClose }: { album: Album; onClose: () => void }) {
   const col = useColeccion();
   const toast = useToast();
-  const [nombre, setNombre] = useState(album.nombre); const [descripcion, setDescripcion] = useState(album.descripcion);
-  const [paginas, setPaginas] = useState(album.paginas); const [columnas, setColumnas] = useState(album.columnas); const [filas, setFilas] = useState(album.filas);
   return (
-    <Sheet titulo="Editar álbum" onClose={onClose} pie={<><button className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" onClick={async () => { const ok = await col.editarAlbum(album.id, { nombre: nombre.trim() || album.nombre, descripcion, paginas, columnas, filas }); if (ok) { toast('Álbum guardado', 'ok'); onClose(); } }}>Guardar</button></>}>
-      <Campo label="Nombre">{id => <input id={id} className="input" value={nombre} onChange={e => setNombre(e.target.value)} />}</Campo>
-      <Campo label="Descripción">{id => <input id={id} className="input" value={descripcion} onChange={e => setDescripcion(e.target.value)} />}</Campo>
-      <div className="row wrap">
-        <Campo label="Páginas">{id => <input id={id} className="input" type="number" min={1} max={300} value={paginas} onChange={e => setPaginas(Math.max(1, Math.min(300, parseInt(e.target.value, 10) || 1)))} />}</Campo>
-        <Campo label="Columnas">{id => <input id={id} className="input" type="number" min={1} max={6} value={columnas} onChange={e => setColumnas(Math.max(1, Math.min(6, parseInt(e.target.value, 10) || 1)))} />}</Campo>
-        <Campo label="Filas">{id => <input id={id} className="input" type="number" min={1} max={6} value={filas} onChange={e => setFilas(Math.max(1, Math.min(6, parseInt(e.target.value, 10) || 1)))} />}</Campo>
-      </div>
-      <p className="small muted">Si reduces el tamaño, los bolsillos que queden fuera conservan su asignación pero no se muestran.</p>
-    </Sheet>
+    <EditorAlbumPropio titulo="Editar álbum" okLabel="Guardar" inicial={{ nombre: album.nombre, descripcion: album.descripcion, paginas: album.paginas, columnas: album.columnas, filas: album.filas, color: album.color || undefined, marca_agua: marcaAgua(album.marca_agua) }} onClose={onClose}
+      onGuardar={async d => { const ok = await col.editarAlbum(album.id, d); if (ok) toast('Álbum guardado', 'ok'); return ok; }} />
   );
 }

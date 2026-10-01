@@ -25,7 +25,9 @@ import { useToast } from '../Toast';
 import { PorLlegar, Recibidas } from './PorLlegar';
 import { AvisosOrdenar, LlenarAlbumesSheet, OrdenarRepetidasSheet, useOrdenar } from './Repetidas';
 import { PonerEnVentaSheet } from './VentaAlbum';
-import { Campo, useEsPC } from '../ui';
+import { useEsPC } from '../ui';
+import { EditorAlbumPropio } from '../EditorAlbumPropio';
+import { PortadaColeccion, PortadaPropia } from '../Portadas';
 import { useCuadricula } from '../useCuadricula';
 
 /** Idioma de una entrada para agrupar álbumes: JP para colecciones japonesas, el registrado o "—". */
@@ -34,7 +36,7 @@ function idiomaAlbum(e: Entrada, set: Coleccion | undefined): string {
   return e.idioma || '—';
 }
 
-type AlbumAuto = { set: Coleccion; idioma: string; entradas: Entrada[]; distintas: number; total: number; portada: Carta | undefined };
+type AlbumAuto = { set: Coleccion; idioma: string; entradas: Entrada[]; distintas: number; total: number };
 
 function useAlbumesAuto(): AlbumAuto[] {
   const cat = useCatalogo();
@@ -49,24 +51,12 @@ function useAlbumesAuto(): AlbumAuto[] {
       const idioma = idiomaAlbum(e, set);
       const key = set.id + '|' + idioma;
       let a = m.get(key);
-      if (!a) { a = { set, idioma, entradas: [], distintas: 0, total: cat.cartasDe(set.id).filter(c => !c.sd).length, portada: undefined }; m.set(key, a); }
+      if (!a) { a = { set, idioma, entradas: [], distintas: 0, total: cat.cartasDe(set.id).filter(c => !c.sd).length }; m.set(key, a); }
       a.entradas.push(e);
     }
-    for (const a of m.values()) {
-      const ids = new Set(a.entradas.map(e => e.carta_id));
-      a.distintas = ids.size;
-      const propias = cat.cartasDe(a.set.id).filter(c => ids.has(c.id));
-      a.portada = propias.find(c => c.c === 'P' && (c.r || '').match(/rare|secret|illustration|ultra|hyper/i)) || propias[0];
-    }
+    for (const a of m.values()) a.distintas = new Set(a.entradas.map(e => e.carta_id)).size;
     return [...m.values()].sort((a, b) => (b.set.d || '').localeCompare(a.set.d || '') || a.idioma.localeCompare(b.idioma));
   }, [cat, col.entradas]);
-}
-
-const ENERGIAS_PORTADA = ['agua', 'fuego', 'planta', 'psiquico', 'electrico'];
-/** Color de energía para la portada de un álbum propio sin imagen (estable por id). */
-function energiaPortada(id: string): string {
-  let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return ENERGIAS_PORTADA[h % ENERGIAS_PORTADA.length];
 }
 
 export function Albumes() {
@@ -79,7 +69,6 @@ export function Albumes() {
   const albumes = useAlbumesAuto();
   const [nuevo, setNuevo] = useState(false);
   const [filtro, setFiltro] = useState<'todos' | 'coleccion' | 'propios'>('todos');
-  const [nombre, setNombre] = useState(''); const [paginas, setPaginas] = useState(10); const [columnas, setColumnas] = useState(3); const [filas, setFilas] = useState(3);
   const idioma = perfil.idioma_nombres;
   // precio de cada álbum: Σ precio por defecto × cantidad de sus cartas (los precios ya se piden para toda la colección)
   const precioDe = (entradas: Entrada[]) => { let t = 0; for (const e of entradas) { const c = cat.carta(e.carta_id); if (c && !c.sd) t += precios.precioDefecto(c, e.acabado).pen * e.cantidad; } return t; };
@@ -113,7 +102,7 @@ export function Albumes() {
           const pct = a.total ? Math.round((a.distintas / a.total) * 100) : 0;
           return (
             <Link key={a.set.id + a.idioma} href={`/app/album/${encodeURIComponent(a.set.id)}?idioma=${encodeURIComponent(a.idioma)}`} className="album-card" data-testid="album-coleccion">
-              <div className="album-cover"><Thumb carta={a.portada} set={a.set} className="lg" alt="" idioma={a.idioma} /></div>
+              <PortadaColeccion set={a.set} />
               <div className="album-body">
                 <div className="album-title"><span className="nombre">{nombreColeccion(a.set, idioma)}</span>{a.idioma === '—' ? <span className="pill" title="Cartas registradas sin idioma">sin idioma</span> : <span className={`pill ${a.idioma === 'JP' ? 'jp' : 'info'}`}>{a.idioma}</span>}</div>
                 <div className="bar" style={{ marginTop: 8 }} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}><div style={{ width: pct + '%' }} /></div>
@@ -124,7 +113,7 @@ export function Albumes() {
         }) : null}
         {verPropios ? propios.map(({ album: a, cartas, asignadas, capacidad, precio }) => (
           <Link key={a.id} href={`/app/album/p/${a.id}`} className="album-card" data-testid="album-propio">
-            <div className="album-cover portada-color" style={{ background: `var(--energia-${energiaPortada(a.id)})` }}><span className="nombre-portada">{a.nombre}</span></div>
+            <PortadaPropia nombre={a.nombre} color={a.color} marca={a.marca_agua} />
             <div className="album-body">
               <div className="album-title"><span className="nombre">{a.nombre}</span><span className="pill warn">Propio</span></div>
               <div className="bar" style={{ marginTop: 8 }} role="progressbar" aria-valuenow={capacidad ? Math.round((asignadas / capacidad) * 100) : 0} aria-valuemin={0} aria-valuemax={100}><div style={{ width: (capacidad ? Math.round((asignadas / capacidad) * 100) : 0) + '%' }} /></div>
@@ -134,16 +123,8 @@ export function Albumes() {
         )) : null}
       </div>
       {nuevo ? (
-        <Sheet titulo="Nuevo álbum" onClose={() => setNuevo(false)} pie={<><button className="btn" onClick={() => setNuevo(false)}>Cancelar</button><button className="btn primary" onClick={async () => { const a = await col.crearAlbum({ nombre, paginas, columnas, filas }); if (a) { toast('Álbum creado', 'ok'); setNuevo(false); router.push(`/app/album/p/${a.id}`); } }}>Crear</button></>}>
-          <p className="small muted">Un álbum propio es una carpeta con páginas de bolsillos (por ejemplo 3 × 3). Asigna a cada bolsillo la carta que va ahí para saber qué tienes y qué falta, página por página. Los álbumes por colección se crean solos.</p>
-          <Campo label="Nombre">{id => <input id={id} className="input" autoFocus value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Álbum 151, Carpeta azul…" />}</Campo>
-          <div className="row wrap">
-            <Campo label="Páginas">{id => <input id={id} className="input" type="number" min={1} max={300} value={paginas} onChange={e => setPaginas(Math.max(1, Math.min(300, parseInt(e.target.value, 10) || 1)))} />}</Campo>
-            <Campo label="Columnas por página">{id => <input id={id} className="input" type="number" min={1} max={6} value={columnas} onChange={e => setColumnas(Math.max(1, Math.min(6, parseInt(e.target.value, 10) || 1)))} />}</Campo>
-            <Campo label="Filas por página">{id => <input id={id} className="input" type="number" min={1} max={6} value={filas} onChange={e => setFilas(Math.max(1, Math.min(6, parseInt(e.target.value, 10) || 1)))} />}</Campo>
-          </div>
-          <p className="small muted">Ej.: una carpeta de 3 × 3 con 20 páginas tiene {3 * 3 * 20} bolsillos. Podrás cambiarlo después.</p>
-        </Sheet>
+        <EditorAlbumPropio titulo="Nuevo álbum personalizado" okLabel="Crear álbum" onClose={() => setNuevo(false)}
+          onGuardar={async d => { const a = await col.crearAlbum(d); if (a) { toast('Álbum creado', 'ok'); router.push(`/app/album/p/${a.id}`); } return !!a; }} />
       ) : null}
     </div>
   );

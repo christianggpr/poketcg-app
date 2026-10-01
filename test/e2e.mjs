@@ -1536,12 +1536,55 @@ try {
   await foto(page, 'album-151');
   log('álbum 151:', total, 'cartas en 23 páginas,', faltan, 'faltan; filtros Tengo/Faltan y precio para completarlo');
 
-  // ---------- álbum físico
+  // ---------- álbum físico (Mejoras 3 · A: portada con color y marca de agua elegidos, vista previa en vivo)
   await page.goto(APP + '/app/album');
+  // las portadas de los álbumes de colección intentan el logo oficial y, si no carga (aquí no hay internet), muestran símbolo + nombre
+  await page.waitForSelector('[data-testid=album-coleccion] [data-testid=portada-coleccion]');
+  await page.waitForSelector('[data-testid=album-coleccion] [data-testid=logo-texto]', { timeout: 20000 });
+  const portadasCol = await page.$$eval('[data-testid=album-coleccion] [data-testid=portada-coleccion]', els => els.map(e => e.style.background || getComputedStyle(e).backgroundColor));
+  if (!portadasCol.length || portadasCol.some(b => !b)) throw new Error('las portadas de colección debían tener un color suave: ' + JSON.stringify(portadasCol));
+  if (await page.$('[data-testid=album-coleccion] .album-cover .thumb')) throw new Error('la portada ya no debía ser una carta recortada');
   await page.click('[data-testid=btn-nuevo-album]');
+  await page.waitForSelector('.sheet [data-testid=portada-propia]');
   await page.fill('.sheet input.input >> nth=0', 'Carpeta azul');
   await page.fill('.sheet input[type=number] >> nth=0', '2');
+  const coloresNuevo = await page.$$eval('.sheet [data-testid=colores-portada] button', els => els.map(e => e.getAttribute('aria-label').replace('Color ', '')));
+  if (coloresNuevo.join(' ') !== '#E2571E #1F5FCC #1E8A57 #7C4DDB #C99A00 #D23B30 #1C2340 #0E7C86') throw new Error('colores de portada inesperados: ' + coloresNuevo.join(' '));
+  const marcasNuevo = await page.$$eval('.sheet [data-testid=marcas-agua] button', els => els.map(e => e.textContent.trim()));
+  if (marcasNuevo.join(' · ') !== 'Emblema PokéTCG · Llamas · Olas · Hojas · Rayos · Estrellas · Ninguna') throw new Error('marcas de agua inesperadas: ' + marcasNuevo.join(' · '));
+  await page.click('.sheet [data-testid=color-1e8a57]');
+  await page.click('.sheet [data-testid=marca-estrellas]');
+  await page.waitForSelector('.sheet [data-testid=portada-propia][data-color="#1E8A57"][data-marca="estrellas"] .marca-patron');
+  if ((await page.textContent('.sheet [data-testid=portada-propia]')) !== 'Carpeta azulVista previa de la portada') throw new Error('la vista previa no muestra el nombre');
+  await foto(page, 'nuevo-album');
   await page.click('.sheet-foot >> text=Crear');
+  await page.waitForURL(/\/app\/album\/p\//, { timeout: 20000 });
+  if (sql("select color || '|' || marca_agua from public.albumes where nombre = 'Carpeta azul'") !== '#1E8A57|estrellas') throw new Error('el álbum no guardó color y marca de agua');
+  // editar: cambiar a dorado (color claro → texto oscuro) y emblema; la tarjeta del álbum lo refleja
+  await page.click('[data-testid=btn-editar-album]');
+  await page.waitForSelector('.sheet [data-testid=portada-propia][data-color="#1E8A57"]');
+  await page.click('.sheet [data-testid=color-c99a00]');
+  await page.click('.sheet [data-testid=marca-emblema]');
+  await page.waitForSelector('.sheet [data-testid=portada-propia][data-color="#C99A00"][data-marca="emblema"] .marca-emblema');
+  const colorTexto = await page.$eval('.sheet [data-testid=portada-propia] .nombre-portada', e => getComputedStyle(e).color);
+  if (colorTexto !== 'rgb(28, 35, 64)') throw new Error('sobre dorado el texto debía ser oscuro: ' + colorTexto);
+  await page.click('[data-testid=btn-guardar-album]');
+  await page.waitForSelector('.sheet', { state: 'detached' });
+  await page.goto(APP + '/app/album');
+  await page.waitForSelector('[data-testid=album-propio] [data-testid=portada-propia][data-color="#C99A00"][data-marca="emblema"]');
+  // si la base aún no tiene las columnas (0008 sin pegar), crear un álbum sigue funcionando y queda con el color por defecto al reponerlas
+  sql('alter table public.albumes drop column if exists color; alter table public.albumes drop column if exists marca_agua;');
+  await page.click('[data-testid=btn-nuevo-album]');
+  await page.fill('.sheet input.input >> nth=0', 'Sin columnas');
+  await page.click('.sheet [data-testid=color-7c4ddb]');
+  await page.click('.sheet-foot >> text=Crear');
+  await page.waitForURL(/\/app\/album\/p\//, { timeout: 20000 });
+  execSync('su postgres -c "psql -q -d poketcg_test -f supabase/migrations/0008_mejoras3.sql"');
+  if (sql("select color || '|' || marca_agua from public.albumes where nombre = 'Sin columnas'") !== '#1F5FCC|emblema') throw new Error('el álbum creado sin columnas debía quedar con los valores por defecto');
+  sql("delete from public.albumes where nombre = 'Sin columnas'");
+  log('portadas: colección con color suave y logo (respaldo símbolo + nombre); álbum propio con color #1E8A57 + estrellas → editado a dorado con texto oscuro + emblema; sin columnas 0008 también se crea');
+  await page.goto(APP + '/app/album');
+  await page.click('[data-testid=album-propio]');
   await page.waitForURL(/\/app\/album\/p\//, { timeout: 20000 });
   await page.waitForSelector('.pocket');
   await page.click('.pocket >> nth=0');

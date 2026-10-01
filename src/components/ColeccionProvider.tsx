@@ -33,8 +33,8 @@ type Ctx = {
   editarEntrada: (id: string, datos: Partial<Pick<Entrada, 'cantidad' | 'acabado' | 'idioma' | 'condicion' | 'nota' | 'caja_id' | 'posicion' | 'album_coleccion'>>) => Promise<boolean>;
   editarVarias: (ids: string[], datos: Partial<Pick<Entrada, 'idioma' | 'acabado' | 'condicion' | 'caja_id'>>) => Promise<number>;
   eliminarEntrada: (id: string) => Promise<boolean>;
-  crearAlbum: (d: { nombre: string; descripcion?: string; paginas: number; columnas: number; filas: number }) => Promise<Album | null>;
-  editarAlbum: (id: string, d: Partial<Pick<Album, 'nombre' | 'descripcion' | 'paginas' | 'columnas' | 'filas'>>) => Promise<boolean>;
+  crearAlbum: (d: { nombre: string; descripcion?: string; paginas: number; columnas: number; filas: number; color?: string; marca_agua?: string }) => Promise<Album | null>;
+  editarAlbum: (id: string, d: Partial<Pick<Album, 'nombre' | 'descripcion' | 'paginas' | 'columnas' | 'filas' | 'color' | 'marca_agua'>>) => Promise<boolean>;
   eliminarAlbum: (id: string) => Promise<boolean>;
   casillasDe: (albumId: string) => Promise<Casilla[]>;
   guardarCasilla: (albumId: string, indice: number, carta_id: string | null, entrada_id?: string | null) => Promise<boolean>;
@@ -240,15 +240,22 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
       return true;
     },
     async crearAlbum(d) {
-      const { data, error } = await supabaseBrowser().from('albumes').insert({ nombre: d.nombre.trim() || 'Álbum', descripcion: d.descripcion || '', paginas: d.paginas, columnas: d.columnas, filas: d.filas }).select('*').single();
-      if (error) { setError(error.message); return null; }
-      setAlbumes(x => upsert(x, data as Album));
-      return data as Album;
+      // Mejoras 3 · A: color y marca de agua de la portada; si la base aún no tiene esas columnas (0008 sin pegar), se crea sin ellas
+      const base = { nombre: d.nombre.trim() || 'Álbum', descripcion: d.descripcion || '', paginas: d.paginas, columnas: d.columnas, filas: d.filas };
+      const extra = sinPortada(d);
+      let r = await supabaseBrowser().from('albumes').insert({ ...base, ...extra }).select('*').single();
+      if (r.error && Object.keys(extra).length && columnaFalta(r.error)) r = await supabaseBrowser().from('albumes').insert(base).select('*').single();
+      if (r.error) { setError(r.error.message); return null; }
+      setAlbumes(x => upsert(x, r.data as Album));
+      return r.data as Album;
     },
     async editarAlbum(id, d) {
-      const { data, error } = await supabaseBrowser().from('albumes').update(d).eq('id', id).select('*').single();
-      if (error) { setError(error.message); return false; }
-      setAlbumes(x => upsert(x, data as Album));
+      const { color, marca_agua, ...resto } = d;
+      const extra = sinPortada({ color, marca_agua });
+      let r = await supabaseBrowser().from('albumes').update({ ...resto, ...extra }).eq('id', id).select('*').single();
+      if (r.error && Object.keys(extra).length && columnaFalta(r.error)) r = await supabaseBrowser().from('albumes').update(resto).eq('id', id).select('*').single();
+      if (r.error) { setError(r.error.message); return false; }
+      setAlbumes(x => upsert(x, r.data as Album));
       return true;
     },
     async eliminarAlbum(id) {
@@ -364,6 +371,16 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
 
   return <ColeccionCtx.Provider value={api}>{children}</ColeccionCtx.Provider>;
 }
+
+/** Mejoras 3 · A: columnas de la portada (solo las que vienen). */
+function sinPortada(d: { color?: string | null; marca_agua?: string | null }): { color?: string; marca_agua?: string } {
+  const o: { color?: string; marca_agua?: string } = {};
+  if (d.color) o.color = d.color;
+  if (d.marca_agua) o.marca_agua = d.marca_agua;
+  return o;
+}
+/** La base aún no tiene esa columna (0008 sin pegar): PostgREST PGRST204 o Postgres 42703. */
+const columnaFalta = (e: { code?: string; message?: string }) => e.code === 'PGRST204' || e.code === '42703' || /column|columna/i.test(e.message || '');
 
 function upsert<T extends { id: string }>(lista: T[], fila: T): T[] {
   const i = lista.findIndex(x => x.id === fila.id);

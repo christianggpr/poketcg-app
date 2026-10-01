@@ -474,6 +474,27 @@ textarea.input { min-height: 72px; resize: vertical; }
 .album-cover { width: 100%; aspect-ratio: 2 / 1; border-radius: 12px; overflow: hidden; background: var(--suave-2); display: flex; align-items: center; justify-content: center; }
 .album-cover .thumb { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; border-radius: 0; }   /* Ajustes de layout · 3: se ve la ilustración, no los ataques */
 .album-cover.portada-color { background: var(--energia-agua); align-items: flex-end; }
+/* Mejoras 3 · A: portadas. Álbum de colección: logo oficial centrado sobre un color suave; álbum personalizado: color
+   elegido, marca de agua (emblema PokéTCG o patrón) y el nombre con contraste asegurado (sombreado al pie). */
+.album-cover.portada-coleccion { position: relative; padding: 10px; }
+.album-cover.portada-coleccion .caja-logo { display: flex; align-items: center; justify-content: center; max-width: 92%; max-height: 80%; padding: 6px 12px; border-radius: 10px; background: rgba(255, 255, 255, .88); box-shadow: 0 1px 4px rgba(28, 35, 64, .12); }
+.album-cover.portada-coleccion .logo-coleccion { display: block; max-width: 100%; max-height: 56px; width: auto; height: auto; object-fit: contain; }
+.album-cover.portada-coleccion .logo-texto { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; font-family: var(--fuente-titulos); font-weight: 700; font-size: 13px; line-height: 1.15; color: var(--carpeta); }
+.album-cover.portada-coleccion .logo-texto .setsym { width: 22px; height: 22px; }
+.album-cover.portada-coleccion .logo-texto .nombre-logo { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.album-cover.portada-propia { position: relative; align-items: flex-end; justify-content: flex-start; }
+.album-cover.portada-propia .marca-emblema { position: absolute; right: -18px; bottom: -18px; opacity: .32; }
+.album-cover.portada-propia.grande .marca-emblema { right: -28px; bottom: -28px; }
+.album-cover.portada-propia .marca-patron { position: absolute; inset: 0; opacity: .28; }
+.album-cover.portada-propia .nombre-portada { position: relative; z-index: 1; color: inherit; text-shadow: none; font-family: var(--fuente-titulos); font-weight: 700; font-size: 16px; padding: 10px; display: flex; flex-direction: column; gap: 2px; }
+.album-cover.portada-propia.sombreada::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 60%; z-index: 0; background: linear-gradient(to bottom, rgba(28, 35, 64, 0), rgba(28, 35, 64, .5)); pointer-events: none; }
+.album-cover.portada-propia .sub-portada { font-family: var(--fuente-texto); font-weight: 700; font-size: 14px; }
+.album-cover.portada-propia.grande { aspect-ratio: auto; height: 150px; border-radius: 18px; box-shadow: 0 4px 14px rgba(28, 35, 64, .18); margin-bottom: 4px; }
+.album-cover.portada-propia.grande .nombre-portada { font-size: 24px; padding: 16px; }
+.colores-portada { display: flex; gap: 10px; flex-wrap: wrap; }
+.color-portada { width: 44px; height: 44px; border-radius: 50%; border: 3px solid transparent; box-shadow: var(--sombra); cursor: pointer; display: grid; place-items: center; color: #fff; padding: 0; }
+.color-portada.active { border-color: var(--texto); box-shadow: 0 0 0 2px var(--tarjeta), var(--sombra); }
+.marcas-agua button { font-size: 14px; }
 .album-body { flex: 1; min-width: 0; }
 .album-title { font-weight: 800; font-size: 15px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .album-foot-card { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--texto-2); margin-top: 6px; }
