@@ -445,7 +445,7 @@ textarea.input { min-height: 64px; resize: vertical; }
 
 /* ---------- Filtros (orden, tipo, idioma) ---------- */
 .filterbar { margin: 4px 0 10px; }
-.filterbar .input.sm { width: auto; min-height: 34px; padding: 5px 10px; font-size: 13px; }
+.filterbar .input.sm { width: auto; min-height: 44px; padding: 8px 12px; font-size: 14px; }
 .typechips .chipbtn { padding: 5px 9px; font-size: 13px; }
 
 /* =====================================================================
@@ -637,7 +637,7 @@ details.faq .faq-resp { padding: 0 12px 12px; font-size: 14px; color: var(--fg);
 .subtabs a.active { background: var(--primary); color: var(--primary-fg); border-color: transparent; }
 .menu-perfil { position: relative; }
 .menu-perfil .avatar {
-  width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: var(--primary-soft); color: var(--primary);
+  width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: var(--primary-soft); color: var(--primary);
   font-weight: 800; display: grid; place-items: center; padding: 0;
 }
 .menu-perfil .avatar.active { outline: 2px solid var(--primary); }
@@ -670,3 +670,56 @@ details.faq .faq-resp { padding: 0 12px 12px; font-size: 14px; color: var(--fg);
 .carrusel .tarjeta:hover, .carrusel .tarjeta:focus-visible { border-color: var(--primary); }
 .carrusel .tarjeta .nombre { font-weight: 700; font-size: 13px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; }
 .carrusel .tarjeta .precio { font-weight: 800; color: var(--ok); font-size: 14px; }
+
+/* Mejoras 1 · E: botones y elementos tocables más grandes (≥ 44 px), letra algo mayor y más aire entre botones */
+.btn { min-height: 44px; font-size: 15px; padding: 10px 16px; gap: 8px; }
+.btn.sm { min-height: 44px; font-size: 14px; padding: 8px 14px; }
+.btn.icon { min-width: 44px; min-height: 44px; }
+.input, select.input, textarea.input { min-height: 44px; font-size: 15px; }
+.input.sm { min-height: 44px; font-size: 14px; }
+#main { overflow-x: hidden; }
+.chipbtn { min-height: 44px; padding: 9px 16px; font-size: 14px; }
+.chips { gap: 10px; }
+.seg { min-height: 46px; }
+.seg button { min-height: 44px; padding: 9px 14px; font-size: 14px; }
+.stepper button { width: 44px; height: 44px; font-size: 20px; }
+.stepper input { min-height: 44px; }
+.switch { width: 52px; height: 30px; }
+.switch::after { width: 24px; height: 24px; }
+.switch.on::after { transform: translateX(22px); }
+.check { min-height: 44px; align-items: center; font-size: 15px; }
+.check input { width: 22px; height: 22px; margin-top: 0; }
+.check input[type=radio] { width: 22px; height: 22px; }
+.row { gap: 12px; }
+.sheet-foot { gap: 12px; margin-top: 18px; }
+.sheet-foot .btn { min-height: 48px; }
+.btn-group { gap: 12px; }
+.topbar .chip { min-height: 36px; display: inline-flex; align-items: center; font-size: 12.5px; padding: 6px 11px; }
+.tabs a { min-height: 44px; font-size: 15px; }
+.subtabs a { min-height: 44px; font-size: 14px; padding: 10px 16px; }
+.pocket { min-height: 44px; }
+.link { min-height: 32px; display: inline; }
+.binder-toolbar .btn, .binder-toolbar .input { min-height: 44px; }
+@media (max-width: 859px) {
+  /* celular: todo lo tocable a 48 px, chips de filtro y botones de hojas con más espacio */
+  .btn { min-height: 48px; font-size: 16px; }
+  .btn.sm { min-height: 44px; font-size: 15px; }
+  .input, select.input, textarea.input { min-height: 48px; font-size: 16px; }   /* 16 px evita el zoom automático de iOS */
+  .chipbtn, .seg button, .subtabs a { min-height: 46px; font-size: 15px; }
+  .stepper button { width: 48px; height: 48px; }
+  .stepper input { min-height: 48px; width: 56px; }
+  .sheet-foot .btn { min-height: 50px; flex: 1 1 auto; }
+  :root { --tab-h: 66px; }
+  .tabbar a { font-size: 13px; padding: 8px 4px 6px; }
+  .tabbar a .ico { font-size: 24px; }
+  .card-row { gap: 12px; }
+  .card-side .btn { min-height: 44px; }
+  .menu-perfil .avatar { width: 44px; height: 44px; font-size: 16px; }
+  .topbar .chip { min-height: 40px; }
+}
+@media (max-width: 400px) {
+  /* pantallas angostas (360 px): los botones ceden ancho antes de romper la línea */
+  .btn { padding-left: 12px; padding-right: 12px; }
+  .chipbtn, .subtabs a { padding-left: 12px; padding-right: 12px; }
+  .cta .btn { width: 100%; }
+}

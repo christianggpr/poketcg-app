@@ -1153,8 +1153,11 @@ try {
       for (let i = 0; i < 6; i++) await pg.mouse.wheel(0, 1500).catch(() => {});
       await pg.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
       await pg.waitForTimeout(300);
-      const e = await pg.evaluate(() => ({ y: Math.round(scrollY), h: document.documentElement.scrollHeight, inner: innerHeight, overflow: document.body.style.overflow, llego: Math.ceil(scrollY + innerHeight) >= document.documentElement.scrollHeight - 2, hojas: document.querySelectorAll('.sheet-backdrop').length }));
-      if (!e.llego || e.overflow || e.hojas) problemas.push(`${ruta}: ${JSON.stringify(e)}`);
+      const e = await pg.evaluate(() => ({ y: Math.round(scrollY), h: document.documentElement.scrollHeight, inner: innerHeight, overflow: document.body.style.overflow, llego: Math.ceil(scrollY + innerHeight) >= document.documentElement.scrollHeight - 2, hojas: document.querySelectorAll('.sheet-backdrop').length, anchoExtra: document.documentElement.scrollWidth - innerWidth }));
+      if (!e.llego || e.overflow || e.hojas || e.anchoExtra > 2) problemas.push(`${ruta}: ${JSON.stringify(e)}`);
+      // Mejoras 1 · E: todo lo tocable mide al menos 44 px de alto (botones, chips, pestañas, campos, pasos +/−)
+      const bajos = await pg.evaluate(() => [...document.querySelectorAll('.btn, .chipbtn, .subtabs a, .tabbar a, .tabs a, .input, .seg button, .stepper button, .menu-perfil .avatar')].filter(el => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && r.height < 44; }).slice(0, 5).map(el => `${el.className.split(' ').slice(0, 2).join('.')}:${Math.round(el.getBoundingClientRect().height)}px "${(el.textContent || '').trim().slice(0, 20)}"`));
+      if (bajos.length) problemas.push(`${ruta}: elementos tocables de menos de 44 px: ${bajos.join(', ')}`);
     }
     // abre una hoja en Buscar ("+ otra copia"), la cierra con Escape y comprueba que se puede seguir bajando
     await pg.goto(APP + '/app/buscar');
@@ -1183,8 +1186,18 @@ try {
   await entrar(pageCel, 'chris_tcg', 'clave12345');
   await comprobarScroll(pageCel, 'celular 390×844 táctil');
   await foto(pageCel, 'scroll-celular');
+  await pageCel.setViewportSize({ width: 360, height: 780 });
+  await comprobarScroll(pageCel, 'celular angosto 360×780');
+  // una hoja (guardar carta) a 360 px: botones del pie de ≥ 48 px y sin desbordes
+  await pageCel.goto(APP + '/app/buscar');
+  await pageCel.waitForSelector('text=+ otra copia');
+  await pageCel.click('text=+ otra copia >> nth=0');
+  await pageCel.waitForSelector('.sheet-foot .btn');
+  const pie = await pageCel.$$eval('.sheet-foot .btn', els => els.map(el => Math.round(el.getBoundingClientRect().height)));
+  if (pie.some(h => h < 48) || (await pageCel.evaluate(() => document.querySelector('.sheet').scrollWidth > document.querySelector('.sheet').clientWidth + 1))) throw new Error('la hoja a 360 px tiene botones chicos o desborde: ' + JSON.stringify(pie));
+  await foto(pageCel, 'hoja-360');
   await ctxCel.close();
-  log('desplazamiento: se llega al final de ' + PAGINAS_SCROLL.length + ' páginas en PC (1280×800) y celular (390×844), también después de abrir y cerrar una hoja');
+  log('desplazamiento: se llega al final de ' + PAGINAS_SCROLL.length + ' páginas en PC (1280×800) y celular (390×844 y 360×780), sin desbordes, con todo lo tocable ≥ 44 px, también después de abrir y cerrar una hoja');
 
   // ---------- app Android (APK): la portada ofrece la descarga cuando existe public/descargas/android.json (test/reiniciar.sh deja uno de prueba)
   const ctxP = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE' });
