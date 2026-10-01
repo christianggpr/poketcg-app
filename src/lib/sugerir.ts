@@ -1,9 +1,10 @@
-// Mejoras 1 · C3: sugerencia de dónde guardar una carta mirando cómo colecciona el usuario.
-//   1. álbum por colección de esa misma colección y en ese idioma → casilla de su número
-//   2. álbum personalizado cuyas cartas son mayormente del mismo Pokémon (o del mismo ilustrador, rareza o tipo)
-//   3. álbum por colección de la misma colección en otro idioma (se avisa)
-//   4. Bulk: el que ya guarda cartas de esa colección (o el último usado), con la posición que le tocaría
-// Es solo una sugerencia: el usuario decide. Funciones puras (se prueban en test/logica.test.ts).
+// Mejoras 1 · C3 y Mejoras 2 · B: sugerencia de dónde guardar una carta. El álbum es lo principal:
+//   1. álbum por colección de esa colección y en ese idioma:
+//      · casilla vacía → va a esa casilla (si el usuario aún no tiene el álbum, se crea con esta carta: un toque)
+//      · casilla ocupada (repetida) → "Mandar a Bulk" (el que ya guarda esa colección, con su posición) o "Crear un Bulk"
+//   2. alternativas: álbum personalizado con un patrón que la carta cumple, álbum de la misma colección en otro
+//      idioma (se avisa), Bulk.
+// Es solo una sugerencia: el usuario decide. Funciones puras (se prueban en test/sugerir.test.ts).
 import type { Album, Caja, Casilla, Entrada } from './coleccion';
 import { cajasOrdenadas, claveOrdenEntrada, ts } from './coleccion';
 import { cmpKeys } from './catalogo';
@@ -11,10 +12,12 @@ import type { Carta, Catalogo, IdiomaNombres } from './catalogo';
 import { nombreCarta, nombreColeccion } from './catalogo';
 
 export type Sugerencia =
-  | { tipo: 'coleccion'; set: string; idioma: string; motivo: string; aviso?: string; etiqueta: string }
+  | { tipo: 'coleccion'; set: string; idioma: string; motivo: string; aviso?: string; etiqueta: string; crear?: boolean; alternativas?: Alternativa[] }
   | { tipo: 'album'; album: Album; indice: number; motivo: string; etiqueta: string }
-  | { tipo: 'bulk'; caja: Caja; posicion: number; total: number; motivo: string; etiqueta: string }
+  | { tipo: 'bulk'; caja: Caja; posicion: number; total: number; motivo: string; etiqueta: string; repetida?: boolean; alternativas?: Alternativa[] }
+  | { tipo: 'crear-bulk'; motivo: string; etiqueta: string; repetida: true; alternativas?: Alternativa[] }
   | null;
+export type Alternativa = NonNullable<Sugerencia>;
 
 export type ContextoSugerencia = {
   cat: Catalogo;
@@ -102,23 +105,17 @@ export function posicionVirtual(cat: Catalogo, caja: Caja, entradas: Entrada[], 
   return { posicion: lista.findIndex(x => x.e.id === nueva.id) + 1, total: lista.length };
 }
 
-/** Sugiere dónde guardar `carta` (con el idioma dado) según los álbumes, bolsillos y Bulks del usuario. */
-export function sugerirDestino(ctx: ContextoSugerencia, carta: Carta, idioma: string, excluirEntradaId?: string | null): Sugerencia {
+const IDIOMA_TXT: Record<string, string> = { ES: 'español', EN: 'inglés', JP: 'japonés', PT: 'portugués', FR: 'francés', DE: 'alemán', IT: 'italiano' };
+const idiomaTxt = (i: string): string => IDIOMA_TXT[i] || i;
+
+/** ¿Hay ya una copia de `carta` en la casilla del álbum por colección (colección + idioma)? */
+export function casillaOcupada(cat: Catalogo, entradas: Entrada[], carta: Carta, idioma: string, excluirEntradaId?: string | null): Entrada[] {
+  return entradas.filter(e => e.id !== excluirEntradaId && e.carta_id === carta.id && e.album_coleccion === carta.s && idiomaEfectivo(cat, e) === idioma);
+}
+
+/** Álbum personalizado con un patrón claro que la carta cumple (bolsillo libre), si lo hay. */
+function sugerirAlbumPatron(ctx: ContextoSugerencia, carta: Carta): Extract<Sugerencia, { tipo: 'album' }> | null {
   const { cat, albumes, casillas } = ctx;
-  const entradas = entradasConLugar(ctx, excluirEntradaId);
-  const set = cat.setOf(carta);
-  const nombreSet = nombreColeccion(set, ctx.idiomaNombres, true);
-  const idiomaCarta = idioma || (set?.rg === 'ja' ? 'JP' : 'EN');
-  const porColeccion = albumesPorColeccion(cat, entradas);
-  const idiomaTxt: Record<string, string> = { ES: 'español', EN: 'inglés', JP: 'japonés', PT: 'portugués', FR: 'francés', DE: 'alemán', IT: 'italiano' };
-
-  // 1. álbum de la misma colección y en ese idioma
-  const mismo = porColeccion.get(`${carta.s}|${idiomaCarta}`);
-  if (mismo) {
-    return { tipo: 'coleccion', set: carta.s, idioma: idiomaCarta, etiqueta: `Álbum ${nombreSet} ${idiomaCarta}`, motivo: `Porque coleccionas ${nombreSet} en ${idiomaTxt[idiomaCarta] || idiomaCarta} (${mismo.cartas} ${mismo.cartas === 1 ? 'carta' : 'cartas'}${mismo.enAlbum ? `, ${mismo.enAlbum} en el álbum` : ''}): va en la casilla ${carta.l}.` };
-  }
-
-  // 2. álbum personalizado con un patrón claro que la carta cumple
   const porAlbum = new Map<string, Casilla[]>();
   for (const c of casillas) porAlbum.set(c.album_id, [...(porAlbum.get(c.album_id) || []), c]);
   let mejor: { album: Album; indice: number; patron: Patron } | null = null;
@@ -134,20 +131,48 @@ export function sugerirDestino(ctx: ContextoSugerencia, carta: Carta, idioma: st
     if (indice < 0) continue;
     if (!mejor || patron.cuantas > mejor.patron.cuantas) mejor = { album, indice, patron };
   }
-  if (mejor) {
-    const p = mejor.patron;
-    const porQue = p.clase === 'pokemon' ? `tiene ${p.cuantas} cartas de ${nombreEspecies(cat, p.valor, ctx.idiomaNombres)}` : p.clase === 'ilustrador' ? `tiene ${p.cuantas} cartas ilustradas por ${p.valor}` : p.clase === 'rareza' ? `casi todas sus cartas son ${p.valor}` : `casi todas sus cartas son de tipo ${p.valor}`;
-    return { tipo: 'album', album: mejor.album, indice: mejor.indice, etiqueta: `Álbum «${mejor.album.nombre}»`, motivo: `Porque tu álbum «${mejor.album.nombre}» ${porQue}: va en el bolsillo ${mejor.indice + 1}.` };
+  if (!mejor) return null;
+  const p = mejor.patron;
+  const porQue = p.clase === 'pokemon' ? `tiene ${p.cuantas} cartas de ${nombreEspecies(cat, p.valor, ctx.idiomaNombres)}` : p.clase === 'ilustrador' ? `tiene ${p.cuantas} cartas ilustradas por ${p.valor}` : p.clase === 'rareza' ? `casi todas sus cartas son ${p.valor}` : `casi todas sus cartas son de tipo ${p.valor}`;
+  return { tipo: 'album', album: mejor.album, indice: mejor.indice, etiqueta: `Álbum «${mejor.album.nombre}»`, motivo: `Porque tu álbum «${mejor.album.nombre}» ${porQue}: va en el bolsillo ${mejor.indice + 1}.` };
+}
+
+/**
+ * Sugiere dónde guardar `carta` (con el idioma dado): la casilla de su álbum por colección si está vacía (creando el
+ * álbum si hace falta), o el Bulk si la casilla ya está ocupada (repetida). Trae alternativas (álbum personalizado,
+ * mismo álbum en otro idioma, Bulk) para que el usuario elija.
+ */
+export function sugerirDestino(ctx: ContextoSugerencia, carta: Carta, idioma: string, excluirEntradaId?: string | null): Sugerencia {
+  const { cat } = ctx;
+  const entradas = entradasConLugar(ctx, excluirEntradaId);
+  const set = cat.setOf(carta);
+  const nombreSet = nombreColeccion(set, ctx.idiomaNombres, true);
+  const idiomaCarta = idioma || (set?.rg === 'ja' ? 'JP' : 'EN');
+  const porColeccion = albumesPorColeccion(cat, entradas);
+  const bulk = sugerirBulk(ctx, carta, idioma, excluirEntradaId);
+  const patron = sugerirAlbumPatron(ctx, carta);
+  const ocupada = casillaOcupada(cat, ctx.entradas, carta, idiomaCarta, excluirEntradaId);
+
+  // 1a. casilla ocupada → repetida: va al Bulk (o hay que crear uno)
+  if (ocupada.length) {
+    const copias = ocupada.reduce((n, e) => n + e.cantidad, 0);
+    const porQue = `Ya tienes ${copias === 1 ? 'esta carta' : `${copias} copias de esta carta`} en la casilla ${carta.l} del álbum ${nombreSet} ${idiomaCarta}: una casilla guarda 1 copia y las repetidas van al Bulk.`;
+    if (bulk) return { ...bulk, repetida: true, etiqueta: `Mandar a ${bulk.caja.nombre}`, motivo: `${porQue} Iría en la posición #${bulk.posicion} de ${bulk.total}.`, alternativas: patron ? [patron] : [] };
+    return { tipo: 'crear-bulk', repetida: true, etiqueta: 'Crear un Bulk', motivo: `${porQue} Todavía no tienes ningún Bulk.`, alternativas: patron ? [patron] : [] };
   }
 
-  // 3. la misma colección en otro idioma
-  const otro = [...porColeccion.values()].filter(v => v.set === carta.s).sort((a, b) => b.cartas - a.cartas)[0];
-  if (otro) {
-    return { tipo: 'coleccion', set: carta.s, idioma: otro.idioma, etiqueta: `Álbum ${nombreSet} ${otro.idioma}`, aviso: `Ese álbum está en ${idiomaTxt[otro.idioma] || otro.idioma} y esta carta es en ${idiomaTxt[idiomaCarta] || idiomaCarta}.`, motivo: `Porque coleccionas ${nombreSet} en ${idiomaTxt[otro.idioma] || otro.idioma} (${otro.cartas} ${otro.cartas === 1 ? 'carta' : 'cartas'}), aunque el idioma no coincide.` };
+  // 1b. casilla vacía: álbum que ya tienes, o se crea con esta carta
+  const mismo = porColeccion.get(`${carta.s}|${idiomaCarta}`);
+  const otro = [...porColeccion.values()].filter(v => v.set === carta.s && v.idioma !== idiomaCarta).sort((a, b) => b.cartas - a.cartas)[0];
+  const alternativas: Alternativa[] = [];
+  if (patron) alternativas.push(patron);
+  if (otro) alternativas.push({ tipo: 'coleccion', set: carta.s, idioma: otro.idioma, etiqueta: `Álbum ${nombreSet} ${otro.idioma}`, aviso: `Ese álbum está en ${idiomaTxt(otro.idioma)} y esta carta es en ${idiomaTxt(idiomaCarta)}.`, motivo: `Porque coleccionas ${nombreSet} en ${idiomaTxt(otro.idioma)} (${otro.cartas} ${otro.cartas === 1 ? 'carta' : 'cartas'}), aunque el idioma no coincide.` });
+  if (bulk) alternativas.push(bulk);
+  if (mismo) {
+    return { tipo: 'coleccion', set: carta.s, idioma: idiomaCarta, etiqueta: `Álbum ${nombreSet} ${idiomaCarta}`, motivo: `Porque coleccionas ${nombreSet} en ${idiomaTxt(idiomaCarta)} (${mismo.cartas} ${mismo.cartas === 1 ? 'carta' : 'cartas'}${mismo.enAlbum ? `, ${mismo.enAlbum} en el álbum` : ''}): va en la casilla ${carta.l}.`, alternativas };
   }
-
-  // 4. Bulk
-  return sugerirBulk(ctx, carta, idioma, excluirEntradaId);
+  const porQue = otro ? `Tienes ${nombreSet} en ${idiomaTxt(otro.idioma)}, pero esta carta es en ${idiomaTxt(idiomaCarta)}` : `Todavía no tienes un álbum de ${nombreSet} en ${idiomaTxt(idiomaCarta)}`;
+  return { tipo: 'coleccion', set: carta.s, idioma: idiomaCarta, crear: true, etiqueta: `Crear álbum de ${nombreSet} en ${idiomaCarta}`, motivo: `${porQue}: se crea con esta carta en la casilla ${carta.l}.`, alternativas };
 }
 
 /** Solo cuentan las cartas que ya tienen lugar (Bulk, álbum o bolsillo): las recién recibidas no dicen cómo coleccionas. */
@@ -171,7 +196,7 @@ export function sugerirBulk(ctx: ContextoSugerencia, carta: Carta, idioma: strin
   const caja = (conSet && ordenadas.find(c => c.id === conSet[0])) || ordenadas.find(c => c.id === ctx.ultimaCajaId) || ordenadas[0];
   const nueva: Entrada = { id: '__nueva__', usuario_id: '', carta_id: carta.id, personalizada: null, caja_id: caja.id, cantidad: 1, acabado: '', idioma: idiomaCarta, condicion: '', nota: '', posicion: null, creado_en: new Date().toISOString(), actualizado_en: new Date().toISOString() };
   const { posicion, total } = posicionVirtual(cat, caja, entradas, nueva);
-  const motivo = conSet ? `Porque no tienes un álbum de ${nombreSet} y tu ${caja.nombre} ya guarda ${conSet[1]} ${conSet[1] === 1 ? 'carta' : 'cartas'} de esa colección: iría en la posición #${posicion} de ${total}.` : `Porque no tienes un álbum de ${nombreSet}: iría a ${caja.nombre}, posición #${posicion} de ${total}.`;
+  const motivo = conSet ? `Tu ${caja.nombre} ya guarda ${conSet[1]} ${conSet[1] === 1 ? 'carta' : 'cartas'} de ${nombreSet}: iría en la posición #${posicion} de ${total}.` : `Iría a ${caja.nombre}, posición #${posicion} de ${total}.`;
   return { tipo: 'bulk', caja, posicion, total, etiqueta: caja.nombre, motivo };
 }
 

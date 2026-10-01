@@ -227,7 +227,15 @@ function BulkVista({ id }: { id?: string }) {
         <div className="acciones"><button className="btn primary sm" onClick={() => setEditor({ abierto: true, caja: null })} data-testid="btn-nuevo-bulk">+ Nuevo Bulk</button></div>
       </div>
       <PorColocar entradas={sinCaja} />
-      {!cajas.length ? <div className="empty"><div className="big"><Icono n="bulk" tam={44} grosor={1.5} /></div><p><b>Aún no tienes Bulks.</b></p><p className="muted">Un Bulk es una caja o fila donde guardas cartas en orden. Créalos con la identificación que usas (Bulk 1, Bulk A, Rojo…); luego, al guardar una carta, la app te dirá en qué posición va.</p></div> : null}
+      {!cajas.length ? (
+        <div className="empty bulk-vacio" data-testid="bulk-vacio">
+          <div className="big"><Icono n="bulk" tam={44} grosor={1.5} /></div>
+          <p><b>Todavía no tienes ningún Bulk.</b></p>
+          <p className="muted">Tus cartas van primero a los álbumes (una por casilla). El Bulk es la caja o fila donde guardas las <b>repetidas</b> y las que no van en ningún álbum, en orden y con su posición, para encontrarlas rápido y venderlas desde ahí.</p>
+          <p className="muted">Nómbralo como lo identificas en casa (Bulk 1, Bulk A, Caja roja…). Al guardar una repetida, la app te dirá en qué posición va.</p>
+          <button className="btn primary grande" onClick={() => setEditor({ abierto: true, caja: null })} data-testid="btn-primer-bulk"><Icono n="mas" /> Crear mi primer Bulk</button>
+        </div>
+      ) : null}
       {cajas.length ? (
         <div className="selector-bulk" role="tablist" aria-label="Bulks" data-testid="selector-bulk">
           {cajas.map(c => { const n = conteo.get(c.id) || 0; return (

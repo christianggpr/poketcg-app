@@ -744,7 +744,7 @@ try {
   const sugCharmander = await page.textContent('[data-testid=carta-recibida]:has-text("Charmander") [data-testid=sugerencia]');
   if (!/Sugerido.*Álbum 151 EN · casilla 004/.test(sugCharmander) || !/Porque coleccionas 151 en inglés/.test(sugCharmander)) throw new Error('sugerencia inesperada para Charmander: ' + sugCharmander);
   const sugBulbasaur = await page.textContent('[data-testid=carta-recibida]:has-text("Bulbasaur") [data-testid=sugerencia]');
-  if (!/Álbum 151 EN/.test(sugBulbasaur) || !/está en inglés y esta carta es en español/.test(sugBulbasaur)) throw new Error('la carta en español debía sugerir el álbum EN con aviso de idioma: ' + sugBulbasaur);
+  if (!/Crear álbum de 151 en ES · casilla 001/.test(sugBulbasaur) || !/Tienes 151 en inglés, pero esta carta es en español/.test(sugBulbasaur)) throw new Error('la carta en español debía sugerir crear el álbum 151 ES: ' + sugBulbasaur);
   await foto(page, 'recibidas');
   await page.click('[data-testid=carta-recibida]:has-text("Charmander") [data-testid=btn-recibida-guardar]');
   await page.waitForSelector('.sheet [data-testid=sugerencia-hoja]:has-text("casilla 004 (está vacía)")');
@@ -766,21 +766,81 @@ try {
   await page.waitForSelector('[data-testid=colocacion] .placement .where:has-text("Bulk 2")');
   await page.click('[data-testid=btn-guardada-listo]');
   await page.waitForSelector('[data-testid=recibidas]:has-text("(3)")');
-  log('Álbumes → Recibidas: sugerencias con motivo (151 EN para Charmander; aviso de idioma para Bulbasaur ES); Charmander al álbum con un toque, Caterpie a Bulk 2 a mano');
+  log('Álbumes → Recibidas: sugerencias con motivo (151 EN para Charmander; crear 151 ES para Bulbasaur ES); Charmander al álbum con un toque, Caterpie a Bulk 2 a mano');
 
-  // Bulk → Por colocar (3 copias de Bulbasaur): a Bulk 2 con la posición indicada
+  // ---------- Mejoras 2 · B: el álbum es lo principal; el Bulk guarda las repetidas
+  // 1) Bulbasaur ES ×3 recibida → álbum 151 ES (ya existe: Caterpie ES acaba de entrar a Bulk 2): 1 copia a la casilla 001 y las otras 2 al Bulk como repetidas
+  await page.click('[data-testid=carta-recibida]:has-text("Bulbasaur") [data-testid=btn-recibida-guardar]');
+  await page.waitForSelector('.sheet [data-testid=sugerencia-hoja]:has-text("Álbum 151 ES")');
+  const avisoCopias = await page.textContent('.sheet [data-testid=aviso-copias-album]');
+  if (!/las otras 2 van a Bulk \d como repetidas \(posición #\d+\)/.test(avisoCopias)) throw new Error('aviso de copias inesperado: ' + avisoCopias);
+  await page.click('.sheet [data-testid=btn-guardar-sugerido]');
+  await page.waitForSelector('[data-testid=colocacion] .placement .where:has-text("Álbum 151 ES · casilla 001")');
+  await page.waitForSelector('[data-testid=repetidas-guardadas]:has-text("Las otras 2 copias fueron a Bulk")');
+  await page.click('[data-testid=btn-guardada-listo]');
+  const bulbES = sql(`select string_agg(e.cantidad || ':' || coalesce(e.album_coleccion, '-') || ':' || coalesce(c.nombre, '-'), ' | ' order by e.cantidad) from public.entradas e left join public.cajas c on c.id = e.caja_id where e.usuario_id = '${CHRIS}' and e.carta_id = 'sv03.5-001' and e.idioma = 'ES'`);
+  if (!/^1:sv03\.5:- \| 2:-:Bulk \d$/.test(bulbES)) throw new Error('la carta recibida con 3 copias no se repartió (1 al álbum + 2 al Bulk): ' + bulbES);
+  // 2) otra Charmander EN desde Buscar → "Repetida · Mandar a Bulk": la casilla 004 ya está ocupada
+  await page.goto(APP + '/app/buscar');
+  await page.fill('.search-wrap input', 'charmander 151');
+  await page.waitForSelector('.card-row');
+  await page.locator('.card-row', { hasText: '004/165' }).first().locator('[data-testid=btn-guardar-fila]').click();
+  await page.waitForSelector('.sheet [data-testid=sugerencia-guardar]');
+  const sugRep = await page.textContent('.sheet [data-testid=sugerencia-guardar]');
+  if (!/Repetida.*Mandar a Bulk \d · posición #\d+/.test(sugRep) || !/Ya tienes esta carta en la casilla 004 del álbum 151 EN: una casilla guarda 1 copia/.test(sugRep)) throw new Error('la repetida no sugiere el Bulk: ' + sugRep);
+  if (!(await page.$('.sheet [data-testid=destino-coleccion][disabled]:has-text("casilla ocupada")'))) throw new Error('la casilla ocupada debía estar deshabilitada en la hoja');
+  await page.click('.sheet [data-testid=btn-usar-sugerencia]');
+  await page.click('.sheet-foot >> text=Guardar');
+  await page.waitForSelector('.placement .where:has-text("Bulk")');
+  await page.click('.sheet-foot >> text=Listo');
+  // 3) Ordenar repetidas: la casilla 004 (Reverse) con 5 copias → aviso en Álbumes → Bulk 2 → 4 copias salen con su posición
+  sql(`update public.entradas set cantidad = 5 where usuario_id = '${CHRIS}' and carta_id = 'sv03.5-004' and album_coleccion = 'sv03.5'`);
+  await page.goto(APP + '/app/album');
+  await page.waitForSelector('[data-testid=aviso-repetidas]:has-text("Tienes 4 cartas repetidas en tus álbumes")');
+  await foto(page, 'aviso-repetidas');
+  await page.click('[data-testid=btn-ordenar-repetidas]');
+  await page.click('.sheet [data-testid=ordenar-bulk-opcion]:has-text("Bulk 2")');
+  await page.click('.sheet [data-testid=btn-ordenar-continuar]');
+  await page.waitForSelector('.sheet [data-testid=resumen-repetidas]');
+  const resumenRep = await page.textContent('.sheet [data-testid=resumen-repetidas]');
+  if (!/Copias que salen de los álbumes4/.test(resumenRep) || !/Van aBulk 2/.test(resumenRep) || !/Posiciones#\d+/.test(resumenRep)) throw new Error('resumen de repetidas inesperado: ' + resumenRep);
+  if ((await page.$$('.sheet [data-testid=fila-repetida]')).length !== 1 || !/4 de 5: 1 se queda en la casilla/.test(await page.textContent('.sheet [data-testid=fila-repetida]'))) throw new Error('la lista de repetidas debía tener solo a Charmander (4 de 5)');
+  await foto(page, 'ordenar-repetidas');
+  await page.click('.sheet [data-testid=btn-ordenar-confirmar]');
+  await page.waitForSelector('[data-testid=aviso-repetidas]', { state: 'detached' });
+  if (sql(`select cantidad from public.entradas where usuario_id = '${CHRIS}' and carta_id = 'sv03.5-004' and album_coleccion = 'sv03.5'`) !== '1') throw new Error('la casilla 004 debía quedar con 1 copia');
+  if (sql(`select e.cantidad || ':' || e.acabado || ':' || e.posicion from public.entradas e join public.cajas c on c.id = e.caja_id where e.usuario_id = '${CHRIS}' and e.carta_id = 'sv03.5-004' and c.nombre = 'Bulk 2' and e.acabado = 'Reverse'`) !== '4:Reverse:' + sql(`select max(posicion) from public.entradas e join public.cajas c on c.id = e.caja_id where e.usuario_id = '${CHRIS}' and c.nombre = 'Bulk 2'`)) throw new Error('las 4 repetidas no llegaron a Bulk 2 con la última posición');
+  // 4) Llenar álbumes desde Bulk: Pikachu (sin idioma) está en Bulk 1 y la casilla 025 del álbum 151 "sin idioma" está vacía
+  await page.waitForSelector('[data-testid=aviso-llenar]');
+  await page.click('[data-testid=btn-llenar-albumes]');
+  await page.waitForSelector('.sheet [data-testid=llenar-fila]');
+  const filasLlenar = await page.$$('.sheet [data-testid=llenar-fila]');
+  for (const f of filasLlenar) { const t = await f.textContent(); if (!/Pikachu/.test(t) || !/Bulk 1 → casilla 025/.test(t)) await (await f.$('input')).click(); }
+  const marcadas = await page.$$eval('.sheet [data-testid=llenar-fila] input:checked', els => els.length);
+  if (marcadas !== 1) throw new Error('debía quedar marcada solo Pikachu, hay ' + marcadas);
+  await foto(page, 'llenar-albumes');
+  await page.click('.sheet [data-testid=btn-llenar-confirmar]:has-text("Mover 1 a sus álbumes")');
+  await page.waitForSelector('.sheet [data-testid=btn-llenar-confirmar]', { state: 'detached' });
+  if (sql(`select string_agg(e.cantidad || ':' || coalesce(e.album_coleccion, '-') || ':' || coalesce(c.nombre, '-'), ' | ' order by e.album_coleccion nulls last) from public.entradas e left join public.cajas c on c.id = e.caja_id where e.usuario_id = '${CHRIS}' and e.carta_id = 'sv03.5-025' and coalesce(nullif(e.idioma, ''), 'EN') = 'EN'`) !== '1:sv03.5:- | 1:-:Bulk 1') throw new Error('Pikachu EN no pasó del Bulk al álbum (la otra copia, Reverse, sigue en Bulk 1): ' + sql(`select string_agg(e.cantidad || ':' || coalesce(e.album_coleccion, '-') || ':' || coalesce(e.caja_id::text, '-'), ' | ') from public.entradas e where e.usuario_id = '${CHRIS}' and e.carta_id = 'sv03.5-025'`));
+  // la hoja del álbum "sin idioma": la casilla 025 muestra la copia sin "×"; en el álbum EN la 004 muestra "+N" (copias en Bulk)
+  await page.goto(APP + '/app/album/sv03.5?idioma=' + encodeURIComponent('—'));
+  await page.click('[data-testid=filtro-album] >> text=Tengo');
+  await page.waitForSelector('[data-testid=casilla-tengo]:has-text("025")');
+  if (await page.$('[data-testid=casilla-tengo]:has-text("025") .casilla-cant.repetida')) throw new Error('la casilla 025 no debía mostrar repetidas');
+  if ((await page.textContent('[data-testid=casilla-tengo]:has-text("025") .casilla-cant.bulk')) !== '+1') throw new Error('la casilla 025 debía mostrar "+1" (la copia Reverse sigue en Bulk 1)');
+  await page.goto(APP + '/app/album/sv03.5?idioma=EN');
+  await page.waitForSelector('[data-testid=casilla-tengo]:has-text("004")');
+  const cant004 = await page.textContent('[data-testid=casilla-tengo]:has-text("004") .casilla-cant.bulk');
+  if (!/^\+\d+$/.test(cant004)) throw new Error('la casilla 004 debía mostrar "+N" (copias en Bulk): ' + cant004);
+  log('Mejoras 2 · B: recibida ×3 → 1 a la casilla y 2 al Bulk; repetida sugiere "Mandar a Bulk"; "Ordenar repetidas" saca 4 copias a Bulk 2 con posición; "Llenar álbumes" lleva Pikachu del Bulk a la casilla 025');
+
+  // Bulk: ya no queda nada por colocar (Bulbasaur ×3 se repartió desde Recibidas: 1 al álbum 151 ES y 2 al Bulk como repetidas)
   await page.goto(APP + '/app/bulk');
-  await page.waitForSelector('[data-testid=por-colocar]:has-text("Por colocar (3)")');
-  if ((await page.$$('[data-testid=carta-por-colocar]')).length !== 1 || !/orden #\d+ a @vendedora_lima/.test(await page.textContent('[data-testid=por-colocar]'))) throw new Error('la sección "Por colocar" debía mostrar solo Bulbasaur');
-  await page.selectOption('[data-testid=select-caja-colocar]', { label: 'Bulk 2' });
-  await page.click('[data-testid=carta-por-colocar]:has-text("Bulbasaur") [data-testid=btn-colocar]');
-  await page.waitForSelector('[data-testid=colocacion] .placement .where:has-text("Bulk 2")');
-  await foto(page, 'por-colocar');
-  await page.click('[data-testid=btn-colocada-listo]');
-  await page.waitForSelector('[data-testid=por-colocar]', { state: 'detached' });
-  if (sql(`select c.nombre || ':' || e.cantidad from public.entradas e join public.cajas c on c.id = e.caja_id where e.usuario_id = '${CHRIS}' and e.carta_id = 'sv03.5-001' and e.compra_orden_id = '${ordenId}'`) !== 'Bulk 2:3') throw new Error('la carta comprada no quedó en el Bulk 2');
+  await page.waitForSelector('[data-testid=selector-bulk]');
+  if (await page.$('[data-testid=por-colocar]')) throw new Error('no debía quedar nada por colocar');
+  if (sql(`select string_agg(coalesce(c.nombre, 'Álbum ' || e.album_coleccion) || ':' || e.cantidad, ' | ' order by e.cantidad) from public.entradas e left join public.cajas c on c.id = e.caja_id where e.usuario_id = '${CHRIS}' and e.carta_id = 'sv03.5-001' and e.compra_orden_id = '${ordenId}'`) !== 'Álbum sv03.5:1 | Bulk 2:2') throw new Error('la carta comprada no quedó repartida (1 álbum + 2 Bulk 2): ' + sql(`select string_agg(coalesce(c.nombre, 'Álbum') || ':' || e.cantidad, ' | ') from public.entradas e left join public.cajas c on c.id = e.caja_id where e.usuario_id = '${CHRIS}' and e.carta_id = 'sv03.5-001'`));
   await ctxL.close(); await ctxT.close();
-  log('comprador: 3 cartas compradas (6 copias) entraron solas "por colocar"; Bulbasaur ×3 colocado en la Caja 2 con su posición');
+  log('comprador: 3 cartas compradas (6 copias) entraron solas "por colocar"; Bulbasaur ×3 repartido desde Recibidas: 1 al álbum 151 ES y 2 a Bulk 2 como repetidas');
 
   // ---------- Fase 4 · A: reputación (calificación, perfil público, respuesta del vendedor, suspensión)
   await page.goto(APP + '/app/compras/' + pagoId);
@@ -1315,14 +1375,14 @@ try {
   const resImp = await page.textContent('.notice.ok');
   const nCajas = parseInt(sql("select count(*) from public.cajas where usuario_id = (select id from public.perfiles where username = 'chris_tcg')"), 10);
   const nEnt = parseInt(sql("select count(*) from public.entradas where usuario_id = (select id from public.perfiles where username = 'chris_tcg')"), 10);
-  if (nCajas !== 3 || nEnt !== 12) throw new Error(`importación: ${nCajas} cajas, ${nEnt} entradas (${resImp})`);   // 5 propias + 3 compradas + 4 importadas
+  if (nCajas !== 3 || nEnt !== 14) throw new Error(`importación: ${nCajas} cajas, ${nEnt} entradas (${resImp})`);   // 5 propias + 3 compradas + 2 nuevas al repartir (Bulbasaur ES y repetidas de Charmander) + 4 importadas
   await foto(page, 'ajustes');
   log('importación v1:', resImp.trim());
 
   // exportar JSON
   const [descarga] = await Promise.all([page.waitForEvent('download'), page.click('text=Exportar respaldo (.json)')]);
   const exportado = JSON.parse(fs.readFileSync(await descarga.path(), 'utf8'));
-  if (exportado.entradas.length !== 12) throw new Error('exportación incompleta: ' + exportado.entradas.length);
+  if (exportado.entradas.length !== 14) throw new Error('exportación incompleta: ' + exportado.entradas.length);
   log('exportación JSON:', exportado.entradas.length, 'entradas');
 
   // ---------- cerrar sesión, ingresar por usuario, recuperar contraseña

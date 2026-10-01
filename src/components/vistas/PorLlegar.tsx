@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { nombreCarta, nombreColeccion, numLabel, type Carta } from '@/lib/catalogo';
 import { cajasOrdenadas, type Entrada } from '@/lib/coleccion';
 import { fechaDia, ordenesDe, type Orden, type OrdenItem, type Tienda } from '@/lib/compras';
-import { albumesPorColeccion, sugerirBulk, sugerirDestino } from '@/lib/sugerir';
+import { albumesPorColeccion, sugerirBulk, sugerirDestino, type Alternativa } from '@/lib/sugerir';
 import { useCatalogo } from '../CatalogoProvider';
 import { useColeccion } from '../ColeccionProvider';
 import { useMercado } from '../MercadoProvider';
@@ -101,7 +101,7 @@ export function Recibidas() {
             <div className="card-main">
               <div className="card-name">{e.cantidad > 1 ? `${e.cantidad}× ` : ''}{c ? nombreCarta(c, perfil.idioma_nombres) : e.personalizada?.nombre}</div>
               <div className="card-set">{c ? <>{nombreColeccion(set, perfil.idioma_nombres)} · <span className="num">{numLabel(c, set)}</span></> : null}{e.idioma ? <> · {e.idioma}</> : null}{e.condicion ? <> · {e.condicion}</> : null}</div>
-              {s ? <div className="small sugerencia-corta" data-testid="sugerencia"><span className="rotulo-sug">Sugerido</span> <b>{s.etiqueta}{s.tipo === 'bulk' ? ` · posición #${s.posicion}` : s.tipo === 'album' ? ` · bolsillo ${s.indice + 1}` : c ? ` · casilla ${c.l}` : ''}</b><span className="muted"> · {s.motivo}</span>{'aviso' in s && s.aviso ? <span className="warn"> {s.aviso}</span> : null}</div> : <div className="small muted">Crea un Bulk o un álbum para guardarla.</div>}
+              {s ? <div className="small sugerencia-corta" data-testid="sugerencia"><span className="rotulo-sug">{'repetida' in s && s.repetida ? 'Repetida' : 'Sugerido'}</span> <b>{s.etiqueta}{s.tipo === 'bulk' ? ` · posición #${s.posicion}` : s.tipo === 'album' ? ` · bolsillo ${s.indice + 1}` : s.tipo === 'coleccion' && c ? ` · casilla ${c.l}` : ''}</b><span className="muted"> · {s.motivo}</span>{'aviso' in s && s.aviso ? <span className="warn"> {s.aviso}</span> : null}</div> : <div className="small muted">Crea un Bulk o un álbum para guardarla.</div>}
             </div>
             <button className="btn sm primary" onClick={ev => { ev.stopPropagation(); setAbierta(e.id); }} data-testid="btn-recibida-guardar">Guardar</button>
           </div>
@@ -130,26 +130,44 @@ function HojaRecibida({ entrada, onClose }: { entrada: Entrada; onClose: () => v
   const bulk = c && s?.tipo !== 'bulk' ? sugerirBulk(ctx, c, entrada.idioma, entrada.id) : null;
   const precio = c && !c.sd ? precios.precioDefecto(c, entrada.acabado).pen : null;
   const idiomaTxt: Record<string, string> = { ES: 'Español', EN: 'Inglés', JP: 'Japonés', PT: 'Portugués', FR: 'Francés', DE: 'Alemán', IT: 'Italiano' };
-  const casillaTxt = (sug: NonNullable<typeof s>) => {
+  // Mejoras 2 · B: al álbum va 1 copia; si la entrada trae varias, las demás van al Bulk (o quedan por colocar)
+  const [cantidadInicial] = useState(entrada.cantidad);   // la entrada cambia al dividirse: se recuerda cuántas traía
+  const extras = cantidadInicial - 1;
+  const bulkExtras = s?.tipo === 'bulk' ? s : bulk;
+  const casillaTxt = (sug: Alternativa) => {
     if (sug.tipo === 'coleccion') { const n = c ? parseInt(c.l, 10) : NaN; return `${isFinite(n) ? `Página ${Math.ceil(n / 9)} · ` : ''}casilla ${c?.l} (está vacía)`; }
     if (sug.tipo === 'album') return `Página ${Math.floor(sug.indice / (sug.album.columnas * sug.album.filas)) + 1} · bolsillo ${(sug.indice % (sug.album.columnas * sug.album.filas)) + 1}`;
-    return `Posición #${sug.posicion} de ${sug.total}`;
+    if (sug.tipo === 'bulk') return `Posición #${sug.posicion} de ${sug.total}`;
+    return 'Todavía no tienes ningún Bulk';
   };
-  async function aplicar(sug: NonNullable<typeof s> | NonNullable<typeof bulk>) {
+  async function aplicar(sug: Alternativa) {
     setOcupado(true);
     let ok = false;
-    if (sug.tipo === 'coleccion') ok = await col.colocarEnColeccion(entrada.id, sug.set);
-    else if (sug.tipo === 'album') ok = await col.colocarEnAlbum(entrada.id, sug.album.id, sug.indice);
-    else ok = await col.editarEntrada(entrada.id, { caja_id: sug.caja.id });
+    if (sug.tipo === 'coleccion') {
+      if (extras > 0) {
+        // 1 copia al álbum; las otras se quedan en esta entrada (en el Bulk sugerido, o por colocar si no hay)
+        if (bulkExtras) { const m = await col.editarEntrada(entrada.id, { caja_id: bulkExtras.caja.id }); if (!m) { setOcupado(false); toast(col.error || 'No se pudo guardar', 'danger', 4000); return; } }
+        const r = await col.dividirEntrada(entrada.id, 1, { album: sug.set });
+        ok = r.ok;
+      } else ok = await col.colocarEnColeccion(entrada.id, sug.set);
+    } else if (sug.tipo === 'album') ok = await col.colocarEnAlbum(entrada.id, sug.album.id, sug.indice);
+    else if (sug.tipo === 'bulk') ok = await col.editarEntrada(entrada.id, { caja_id: sug.caja.id });
+    else { const caja = await col.crearCaja({ nombre: 'Bulk 1' }); ok = !!caja && (await col.editarEntrada(entrada.id, { caja_id: caja.id })); }
     setOcupado(false);
     if (!ok) { toast(col.error || 'No se pudo guardar', 'danger', 4000); return; }
     setGuardada(true);
   }
   if (elegir) return <ElegirDestino entrada={entrada} onClose={() => setElegir(false)} onGuardada={() => { setElegir(false); setGuardada(true); }} />;
   if (guardada) {
+    // si se dividió (1 al álbum, el resto al Bulk) se muestra la copia del álbum y dónde quedaron las demás
+    const actual = col.entradas.find(e => e.id === entrada.id) || entrada;
+    const enAlbum = extras > 0 ? col.entradas.find(e => e.id !== entrada.id && e.carta_id === entrada.carta_id && e.album_coleccion && e.compra_orden_id === entrada.compra_orden_id && e.idioma === entrada.idioma) : null;
+    const principal = enAlbum || actual;
+    const cajaExtras = enAlbum ? col.cajas.find(x => x.id === actual.caja_id) : null;
     return (
       <Sheet titulo="¡Guardada!" onClose={onClose} pie={<button className="btn primary" onClick={onClose} data-testid="btn-guardada-listo">Listo</button>}>
-        <div data-testid="colocacion"><Colocacion entrada={entrada} loc={ubicador.donde(entrada)} /></div>
+        <div data-testid="colocacion"><Colocacion entrada={principal} loc={ubicador.donde(principal)} /></div>
+        {enAlbum ? <p className="notice info small" style={{ marginTop: 10 }} data-testid="repetidas-guardadas">La casilla guarda 1 copia. {extras === 1 ? 'La otra copia' : `Las otras ${extras} copias`} {cajaExtras ? <>{extras === 1 ? 'fue' : 'fueron'} a <b>{cajaExtras.nombre}</b> como repetidas.</> : <>{extras === 1 ? 'quedó' : 'quedaron'} <b>por colocar</b>.</>}</p> : null}
       </Sheet>
     );
   }
@@ -164,16 +182,18 @@ function HojaRecibida({ entrada, onClose }: { entrada: Entrada; onClose: () => v
         </div>
       </div>
       {s ? (
-        <div className="sugerencia caja-sugerida" data-testid="sugerencia-hoja">
-          <span className="rotulo-sug">Sugerido</span>
+        <div className={`sugerencia caja-sugerida ${'repetida' in s && s.repetida ? 'repetida' : ''}`} data-testid="sugerencia-hoja">
+          <span className="rotulo-sug">{'repetida' in s && s.repetida ? 'Repetida' : 'Sugerido'}</span>
           <b className="titulo-sug">{s.etiqueta}</b>
           <div className="detalle-sug">{casillaTxt(s)}</div>
           <div className="small muted motivo-sug"><Icono n="info" tam={14} /> {s.motivo}</div>
           {'aviso' in s && s.aviso ? <div className="warn small"><Icono n="alerta" tam={14} /> {s.aviso}</div> : null}
+          {s.tipo === 'coleccion' && extras > 0 ? <div className="small" style={{ marginTop: 6 }} data-testid="aviso-copias-album">La casilla guarda 1 copia: {extras === 1 ? 'la otra va' : `las otras ${extras} van`} {bulkExtras ? <>a <b>{bulkExtras.caja.nombre}</b> como repetidas (posición #{bulkExtras.posicion})</> : <b>por colocar (crea un Bulk para guardarlas)</b>}.</div> : null}
         </div>
       ) : <p className="small muted">Crea un Bulk o un álbum para guardarla.</p>}
       <div className="stack botones-recibida">
-        {s ? <button className="btn primary grande" disabled={ocupado} onClick={() => aplicar(s)} data-testid="btn-guardar-sugerido">{ocupado ? 'Guardando…' : s.tipo === 'bulk' ? `Guardar en ${s.caja.nombre} · posición #${s.posicion}` : 'Guardar en este álbum'}</button> : null}
+        {s ? <button className="btn primary grande" disabled={ocupado} onClick={() => aplicar(s)} data-testid="btn-guardar-sugerido">{ocupado ? 'Guardando…' : s.tipo === 'bulk' ? `${s.repetida ? 'Mandar a' : 'Guardar en'} ${s.caja.nombre} · posición #${s.posicion}` : s.tipo === 'crear-bulk' ? 'Crear un Bulk y guardarla ahí' : s.tipo === 'coleccion' && s.crear ? 'Crear el álbum y guardarla' : 'Guardar en este álbum'}</button> : null}
+        {s && s.tipo === 'coleccion' && s.alternativas?.filter(a => a.tipo !== 'bulk').map((a, i) => <button key={i} className="btn" disabled={ocupado} onClick={() => aplicar(a)} data-testid="btn-alternativa">{a.etiqueta}{a.tipo === 'album' ? ` · bolsillo ${a.indice + 1}` : ''}</button>)}
         <button className="btn" disabled={ocupado} onClick={() => setElegir(true)} data-testid="btn-elegir-album">Elegir otro álbum</button>
         {bulk ? <button className="btn" disabled={ocupado} onClick={() => aplicar(bulk)} data-testid="btn-guardar-bulk">Guardar en {bulk.caja.nombre} · posición #{bulk.posicion}</button> : null}
         <button className="link centrado" onClick={onClose} data-testid="btn-decidir-despues">Decidir después</button>

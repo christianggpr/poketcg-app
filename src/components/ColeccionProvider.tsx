@@ -7,7 +7,7 @@ import { cajasOrdenadas, PUBLICACION_VIVA } from '@/lib/coleccion';
 import { borrarFotos } from '@/lib/fotos';
 import { usePerfil } from './PerfilProvider';
 
-export type NuevaEntrada = { carta_id?: string | null; personalizada?: { nombre: string; coleccion?: string; numero?: string } | null; caja_id: string | null; cantidad?: number; acabado?: string; idioma?: string; condicion?: string; nota?: string };
+export type NuevaEntrada = { carta_id?: string | null; personalizada?: { nombre: string; coleccion?: string; numero?: string } | null; caja_id: string | null; cantidad?: number; acabado?: string; idioma?: string; condicion?: string; nota?: string; /** no sumar a una entrada igual que ya exista (p. ej. la copia que va a una casilla de álbum) */ sinFusionar?: boolean };
 
 type Ctx = {
   cargado: boolean;
@@ -46,6 +46,13 @@ type Ctx = {
   publicarVarias: (entradaIds: string[]) => Promise<number>;
   editarPublicacion: (id: string, d: Partial<Pick<Publicacion, 'cantidad' | 'tipo_precio' | 'precio_pen' | 'estado' | 'fotos'>>) => Promise<Publicacion | null>;
   cambiarEstado: (ids: string[], estado: 'activa' | 'pausada' | 'retirada') => Promise<number>;
+  // Mejoras 2 · B: el álbum es lo principal; el Bulk guarda las repetidas (funciones de la base, 0006_mejoras2.sql)
+  /** Separa `cantidad` copias de una entrada en una entrada nueva, en un Bulk o en el álbum por colección. */
+  dividirEntrada: (entradaId: string, cantidad: number, destino: { caja?: string | null; album?: string | null }) => Promise<{ ok: boolean; nueva?: string; posicion?: number; error?: string }>;
+  /** Asistente "Ordenar repetidas": manda a un Bulk las copias de más de los álbumes (una sola transacción). */
+  ordenarRepetidas: (cajaId: string, items: { entrada: string; cantidad: number; todo: boolean }[]) => Promise<{ ok: boolean; movidas: number; copias: number; omitidas: { entrada: string; error: string }[]; error?: string }>;
+  /** Asistente "Llenar álbumes desde Bulk": 1 copia de cada entrada a su casilla vacía. */
+  llenarAlbumes: (items: { entrada: string; set: string }[]) => Promise<{ ok: boolean; movidas: number; omitidas: { entrada: string; error: string }[]; error?: string }>;
 };
 
 const ColeccionCtx = createContext<Ctx | null>(null);
@@ -175,7 +182,8 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
     async agregarEntrada(d) {
       const sb = supabaseBrowser();
       const cantidad = Math.max(1, Math.floor(d.cantidad || 1));
-      const existente = d.carta_id ? entradas.find(e => e.caja_id === d.caja_id && e.carta_id === d.carta_id && (e.acabado || '') === (d.acabado || '') && (e.idioma || '') === (d.idioma || '')) : null;
+      // misma carta, acabado e idioma en el mismo Bulk (o por colocar) → se suma; nunca a una copia que está en un álbum o bolsillo
+      const existente = d.carta_id && !d.sinFusionar ? entradas.find(e => e.caja_id === d.caja_id && e.carta_id === d.carta_id && (e.acabado || '') === (d.acabado || '') && (e.idioma || '') === (d.idioma || '') && !e.album_coleccion && !casillas.some(c => c.entrada_id === e.id)) : null;
       if (existente) {
         const { data, error } = await sb.from('entradas').update({ cantidad: existente.cantidad + cantidad, nota: d.nota ? d.nota : existente.nota }).eq('id', existente.id).select('*').single();
         if (error) { setError(error.message); return null; }
@@ -326,6 +334,27 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
         setPublicaciones(x => x.filter(p => !ids.includes(p.id)));
       } else setPublicaciones(x => { let y = x; for (const f of filas) y = upsert(y, f); return y; });
       return filas.length;
+    },
+    async dividirEntrada(entradaId, cantidad, destino) {
+      const { data, error } = await supabaseBrowser().rpc('dividir_entrada', { p_entrada: entradaId, p_cantidad: cantidad, p_caja: destino.caja || null, p_album: destino.album || null });
+      if (error) { setError(error.message); return { ok: false, error: error.message }; }
+      const r = (data || {}) as { ok: boolean; nueva?: string; posicion?: number; error?: string };
+      if (r.ok) await recargar(); else if (r.error) setError(r.error);
+      return r;
+    },
+    async ordenarRepetidas(cajaId, items) {
+      const { data, error } = await supabaseBrowser().rpc('ordenar_repetidas', { p_caja: cajaId, p_items: items });
+      if (error) { setError(error.message); return { ok: false, movidas: 0, copias: 0, omitidas: [], error: error.message }; }
+      const r = (data || {}) as { ok: boolean; movidas: number; copias: number; omitidas: { entrada: string; error: string }[]; error?: string };
+      if (r.ok) { recordarCaja(cajaId); await recargar(); } else if (r.error) setError(r.error);
+      return r;
+    },
+    async llenarAlbumes(items) {
+      const { data, error } = await supabaseBrowser().rpc('llenar_albumes', { p_items: items });
+      if (error) { setError(error.message); return { ok: false, movidas: 0, omitidas: [], error: error.message }; }
+      const r = (data || {}) as { ok: boolean; movidas: number; omitidas: { entrada: string; error: string }[]; error?: string };
+      if (r.ok) await recargar(); else if (r.error) setError(r.error);
+      return r;
     }
   }), [cargado, error, cajas, entradas, albumes, casillas, publicaciones, ultimaCajaId, recargar, recargarPublicaciones, recargarCasillas]);
 

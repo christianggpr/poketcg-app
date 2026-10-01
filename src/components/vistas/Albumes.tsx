@@ -23,6 +23,7 @@ import { AddEntrySheet } from '../AddEntrySheet';
 import { Sheet } from '../Sheet';
 import { useToast } from '../Toast';
 import { PorLlegar, Recibidas } from './PorLlegar';
+import { AvisosOrdenar, LlenarAlbumesSheet, OrdenarRepetidasSheet, useOrdenar } from './Repetidas';
 import { Campo, useEsPC } from '../ui';
 
 /** Idioma de una entrada para agrupar álbumes: JP para colecciones japonesas, el registrado o "—". */
@@ -92,6 +93,7 @@ export function Albumes() {
     <div>
       <div className="solo-celular"><PorLlegar /></div>
       <Recibidas />
+      <AvisosOrdenar />
       <div className="cabecera-seccion">
         <h2 style={{ margin: 0 }}>Mis álbumes</h2>
         <div className="acciones">
@@ -164,6 +166,8 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   const [idiomaNuevo, setIdiomaNuevo] = useState('ES');
   const [asignando, setAsignando] = useState(false);
   const [confirmarVenta, setConfirmarVenta] = useState(false);
+  const [asistente, setAsistente] = useState<'repetidas' | 'llenar' | null>(null);
+  const ordenar = useOrdenar(setId);
   const [enRed, setEnRed] = useState<Map<string, ResumenCarta>>(new Map());
   const mercado = useMercado();
   const toast = useToast();
@@ -241,15 +245,18 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   const Celda = ({ c }: { c: Carta }) => {
     const es = propias.get(c.id) || [];
     const qty = es.reduce((n, e) => n + e.cantidad, 0);
+    // Mejoras 2 · B: la casilla guarda 1 copia; las copias de más en la casilla son repetidas (asistente) y las del Bulk se cuentan aparte
+    const enCasilla = es.filter(e => e.album_coleccion === set.id).reduce((n, e) => n + e.cantidad, 0);
+    const otras = qty - enCasilla;
     const red = enRed.get(c.id);
     const enVenta = es.some(e => col.publicacionDe(e.id)?.estado === 'activa');
-    const titulo = `${nombreCarta(c, idioma)} · ${c.l}${qty ? ` · tienes ${qty}` : red ? ` · en el mercado desde ${fmtPen(red.precio_min)}` : ' · te falta'}`;
+    const titulo = `${nombreCarta(c, idioma)} · ${c.l}${qty ? ` · tienes ${qty}${enCasilla > 1 ? ` (${enCasilla - 1} repetidas en la casilla)` : ''}${otras ? ` (${otras} en Bulk)` : ''}` : red ? ` · en el mercado desde ${fmtPen(red.precio_min)}` : ' · te falta'}`;
     if (qty) {
       return (
         <Link href={`/app/carta/${encodeURIComponent(c.id)}`} className="pocket filled album-cell" title={titulo} data-testid="casilla-tengo">
           <Thumb carta={c} set={set} alt={nombreCarta(c, idioma)} idioma={idiomaAlb} />
           <span className="pocket-n">{c.l}</span>
-          {qty > 1 ? <span className="casilla-cant">×{qty}</span> : null}
+          {enCasilla > 1 ? <span className="casilla-cant repetida" title={`${enCasilla - 1} repetidas en la casilla: usa "Ordenar repetidas"`}>×{enCasilla}</span> : otras ? <span className="casilla-cant bulk" title={`${otras} más en Bulk`}>+{otras}</span> : null}
           {enVenta ? <span className="album-venta" title="En venta en el mercado"><Icono n="ventas" tam={11} /></span> : null}
           <span className="casilla-loc">{(() => { const d = ubicador.donde(es[0]); return d ? <LocChip loc={d} corto /> : null; })()}</span>
         </Link>
@@ -277,6 +284,8 @@ export function AlbumColeccion({ setId }: { setId: string }) {
       <Link href={`/app/buscar?q=${encodeURIComponent(set.id)}`} className="btn primary" data-testid="btn-agregar-carta"><Icono n="mas" /> Agregar carta</Link>
       {idsFaltan.length ? <Link href={`/app/mercado?set=${encodeURIComponent(set.id)}&faltan=1`} className="btn" data-testid="faltan-mercado">Comprar faltantes en el mercado{enVentaFaltan ? ` (${enVentaFaltan} en venta)` : ''}</Link> : null}
       {idsPropias.length ? (sinPublicar.length ? <button className="btn" disabled={asignando} onClick={() => setConfirmarVenta(true)} data-testid="btn-poner-en-venta">Poner en venta… ({sinPublicar.length})</button> : <span className="small muted" style={{ textAlign: 'center' }}>Todo lo que tienes de esta colección está en el mercado.</span>) : null}
+      {ordenar.copiasRepetidas ? <button className="btn" onClick={() => setAsistente('repetidas')} data-testid="btn-ordenar-repetidas-album"><Icono n="bulk" /> Ordenar repetidas ({ordenar.copiasRepetidas})</button> : null}
+      {ordenar.candidatas.length ? <button className="btn" onClick={() => setAsistente('llenar')} data-testid="btn-llenar-album"><Icono n="album" /> Traer del Bulk ({ordenar.candidatas.length})</button> : null}
     </div>
   );
   const irAPagina = totalPaginas > 1 ? (
@@ -343,6 +352,8 @@ export function AlbumColeccion({ setId }: { setId: string }) {
         </aside>
       </div>
       {agregar ? <AddEntrySheet carta={agregar} idiomaInicial={idiomaAlb !== '—' ? idiomaAlb : ''} onClose={() => setAgregar(null)} /> : null}
+      {asistente === 'repetidas' ? <OrdenarRepetidasSheet repetidas={ordenar.repetidas} onClose={() => setAsistente(null)} /> : null}
+      {asistente === 'llenar' ? <LlenarAlbumesSheet candidatas={ordenar.candidatas} onClose={() => setAsistente(null)} /> : null}
       {confirmarVenta ? <Confirmar titulo="Poner en venta" texto={`Se publicarán en el mercado ${sinPublicar.length} ${sinPublicar.length === 1 ? 'carta' : 'cartas'} de ${nombreColeccion(set, idioma, true)} con el precio por defecto (el mayor entre el piso y el precio de mercado). Podrás cambiar precios, pausar o retirar cuando quieras; las de más de S/ 50 quedan pausadas hasta que les agregues una foto.`} okLabel="Publicar" onOk={() => { setConfirmarVenta(false); ponerEnVenta(); }} onClose={() => setConfirmarVenta(false)} /> : null}
     </div>
   );

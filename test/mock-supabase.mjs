@@ -289,7 +289,8 @@ async function rpc(req, res, url, body) {
     await cliente.query(`select set_config('request.jwt.claim.role', $1, true), set_config('request.jwt.claim.sub', $2, true)`, [role, sub || '']);
     const args = body && typeof body === 'object' ? body : {};
     const nombres = Object.keys(args); const vals = [];
-    const lista = nombres.map(n => { if (!/^[a-z_][a-z0-9_]*$/.test(n)) throw new Error('argumento inválido'); const v = args[n]; vals.push(v !== null && typeof v === 'object' && !Array.isArray(v) ? JSON.stringify(v) : v); return `${n} => $${vals.length}`; }).join(', ');
+    // objetos y listas de objetos → json (jsonb); listas de valores simples → arreglo de Postgres (text[]…)
+    const lista = nombres.map(n => { if (!/^[a-z_][a-z0-9_]*$/.test(n)) throw new Error('argumento inválido'); const v = args[n]; const esJson = v !== null && typeof v === 'object' && (!Array.isArray(v) || v.some(x => x !== null && typeof x === 'object')); vals.push(esJson ? JSON.stringify(v) : v); return `${n} => $${vals.length}`; }).join(', ');
     const meta = await cliente.query(`select p.proretset, t.typname from pg_proc p join pg_type t on t.oid = p.prorettype join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = $1 limit 1`, [fn]);
     if (!meta.rows[0]) { await cliente.query('rollback'); return send(res, 404, { code: 'PGRST202', message: `Could not find the function public.${fn} in the schema cache` }); }
     const r = await cliente.query(`select * from ${fn}(${lista})`, vals);

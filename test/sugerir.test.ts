@@ -6,7 +6,7 @@ import path from 'node:path';
 import { Catalogo, type DatosCatalogo } from '../src/lib/catalogo.ts';
 import type { Album, Caja, Casilla, Entrada } from '../src/lib/coleccion.ts';
 import { Ubicador } from '../src/lib/coleccion.ts';
-import { albumesPorColeccion, patronAlbum, sugerirDestino } from '../src/lib/sugerir.ts';
+import { albumesPorColeccion, casillaOcupada, patronAlbum, sugerirDestino } from '../src/lib/sugerir.ts';
 
 const datos = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '..', 'public', 'data', 'catalogo.json'), 'utf8')) as DatosCatalogo;
 const cat = new Catalogo(datos);
@@ -27,49 +27,78 @@ test('1 · misma colección y mismo idioma → álbum por colección, casilla de
   assert.equal(s.aviso, undefined);
 });
 
-test('2 · álbum personalizado con la línea de Charmander → bolsillo de ese álbum (y no para otras cartas)', () => {
+test('2 · álbum personalizado con la línea de Charmander → alternativa en ese bolsillo (el álbum por colección va primero)', () => {
   const alb = album('a1', 'Charmander');
   const linea = ['base1-4', 'base1-24', 'base1-46', 'base4-4', 'base4-35', 'base5-4'];   // Charizard, Charmeleon, Charmander… de otras colecciones
   const cas = linea.map((id, i) => casilla('a1', i, id, 'x' + i));
   const c = ctx({ albumes: [alb], casillas: cas, cajas: [caja('c1', 1)] });
   const s = sugerirDestino(c, charmander151, 'EN');
-  assert.ok(s && s.tipo === 'album', JSON.stringify(s));
-  assert.equal(s.album.id, 'a1'); assert.equal(s.indice, 6, 'el primer bolsillo libre');
-  assert.match(s.motivo, /Porque tu álbum «Charmander» tiene 6 cartas de Charmander, Charmeleon, Charizard/);
-  // una carta que no es de la línea no va a ese álbum: cae al Bulk
+  assert.ok(s && s.tipo === 'coleccion' && s.crear, JSON.stringify(s));
+  assert.equal(s.etiqueta, 'Crear álbum de 151 en EN');
+  const alt = s.alternativas?.find(a => a.tipo === 'album');
+  assert.ok(alt && alt.tipo === 'album', 'el álbum personalizado se ofrece como alternativa');
+  assert.equal(alt.album.id, 'a1'); assert.equal(alt.indice, 6, 'el primer bolsillo libre');
+  assert.match(alt.motivo, /Porque tu álbum «Charmander» tiene 6 cartas de Charmander, Charmeleon, Charizard/);
+  // una carta que no es de la línea no va a ese álbum: solo el Bulk como alternativa
   const otra = sugerirDestino(c, cat.carta('sv03.5-025')!, 'EN');
-  assert.ok(otra && otra.tipo === 'bulk');
+  assert.ok(otra && otra.tipo === 'coleccion' && otra.crear && otra.alternativas?.every(a => a.tipo === 'bulk'));
   // si el álbum ya tiene asignada esta carta en un bolsillo sin copia física, se sugiere ese bolsillo
   const conHueco = sugerirDestino(ctx({ albumes: [alb], casillas: [...cas, casilla('a1', 10, 'sv03.5-004')] }), charmander151, 'EN');
-  assert.ok(conHueco && conHueco.tipo === 'album' && conHueco.indice === 10);
+  const altHueco = conHueco && conHueco.tipo === 'coleccion' ? conHueco.alternativas?.find(a => a.tipo === 'album') : null;
+  assert.ok(altHueco && altHueco.tipo === 'album' && altHueco.indice === 10);
 });
 
-test('2b · patrón por ilustrador: un álbum de Mitsuhiro Arita recibe otra carta suya', () => {
+test('2b · patrón por ilustrador: un álbum de Mitsuhiro Arita recibe otra carta suya (como alternativa)', () => {
   const cas = ['sv03.5-063', 'sv03.5-064', 'sv03.5-065', 'sv03.5-170'].map((id, i) => casilla('a2', i, id));
   const p = patronAlbum(cat, cas.map(c => cat.carta(c.carta_id)!));
   assert.deepEqual([p?.clase, p?.valor], ['ilustrador', 'Mitsuhiro Arita']);
   const s = sugerirDestino(ctx({ albumes: [album('a2', 'Arita')], casillas: cas }), cat.carta('base1-4')!, 'EN');
-  assert.ok(s && s.tipo === 'album' && /ilustradas por Mitsuhiro Arita/.test(s.motivo), JSON.stringify(s));
+  const alt = s && s.tipo === 'coleccion' ? s.alternativas?.find(a => a.tipo === 'album') : null;
+  assert.ok(alt && alt.tipo === 'album' && /ilustradas por Mitsuhiro Arita/.test(alt.motivo), JSON.stringify(s));
 });
 
-test('3 · misma colección en otro idioma → se sugiere con aviso de idioma', () => {
+test('3 · misma colección en otro idioma → se sugiere crear el álbum en el idioma de la carta; el otro queda como alternativa con aviso', () => {
   const s = sugerirDestino(ctx({ entradas: [entrada('sv08.5-001', { idioma: 'ES', caja_id: 'c1' }), entrada('sv08.5-010', { idioma: 'ES', caja_id: 'c1' })], cajas: [caja('c1', 1)] }), prismatica, 'EN');
-  assert.ok(s && s.tipo === 'coleccion' && s.idioma === 'ES');
-  assert.match(s.aviso || '', /Ese álbum está en español y esta carta es en inglés/);
+  assert.ok(s && s.tipo === 'coleccion' && s.idioma === 'EN' && s.crear, JSON.stringify(s));
+  assert.match(s.motivo, /Tienes Evoluciones Prismáticas en español, pero esta carta es en inglés: se crea con esta carta en la casilla 002/);
+  const alt = s.alternativas?.find(a => a.tipo === 'coleccion');
+  assert.ok(alt && alt.tipo === 'coleccion' && alt.idioma === 'ES');
+  assert.match(alt.aviso || '', /Ese álbum está en español y esta carta es en inglés/);
 });
 
-test('4 · sin álbum de esa colección → el último Bulk usado, con la posición que le tocaría', () => {
+test('4 · sin álbum de esa colección → crear el álbum (un toque); el Bulk va como alternativa con la posición que le tocaría', () => {
   const cajas = [caja('c1', 1), caja('c2', 2)];
   const entradas = [entrada('sv01-001', { caja_id: 'c2' }), entrada('sv08.5-001', { caja_id: 'c2' }), entrada('sv08.5-010', { caja_id: 'c1', idioma: 'ES' })];
   const s = sugerirDestino(ctx({ entradas, cajas, ultimaCajaId: 'c2' }), charmander151, 'EN');
-  assert.ok(s && s.tipo === 'bulk', JSON.stringify(s));
-  assert.equal(s.caja.id, 'c2'); assert.equal(s.posicion, 2, 'entre Scarlet & Violet 001 (2023) y Prismatic 001 (2025): por fecha de colección'); assert.equal(s.total, 3);
-  assert.match(s.motivo, /Porque no tienes un álbum de 151: iría a Bulk 2, posición #2 de 3/);
+  assert.ok(s && s.tipo === 'coleccion' && s.crear, JSON.stringify(s));
+  assert.match(s.motivo, /Todavía no tienes un álbum de 151 en inglés: se crea con esta carta en la casilla 004/);
+  const b = s.alternativas?.find(a => a.tipo === 'bulk');
+  assert.ok(b && b.tipo === 'bulk', JSON.stringify(s));
+  assert.equal(b.caja.id, 'c2'); assert.equal(b.posicion, 2, 'entre Scarlet & Violet 001 (2023) y Prismatic 001 (2025): por fecha de colección'); assert.equal(b.total, 3);
+  assert.match(b.motivo, /Iría a Bulk 2, posición #2 de 3/);
   // la posición sugerida coincide con la real al guardarla
   const nueva = entrada('sv03.5-004', { caja_id: 'c2', idioma: 'EN' });
   assert.equal(new Ubicador(cat, cajas, [...entradas, nueva], 'es').ubicacion(nueva)?.idx, 2);
-  // sin ningún Bulk ni álbum: no hay sugerencia
-  assert.equal(sugerirDestino(ctx(), charmander151, 'EN'), null);
+  // sin ningún Bulk ni álbum: igual se sugiere crear el álbum, sin alternativas
+  const sola = sugerirDestino(ctx(), charmander151, 'EN');
+  assert.ok(sola && sola.tipo === 'coleccion' && sola.crear && !sola.alternativas?.length);
+});
+
+test('5 · Mejoras 2: casilla ocupada → la carta es repetida y va al Bulk (o hay que crear uno)', () => {
+  const enAlbum = entrada('sv03.5-004', { idioma: 'EN', album_coleccion: 'sv03.5' });
+  const conBulk = sugerirDestino(ctx({ entradas: [enAlbum, entrada('sv03.5-001', { idioma: 'EN', caja_id: 'c1' })], cajas: [caja('c1', 1)] }), charmander151, 'EN');
+  assert.ok(conBulk && conBulk.tipo === 'bulk' && conBulk.repetida, JSON.stringify(conBulk));
+  assert.equal(conBulk.etiqueta, 'Mandar a Bulk 1');
+  assert.match(conBulk.motivo, /Ya tienes esta carta en la casilla 004 del álbum 151 EN: una casilla guarda 1 copia y las repetidas van al Bulk\. Iría en la posición #\d+ de 2/);
+  const sinBulk = sugerirDestino(ctx({ entradas: [enAlbum] }), charmander151, 'EN');
+  assert.ok(sinBulk && sinBulk.tipo === 'crear-bulk' && sinBulk.repetida);
+  assert.match(sinBulk.motivo, /Todavía no tienes ningún Bulk/);
+  // en otro idioma la casilla es otra: no es repetida
+  const otroIdioma = sugerirDestino(ctx({ entradas: [enAlbum] }), charmander151, 'ES');
+  assert.ok(otroIdioma && otroIdioma.tipo === 'coleccion' && otroIdioma.crear);
+  // la propia entrada no cuenta (al recolocar una carta recibida)
+  assert.equal(casillaOcupada(cat, [enAlbum], charmander151, 'EN', enAlbum.id).length, 0);
+  assert.equal(casillaOcupada(cat, [enAlbum, entrada('sv03.5-004', { idioma: 'EN', album_coleccion: 'sv03.5', cantidad: 3 })], charmander151, 'EN').length, 2);
 });
 
 test('álbumes por colección: se cuentan por colección e idioma (sin idioma = EN, o JP para japonesas)', () => {
