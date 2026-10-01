@@ -13,7 +13,7 @@
  *
  * Escribe:
  *   tools/imagenes.json        – por colección, los números SIN imagen en TCGdex (en / es / ja); por carta,
- *                                la imagen de otra fuente (origen + URL pequeña + URL grande); lista sin imagen.
+ *                                la imagen de otra fuente (origen + URL pequeña; la grande se deduce); lista sin imagen.
  *   tools/informe-imagenes.txt – resumen por colección, porcentaje total y la lista de cartas sin imagen.
  * Después, tools/generar-catalogo.mjs incorpora imagenes.json al catálogo (campos ien / ies / ija de cada
  * colección y im de cada carta), que es lo que usa la app para pedir la imagen correcta a la primera.
@@ -174,12 +174,12 @@ for (let k = 0; k < sets.length; k++) {
     if (!ja) {
       if (estado.es.get(c.l) === 'ok') { fuentes['tcgdex-es']++; return; }
       const idP = idPtcgio(c, s);
-      if (idP && (await existe(urlPtcgio(idP))) === 'ok') { fuentes.pokemontcg++; if (!c.p) salida.cartas[c.id] = ['pokemontcg', urlPtcgio(idP), urlPtcgio(idP, true)]; return; }
+      if (idP && (await existe(urlPtcgio(idP))) === 'ok') { fuentes.pokemontcg++; if (!c.p) salida.cartas[c.id] = ['pokemontcg', urlPtcgio(idP)]; return; }
       const lim = urlLimitlessIntl(s, c);
-      if (lim && (await existe(lim)) === 'ok') { fuentes.limitless++; salida.cartas[c.id] = ['limitless', lim, urlLimitlessIntl(s, c, true)]; return; }
+      if (lim && (await existe(lim)) === 'ok') { fuentes.limitless++; salida.cartas[c.id] = ['limitless', lim]; return; }
     } else if (SERIES_JP_LIMITLESS.has(s.s)) {
       const lim = urlLimitlessJp(s, c);
-      if (lim && (await existe(lim)) === 'ok') { fuentes.limitless++; salida.cartas[c.id] = ['limitless', lim, urlLimitlessJp(s, c, true)]; return; }
+      if (lim && (await existe(lim)) === 'ok') { fuentes.limitless++; salida.cartas[c.id] = ['limitless', lim]; return; }
     }
     fuentes.ninguna++;
     sinImagenSet.push(c);

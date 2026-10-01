@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { Catalogo, numKey, numNorm, cmpKeys, ordenarCartas, nombreCarta, urlsImagen, type DatosCatalogo } from '../src/lib/catalogo.ts';
+import { Catalogo, numKey, numNorm, cmpKeys, ordenarCartas, nombreCarta, urlsImagen, urlsImagenGrande, urlLimitlessJa, idiomaImagen, type DatosCatalogo, type Carta, type Coleccion } from '../src/lib/catalogo.ts';
 import { buscarCatalogo, buscarColeccion, parseQuery } from '../src/lib/buscar.ts';
 import { Ubicador, posicionesCaja, agruparPorColeccion, type Caja, type Entrada } from '../src/lib/coleccion.ts';
 import { validarRegistro, validarPerfil, ocultarDni } from '../src/lib/validar.ts';
@@ -109,6 +109,35 @@ test('imágenes: internacional, japonesa y sin datos', () => {
   const j = cat.carta('jp-SV2a-025')!;
   assert.ok(urlsImagen(j, cat.setOf(j))[0].includes('/ja/SV/SV2a/025/low.webp'));
   assert.equal(urlsImagen(cat.carta('mep-118')!, cat.setOf(cat.carta('mep-118')!)).length, 0);
+});
+
+test('imágenes (Mejoras 2 · A): idioma del álbum, listas sin imagen de TCGdex y otras fuentes', () => {
+  const intl: Coleccion = { id: 'xx1', n: 'Prueba', s: 'sv', sn: 'SV', cc: 10, ct: 10, d: '2026-01-01', ab: 'XX', ien: ['005', '007'], ies: ['007'] };
+  const c1: Carta = { id: 'xx1-001', s: 'xx1', l: '001', n: 'Uno', c: 'P', p: 'xx1-1' };
+  const c5: Carta = { id: 'xx1-005', s: 'xx1', l: '005', n: 'Cinco', c: 'P', p: 'xx1-5' };
+  const c7: Carta = { id: 'xx1-007', s: 'xx1', l: '007', n: 'Siete', c: 'P', im: ['limitless', 'https://limitless/XX_007_R_EN_LG.png'] };
+  // álbum EN: inglés primero, luego pokemontcg.io
+  assert.deepEqual(urlsImagen(c1, intl), ['https://assets.tcgdex.net/en/sv/xx1/001/low.webp', 'https://images.pokemontcg.io/xx1/1.png']);
+  // álbum ES: español primero (existe), inglés después
+  assert.deepEqual(urlsImagen(c1, intl, 'es').slice(0, 2), ['https://assets.tcgdex.net/es/sv/xx1/001/low.webp', 'https://assets.tcgdex.net/en/sv/xx1/001/low.webp']);
+  // sin inglés en TCGdex: se usa el español aunque el álbum sea EN; pokemontcg.io después; inglés al final por si acaso
+  assert.deepEqual(urlsImagen(c5, intl), ['https://assets.tcgdex.net/es/sv/xx1/005/low.webp', 'https://images.pokemontcg.io/xx1/5.png', 'https://assets.tcgdex.net/en/sv/xx1/005/low.webp']);
+  // sin TCGdex en ningún idioma ni pokemontcg.io: la otra fuente guardada en el catálogo
+  assert.equal(urlsImagen(c7, intl)[0], 'https://limitless/XX_007_R_EN_LG.png');
+  assert.equal(urlsImagenGrande(c7, intl)[0], 'https://limitless/XX_007_R_EN.png');
+  assert.equal(urlsImagenGrande(c1, intl)[0], 'https://assets.tcgdex.net/en/sv/xx1/001/high.webp');
+  assert.ok(urlsImagenGrande(c1, intl).includes('https://images.pokemontcg.io/xx1/1_hires.png'));
+  // japonesa sin imágenes en TCGdex (ija = 0): Limitless con el número sin ceros y el código sin guiones
+  const jp: Coleccion = { id: 'jp-SV-P', tid: 'SV-P', n: 'Promo', s: 'SV', sn: 'SV', cc: 10, ct: 10, d: '2026-01-01', rg: 'ja', ija: 0 };
+  const j: Carta = { id: 'jp-SV-P-025', s: 'jp-SV-P', l: '025', n: 'Pikachu', c: 'P', rg: 'ja' };
+  assert.equal(urlLimitlessJa(j, jp), 'https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpc/SVP/SVP_25_R_JP_LG.png');
+  assert.equal(urlLimitlessJa(j, jp, true), 'https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpc/SVP/SVP_25_R_JP.png');
+  assert.deepEqual(urlsImagen(j, jp), ['https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpc/SVP/SVP_25_R_JP_LG.png', 'https://assets.tcgdex.net/ja/SV/SV-P/025/low.webp']);
+  // japonesa con imagen en TCGdex: TCGdex primero
+  const jp2: Coleccion = { ...jp, id: 'jp-S12a', tid: 'S12a', ija: ['250'] };
+  assert.equal(urlsImagen({ ...j, id: 'jp-S12a-025', s: 'jp-S12a' }, jp2)[0], 'https://assets.tcgdex.net/ja/SV/S12a/025/low.webp');
+  assert.equal(urlsImagen({ ...j, id: 'jp-S12a-250', s: 'jp-S12a', l: '250' }, jp2)[0], 'https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpc/S12a/S12a_250_R_JP_LG.png');
+  assert.equal(idiomaImagen('ES'), 'es'); assert.equal(idiomaImagen('EN'), 'auto'); assert.equal(idiomaImagen(null), 'auto');
 });
 
 test('validación del registro', () => {

@@ -19,6 +19,10 @@ export type Coleccion = {
   ab?: string;        // código impreso (MEW, PRE…)
   p?: string;         // id en pokemontcg.io
   sym?: string;       // símbolo
+  // Imágenes en TCGdex (tools/validar-imagenes.mjs): números SIN imagen en cada idioma.
+  ien?: 0 | string[]; // inglés: ausente = todas tienen imagen; 0 = ninguna; lista = todas menos estas
+  ies?: 1 | string[]; // español: ausente = ninguna; 1 = todas; lista = todas menos estas
+  ija?: 0 | string[]; // japonés (colecciones japonesas): como ien
 };
 
 export type Carta = {
@@ -39,6 +43,7 @@ export type Carta = {
   rg?: 'ja';
   sd?: boolean;       // "sin datos": casilla creada a partir del total oficial
   sinTcgdex?: boolean; // completada a mano: no existe en TCGdex (imagen y precio desde otras fuentes)
+  im?: [origen: string, pequena: string, grande?: string]; // imagen de otra fuente pública (Limitless, pokemontcg.io) cuando TCGdex no la tiene; la grande se deduce si falta
 };
 
 export type Especie = [number, string, string, string]; // [n.º, inglés, español, japonés]
@@ -175,35 +180,71 @@ export function numLabel(c: Carta, s?: Coleccion): string {
 function tcgdexBase(s: Coleccion, lang: string): string {
   return `https://assets.tcgdex.net/${lang}/${s.s}/${s.tid || s.id}/`;
 }
-/** Imagen de respaldo en Limitless para cartas japonesas que TCGdex no tiene (código sin guiones: SV-P → SVP). */
-export function urlLimitlessJa(c: Carta, s: Coleccion): string | null {
+/** Imagen de respaldo en Limitless para cartas japonesas desde la era BW (código sin guiones: SV-P → SVP; número sin ceros). */
+export function urlLimitlessJa(c: Carta, s: Coleccion, grande = false): string | null {
   if (s.rg !== 'ja' || !s.tid || !/^\d+$/.test(c.l)) return null;
   const code = s.tid.replace(/-/g, '');
-  return `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpc/${code}/${code}_${c.l}_R_JP_LG.png`;
+  return `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/tpc/${code}/${code}_${parseInt(c.l, 10)}_R_JP${grande ? '' : '_LG'}.png`;
 }
-/** URLs candidatas de la imagen pequeña de una carta (se prueban en orden). */
-export function urlsImagen(c: Carta, s: Coleccion | undefined, imgLang: 'auto' | 'es' | 'en' = 'auto'): string[] {
+/** ¿TCGdex tiene la imagen de este número? (listas ien / ija: ausente = todas, 0 = ninguna, lista = todas menos esas) */
+const tieneTcgdex = (lista: 0 | string[] | undefined, l: string): boolean => (lista === undefined ? true : lista === 0 ? false : !lista.includes(l));
+/** Igual para el español (ies: ausente = ninguna, 1 = todas). */
+const tieneTcgdexEs = (lista: 1 | string[] | undefined, l: string): boolean => (lista === 1 ? true : !lista ? false : !lista.includes(l));
+export type IdiomaImagen = 'auto' | 'es' | 'en';
+/** 'ES' (idioma de una entrada o de un álbum) → 'es'; lo demás → 'auto' (inglés). */
+export const idiomaImagen = (idioma?: string | null): IdiomaImagen => (idioma === 'ES' || idioma === 'es' ? 'es' : 'auto');
+/** Imagen de otra fuente guardada en el catálogo (im): la pequeña, o la grande deducida de la pequeña. */
+function urlIm(c: Carta, grande: boolean): string | null {
+  if (!c.im) return null;
+  if (!grande) return c.im[1];
+  if (c.im[2]) return c.im[2];
+  if (c.im[0] === 'limitless') return c.im[1].replace(/_LG\.png$/, '.png');
+  if (c.im[0] === 'pokemontcg') return c.im[1].replace(/\.png$/, '_hires.png');
+  return c.im[1];
+}
+function urlPokemontcg(c: Carta, grande: boolean): string | null {
+  if (!c.p) return null;
+  const i = c.p.indexOf('-');
+  return `https://images.pokemontcg.io/${c.p.slice(0, i)}/${c.p.slice(i + 1)}${grande ? '_hires' : ''}.png`;
+}
+/**
+ * URLs candidatas de la imagen de una carta, en el orden en que conviene probarlas (la primera casi siempre existe):
+ * TCGdex en el idioma pedido (español si existe, si no inglés; japonés para las japonesas), pokemontcg.io,
+ * otra fuente pública guardada en el catálogo (im) y, como último recurso, TCGdex aunque el catálogo diga que no está.
+ */
+export function urlsImagen(c: Carta, s: Coleccion | undefined, imgLang: IdiomaImagen = 'auto', grande = false): string[] {
   const urls: string[] = [];
   if (!s || c.sd) return urls;
+  const calidad = grande ? 'high' : 'low';
   if (s.rg === 'ja') {
-    urls.push(tcgdexBase(s, 'ja') + c.l + '/low.webp', tcgdexBase(s, 'ja') + c.l + '/low.png');
-    const lim = urlLimitlessJa(c, s);
-    if (lim) urls.push(lim);
+    const ja = tcgdexBase(s, 'ja') + c.l + '/' + calidad + '.webp';
+    if (tieneTcgdex(s.ija, c.l)) urls.push(ja);
+    const im = urlIm(c, grande);
+    if (im) urls.push(im);
+    else { const lim = urlLimitlessJa(c, s, grande); if (lim) urls.push(lim); }
+    if (!tieneTcgdex(s.ija, c.l)) urls.push(ja);
     return urls;
   }
-  if (imgLang === 'es') urls.push(tcgdexBase(s, 'es') + c.l + '/low.webp');
-  urls.push(tcgdexBase(s, 'en') + c.l + '/low.webp');
-  if (c.p) {
-    const i = c.p.indexOf('-');
-    urls.push(`https://images.pokemontcg.io/${c.p.slice(0, i)}/${c.p.slice(i + 1)}.png`);
-  } else urls.push(tcgdexBase(s, 'en') + c.l + '/low.png');
+  const en = tcgdexBase(s, 'en') + c.l + '/' + calidad + '.webp';
+  const es = tcgdexBase(s, 'es') + c.l + '/' + calidad + '.webp';
+  const tieneEn = tieneTcgdex(s.ien, c.l), tieneEs = tieneTcgdexEs(s.ies, c.l);
+  if (imgLang === 'es' && tieneEs) urls.push(es);
+  if (tieneEn) urls.push(en);
+  else if (tieneEs && imgLang !== 'es') urls.push(es); // sin inglés: mejor en español que nada
+  const ptcg = urlPokemontcg(c, grande);
+  if (ptcg) urls.push(ptcg);
+  const im = urlIm(c, grande);
+  if (im) urls.push(im);
+  if (!tieneEn) urls.push(en);
   return urls;
 }
-export function urlImagenGrande(c: Carta, s: Coleccion | undefined): string | null {
-  if (!s || c.sd) return null;
-  if (s.rg === 'ja') return c.sinTcgdex ? urlLimitlessJa(c, s) : tcgdexBase(s, 'ja') + c.l + '/high.webp';
-  if (c.p) { const i = c.p.indexOf('-'); return `https://images.pokemontcg.io/${c.p.slice(0, i)}/${c.p.slice(i + 1)}_hires.png`; }
-  return tcgdexBase(s, 'en') + c.l + '/high.webp';
+/** URLs de la imagen grande (al abrir la carta); si ninguna carga, se prueban las pequeñas. */
+export function urlsImagenGrande(c: Carta, s: Coleccion | undefined, imgLang: IdiomaImagen = 'auto'): string[] {
+  return [...new Set([...urlsImagen(c, s, imgLang, true), ...urlsImagen(c, s, imgLang)])];
+}
+/** Primera imagen grande (compatibilidad). */
+export function urlImagenGrande(c: Carta, s: Coleccion | undefined, imgLang: IdiomaImagen = 'auto'): string | null {
+  return urlsImagenGrande(c, s, imgLang)[0] || null;
 }
 export function urlSimbolo(s: Coleccion | undefined): string | null {
   if (!s || s.rg === 'ja') return null;

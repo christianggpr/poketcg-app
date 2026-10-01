@@ -151,7 +151,9 @@ if (fs.existsSync(rutaImagenes)) {
     }
   }
   for (const c of catalogo.cards) delete c.im;
-  for (const [id, im] of Object.entries(img.cartas || {})) { const c = cartasPorId.get(id); if (c) { c.im = im; cartasOtra++; } }
+  // la URL grande se omite cuando la app puede deducirla de la pequeña (ahorra espacio en el catálogo)
+  const compactar = (im) => (im.length > 2 && ((im[0] === 'limitless' && im[2] === im[1].replace(/_LG\.png$/, '.png')) || (im[0] === 'pokemontcg' && im[2] === im[1].replace(/\.png$/, '_hires.png'))) ? [im[0], im[1]] : im);
+  for (const [id, im] of Object.entries(img.cartas || {})) { const c = cartasPorId.get(id); if (c) { c.im = compactar(im); cartasOtra++; } }
   for (const id of img.yaEnTcgdex || []) { const c = cartasPorId.get(id); if (c && c.sinTcgdex) { delete c.sinTcgdex; marcas++; } }
   console.log(`Imágenes (${img.generado ? img.generado.slice(0, 10) : '?'}): ${setsImg} colecciones con datos, ${cartasOtra} cartas con imagen de otra fuente, ${marcas} completadas a mano que ya están en TCGdex.`);
 } else {
