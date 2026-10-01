@@ -45,6 +45,10 @@ Antes de confirmar, el **resumen**: copias que se publican, copias que te quedas
 - **Mi Colección**: Álbumes · Bulk · **Mazos** · Buscar / Escanear · Mis ventas (chips en el celular, menú lateral en PC). **Mercado**: Inicio · Carrito · Mis compras.
 - Las direcciones `/app/mazos` y `/app/mazos/<id>` siguen igual; "Comprar faltantes" sigue llevando al carrito.
 
-## 6. Pruebas
+## 6. Arreglo del desplazamiento (A1 de Mejoras 1)
+
+Causa encontrada: cuando dos hojas estaban abiertas una sobre otra (por ejemplo editar una carta → "Eliminar" → confirmar, o crear/eliminar un álbum pasando por varias hojas) y se cerraban a la vez, la de arriba dejaba la página marcada como "sin desplazamiento" y ya no se podía bajar hasta recargar. Ahora la app lleva la cuenta de las hojas abiertas y solo libera el desplazamiento cuando se cierra la última; además, al cambiar de página se libera siempre. Escape cierra solo la hoja de arriba.
+
+## 7. Pruebas
 
 `npm test`: 64 pruebas (lógica + base de datos). E2E (`node test/e2e.mjs`): 70 pasos en verde, incluidos los nuevos de imágenes, repetidas, llenar álbumes, venta del álbum y Mazos.
