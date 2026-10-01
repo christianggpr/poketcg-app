@@ -109,6 +109,7 @@ try {
   await page.goto(APP + '/admin');
   await page.waitForSelector('text=usuarios registrados');
   if (parseInt(sql('select count(*) from public.cartas'), 10) < 34000 || process.env.E2E_CATALOGO === '1') {
+    await page.click('[data-testid=admin-tabs] >> text=Catálogo');
     await page.click('text=Cargar catálogo en la base de datos');
     await page.waitForSelector('text=/Catálogo .* cargado/', { timeout: 300000 });
   }
@@ -803,12 +804,117 @@ try {
   await page.goto(APP + '/terminos');
   await page.waitForSelector('[data-testid=terminos]');
   const terminos = await page.textContent('[data-testid=terminos]');
-  for (const frase of ['intermediario', 'comisión del 5 %', '30 minutos', '3 días', 'todos los días', 'código de retiro de 6 dígitos', 'sábado de esa misma semana', 'Libro de Reclamaciones']) if (!terminos.includes(frase)) throw new Error('los términos no mencionan: ' + frase);
+  for (const frase of ['intermediario', 'comisión del 5 %', '30 minutos', '3 días', 'todos los días', 'código de retiro de 6 dígitos', '7 días después de confirmado el pago', '48 horas', 'anular la orden tú mismo', 'reclamo', 'Libro de Reclamaciones']) if (!terminos.includes(frase)) throw new Error('los términos no mencionan: ' + frase);
   await page.goto(APP + '/privacidad');
   await page.waitForSelector('[data-testid=privacidad]');
   const privacidad = await page.textContent('[data-testid=privacidad]');
   for (const frase of ['Ley N.º 29733', 'cifrados', 'nombre de usuario', 'Las tiendas aliadas', 'São Paulo']) if (!privacidad.includes(frase)) throw new Error('la política de privacidad no menciona: ' + frase);
   log('términos y política de privacidad con comisión 5 %, plazos y días de pago vigentes');
+
+  // ---------- Fase 4 · B: anulación por el comprador, saldo del comprador, compra pagada con saldo, reclamo en tienda y retiro del saldo
+  const rpcComo = (uid, consulta) => sql(`begin; set local role authenticated; select set_config('request.jwt.claim.role', 'authenticated', true), set_config('request.jwt.claim.sub', '${uid}', true); ${consulta}; commit;`).split('\n').map(l => l.trim()).filter(Boolean).pop();
+  const TIENDA_E2E = sql(`select id from public.tiendas where nombre = 'Tienda E2E'`);
+  // la vendedora agrega dos cartas a su caja en venta (se publican solas) a S/ 10 cada una
+  sql(`insert into public.entradas (usuario_id, caja_id, carta_id, cantidad, acabado, idioma, condicion) values ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-002', 1, 'Normal', 'ES', 'NM'), ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-003', 2, 'Normal', 'ES', 'NM')`);
+  sql(`update public.publicaciones set tipo_precio = 'manual', precio_pen = 10 where usuario_id = '${LUCIA}' and carta_id in ('sv03.5-002', 'sv03.5-003') and estado = 'activa'`);
+  const pub002 = sql(`select id from public.publicaciones where usuario_id = '${LUCIA}' and carta_id = 'sv03.5-002' and estado = 'activa'`);
+  const pub003 = sql(`select id from public.publicaciones where usuario_id = '${LUCIA}' and carta_id = 'sv03.5-003' and estado = 'activa'`);
+  if (!pub002 || !pub003) throw new Error('las cartas nuevas de la vendedora no se publicaron solas');
+  // compra confirmada (RPC) cuyo vendedor no elige fecha en 48 h → el comprador anula desde la app y el dinero cae a su saldo
+  if (!/"ok": true/.test(rpcComo(CHRIS, `select public.reservar_copia('${pub002}', 1)`))) throw new Error('no se pudo reservar la carta 002');
+  const pagoB1 = JSON.parse(rpcComo(CHRIS, `select public.crear_pago('${TIENDA_E2E}', false)`));
+  if (!pagoB1.ok) throw new Error('crear_pago B1: ' + JSON.stringify(pagoB1));
+  if (!/"ok": true/.test(rpcComo(CHRIS, `select public.subir_comprobante('${pagoB1.pago_id}', 'comprobantes/x/b1.jpg', 'B1-0001')`))) throw new Error('comprobante B1');
+  if (!/"ok": true/.test(rpcComo(CHRIS, `select public.revisar_pago('${pagoB1.pago_id}', 'confirmar', null)`))) throw new Error('confirmar B1');
+  const ordenB1 = sql(`select id from public.ordenes where pago_id = '${pagoB1.pago_id}'`);
+  if (sql(`select (fecha_limite = (pago_confirmado_en at time zone 'America/Lima')::date + 7)::text from public.ordenes where id = '${ordenB1}'`) !== 'true') throw new Error('la fecha límite no es 7 días después del pago');
+  if (num(`select count(*) from public.entradas where usuario_id = '${LUCIA}' and carta_id = 'sv03.5-002'`) !== 0) throw new Error('la copia vendida no salió de la colección de la vendedora');
+  await page.goto(APP + '/app/compras/' + pagoB1.pago_id);
+  await page.waitForSelector('[data-testid=orden]:has-text("48 h para elegir la fecha")');
+  if (await page.$('[data-testid=btn-anular-orden]')) throw new Error('antes de las 48 h no debe poder anular');
+  sql(`update public.ordenes set pago_confirmado_en = now() - interval '49 hours' where id = '${ordenB1}'`);
+  await page.reload();
+  await page.waitForSelector('[data-testid=btn-anular-orden]');
+  await page.click('[data-testid=btn-anular-orden]');
+  await page.click('.sheet-foot >> text=Anular y recuperar mi dinero');
+  await page.waitForSelector('.toast:has-text("Orden anulada")');
+  if (sql(`select estado || ':' || anulada_por || ':' || falta_vendedor from public.ordenes where id = '${ordenB1}'`) !== 'vencida:comprador:true') throw new Error('la anulación no quedó registrada');
+  if (num(`select cantidad from public.entradas where usuario_id = '${LUCIA}' and carta_id = 'sv03.5-002'`) !== 1 || sql(`select estado from public.publicaciones where id = '${pub002}'`) !== 'activa') throw new Error('la copia no volvió a la colección y al mercado de la vendedora');
+  if (sql(`select public.saldo_de('${CHRIS}')`) !== '10.00') throw new Error('el dinero no volvió al saldo del comprador: ' + sql(`select public.saldo_de('${CHRIS}')`));
+  if (sql(`select (reputacion->>'faltas')::int >= 1 from public.perfiles where id = '${LUCIA}'`) !== 't') throw new Error('la falta no se registró en la reputación');
+  await page.goto(APP + '/app/compras');
+  await page.waitForSelector('[data-testid=saldo-comprador]');
+  if ((await page.textContent('[data-testid=saldo-monto]')).trim() !== 'S/ 10.00') throw new Error('Mis compras no muestra el saldo');
+  await foto(page, 'saldo-comprador');
+  log('anulación por el comprador (vendedora sin fecha en 48 h): orden vencida con falta, copia devuelta a la vendedora y S/ 10.00 en el saldo del comprador');
+
+  // compra pagada con el saldo (cubre todo → confirmada al instante, sin comprobante)
+  if (!/"ok": true/.test(rpcComo(CHRIS, `select public.reservar_copia('${pub003}', 1)`))) throw new Error('no se pudo reservar la carta 003');
+  await page.goto(APP + '/app/carrito');
+  await page.waitForSelector('[data-testid=usar-saldo] input:checked');
+  if (!/tu saldo cubre todo/.test(await page.textContent('[data-testid=usar-saldo]'))) throw new Error('el carrito no anuncia que el saldo cubre la compra');
+  await page.click('[data-testid=btn-comprar]');
+  await page.click('[data-testid=tienda-opcion]:has-text("Tienda E2E")');
+  await page.click('[data-testid=btn-confirmar-tienda]');
+  await page.waitForSelector('.toast:has-text("pagada con tu saldo")');
+  await page.waitForURL(/\/app\/compras\//, { timeout: 20000 });
+  const pagoB2 = page.url().split('/').pop();
+  await page.waitForSelector('[data-testid=estado-pago]:has-text("Pago confirmado")');
+  if (sql(`select estado || ':' || n_operacion || ':' || monto_saldo || ':' || monto_yape from public.pagos where id = '${pagoB2}'`) !== 'confirmado:SALDO:10.00:0.00') throw new Error('el pago con saldo no quedó confirmado: ' + sql(`select estado || ':' || coalesce(n_operacion, '') || ':' || monto_saldo || ':' || monto_yape from public.pagos where id = '${pagoB2}'`));
+  if (sql(`select public.saldo_de('${CHRIS}')`) !== '0.00') throw new Error('el saldo no se descontó');
+  const ordenB2 = sql(`select id from public.ordenes where pago_id = '${pagoB2}'`);
+  log('compra pagada con el saldo: confirmada al instante (sin comprobante), saldo en S/ 0.00');
+
+  // reclamo en tienda: la vendedora entrega, la tienda la recibe, el comprador reclama con foto; el administrador devuelve
+  if (!/"ok": true/.test(rpcComo(LUCIA, `select public.elegir_fecha_entrega('${ordenB2}', (select fecha_limite from public.ordenes where id = '${ordenB2}'))`))) throw new Error('fecha B2');
+  if (!/"ok": true/.test(rpcComo(TIENDA_USR, `select public.marcar_en_tienda('${ordenB2}', null)`))) throw new Error('en tienda B2');
+  await page.goto(APP + '/app/compras/' + pagoB2);
+  await page.waitForSelector('[data-testid=btn-reclamar]');
+  await page.click('[data-testid=btn-reclamar]');
+  await page.selectOption('[data-testid=select-motivo-reclamo]', 'carta_distinta');
+  await page.fill('[data-testid=input-detalle-reclamo]', 'La carta del sobre es otra edición');
+  await page.setInputFiles('[data-testid=input-foto-reclamo]', '/tmp/foto-carta.png');
+  await page.click('[data-testid=btn-enviar-reclamo]');
+  await page.waitForSelector('.toast:has-text("Reclamo #")');
+  await page.waitForSelector('[data-testid=orden-disputa]');
+  const reclamoId = sql(`select id from public.reclamos where orden_id = '${ordenB2}'`);
+  if (sql(`select estado from public.ordenes where id = '${ordenB2}'`) !== 'disputa' || !/reclamo-/.test(sql(`select fotos[1] from public.reclamos where id = '${reclamoId}'`))) throw new Error('el reclamo no quedó registrado con su foto');
+  if (!(await (await fetch(MOCK + '/__objetos')).json()).some(o => o.startsWith(`comprobantes/${CHRIS}/reclamo-`))) throw new Error('la foto del reclamo no se guardó en el bucket privado');
+  const ctxT2 = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE' });
+  const pageT2 = await ctxT2.newPage();
+  await entrar(pageT2, 'tienda_lince', 'clave-tienda');
+  await pageT2.goto(APP + '/app/tienda');
+  await pageT2.waitForSelector('[data-testid=orden-tienda]:has-text("Reclamo #")');
+  await page.goto(APP + '/admin?tab=reclamos');
+  await page.waitForSelector('[data-testid=admin-reclamo]:has-text("otra edición") img');
+  await page.click('[data-testid=admin-reclamo] [data-testid=btn-resolver-reclamo]');
+  await page.click('[data-testid=resolucion-devolver]');
+  await page.fill('[data-testid=input-nota-resolucion]', 'Confirmado: era otra edición');
+  await page.click('[data-testid=btn-confirmar-resolucion]');
+  await page.waitForSelector('.toast:has-text("resuelto")');
+  if (sql(`select estado || ':' || anulada_por || ':' || falta_vendedor from public.ordenes where id = '${ordenB2}'`) !== 'cancelada:reclamo:true') throw new Error('la orden no se anuló por el reclamo');
+  if (num(`select cantidad from public.entradas where usuario_id = '${LUCIA}' and carta_id = 'sv03.5-003'`) !== 2) throw new Error('la copia reclamada no volvió a la vendedora');
+  if (sql(`select public.saldo_de('${CHRIS}')`) !== '10.00') throw new Error('la devolución del reclamo no llegó al saldo');
+  if (!/Confirmado: era otra edición/.test(sql(`select cuerpo from public.notificaciones where usuario_id = '${LUCIA}' and tipo = 'reclamo_resuelto' order by id desc limit 1`))) throw new Error('la vendedora no recibió la resolución');
+  await pageT2.reload();
+  await pageT2.waitForSelector('text=Devolver al vendedor');
+  await foto(pageT2, 'tienda-devolver');
+  await ctxT2.close();
+  await page.goto(APP + '/app/compras/' + pagoB2);
+  await page.waitForSelector('[data-testid=orden-reclamo-resuelto]:has-text("devolución completa")');
+  log('reclamo en tienda con foto: orden en disputa (tienda avisada), resuelto en /admin con devolución → saldo S/ 10.00, copia devuelta, falta registrada');
+
+  // retiro del saldo a Yape/Plin: entra al Excel del siguiente día de pago
+  await page.goto(APP + '/app/compras');
+  await page.waitForSelector('[data-testid=btn-retirar-saldo]');
+  await page.click('[data-testid=btn-retirar-saldo]');
+  await page.click('.sheet-foot >> text=Sí, retirar');
+  await page.waitForSelector('.toast:has-text("Retiro de S/ 10.00")');
+  if (sql(`select estado || ':' || origen || ':' || monto from public.retiros where usuario_id = '${CHRIS}' and origen = 'saldo'`) !== 'sin_datos:saldo:10.00' || sql(`select public.saldo_de('${CHRIS}')`) !== '0.00') throw new Error('el retiro del saldo no quedó registrado');
+  await page.goto(APP + '/admin?tab=cobros');
+  await page.waitForSelector('[data-testid=select-modo-limite]');
+  if ((await page.inputValue('[data-testid=select-modo-limite]')) !== 'dias' || (await page.inputValue('[data-testid=input-entrega-dias]')) !== '7') throw new Error('los ajustes de plazo no muestran 7 días');
+  log('retiro del saldo (S/ 10.00, sin datos de cobro → pendiente de datos) y ajustes de plazo: 7 días y 48 h');
 
   // ---------- app Android (APK): la portada ofrece la descarga cuando existe public/descargas/android.json (test/reiniciar.sh deja uno de prueba)
   const ctxP = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE' });

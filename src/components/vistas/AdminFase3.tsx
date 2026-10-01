@@ -199,15 +199,15 @@ export function AdminWhatsApp() {
 /** Ajustes de pagos: Yape/Plin de la app, WhatsApp, plazos. */
 export function AdminAjustesPagos() {
   const toast = useToast();
-  const [form, setForm] = useState<{ yape_numero: string; yape_nombre: string; whatsapp: string; metodos: string[]; reserva_min: string; confirmacion_dias: string; liberacion_dias: string; dias_pago: number[] } | null>(null);
+  const [form, setForm] = useState<{ yape_numero: string; yape_nombre: string; whatsapp: string; metodos: string[]; reserva_min: string; confirmacion_dias: string; liberacion_dias: string; dias_pago: number[]; modo_limite: 'sabado' | 'dias'; entrega_dias: string; plazo_fecha_horas: string } | null>(null);
   const [guardando, setGuardando] = useState(false);
   useEffect(() => {
-    fetch('/api/admin/ajustes').then(r => r.json()).then(j => { const p = j.pagos || {}; setForm({ yape_numero: p.yape_numero || '', yape_nombre: p.yape_nombre || '', whatsapp: p.whatsapp || '', metodos: p.metodos || ['Yape', 'Plin'], reserva_min: String(p.reserva_min ?? 30), confirmacion_dias: String(p.confirmacion_dias ?? 3), liberacion_dias: String(p.liberacion_dias ?? 0), dias_pago: p.dias_pago || [0, 1, 2, 3, 4, 5, 6] }); }).catch(() => setForm(null));
+    fetch('/api/admin/ajustes').then(r => r.json()).then(j => { const p = j.pagos || {}; setForm({ yape_numero: p.yape_numero || '', yape_nombre: p.yape_nombre || '', whatsapp: p.whatsapp || '', metodos: p.metodos || ['Yape', 'Plin'], reserva_min: String(p.reserva_min ?? 30), confirmacion_dias: String(p.confirmacion_dias ?? 3), liberacion_dias: String(p.liberacion_dias ?? 0), dias_pago: p.dias_pago || [0, 1, 2, 3, 4, 5, 6], modo_limite: p.modo_limite === 'sabado' ? 'sabado' : 'dias', entrega_dias: String(p.entrega_dias ?? 7), plazo_fecha_horas: String(p.plazo_fecha_horas ?? 48) }); }).catch(() => setForm(null));
   }, []);
   async function guardar() {
     if (!form) return;
     setGuardando(true);
-    const r = await post('/api/admin/ajustes', { pagos: { ...form, reserva_min: Number(form.reserva_min), confirmacion_dias: Number(form.confirmacion_dias), liberacion_dias: Number(form.liberacion_dias) } });
+    const r = await post('/api/admin/ajustes', { pagos: { ...form, reserva_min: Number(form.reserva_min), confirmacion_dias: Number(form.confirmacion_dias), liberacion_dias: Number(form.liberacion_dias), entrega_dias: Number(form.entrega_dias), plazo_fecha_horas: Number(form.plazo_fecha_horas) } });
     setGuardando(false);
     if (r.ok) toast('Ajustes de pagos guardados', 'ok'); else toast(r.error || 'No se pudo guardar', 'danger', 4000);
   }
@@ -221,6 +221,9 @@ export function AdminAjustesPagos() {
         <Campo label="WhatsApp de la app" ayuda="Para verificar celulares y enviar avisos.">{id => <input id={id} className="input" inputMode="numeric" value={form.whatsapp} onChange={e => setForm({ ...form, whatsapp: e.target.value })} />}</Campo>
         <div className="field"><label>Métodos de pago</label><div className="row" style={{ gap: 10 }}>{['Yape', 'Plin'].map(m => <label key={m} className="check"><input type="checkbox" checked={form.metodos.includes(m)} onChange={e => setForm({ ...form, metodos: e.target.checked ? [...new Set([...form.metodos, m])] : form.metodos.filter(x => x !== m) })} />{m}</label>)}</div></div>
         <Campo label="Minutos para subir el comprobante" ayuda="Pasado el plazo la reserva se libera.">{id => <input id={id} className="input" inputMode="numeric" value={form.reserva_min} onChange={e => setForm({ ...form, reserva_min: e.target.value })} />}</Campo>
+        <Campo label="Plazo de entrega del vendedor" ayuda="Fase 4: por defecto N días desde que confirmas el pago.">{id => <select id={id} className="input" value={form.modo_limite} onChange={e => setForm({ ...form, modo_limite: e.target.value as 'sabado' | 'dias' })} data-testid="select-modo-limite"><option value="dias">Hasta N días después del pago</option><option value="sabado">Hasta el sábado (vie/sáb → sábado siguiente)</option></select>}</Campo>
+        {form.modo_limite === 'dias' ? <Campo label="Días de plazo para entregar" ayuda="Desde que confirmas el pago.">{id => <input id={id} className="input" inputMode="numeric" value={form.entrega_dias} onChange={e => setForm({ ...form, entrega_dias: e.target.value })} data-testid="input-entrega-dias" />}</Campo> : null}
+        <Campo label="Horas para que el vendedor elija la fecha" ayuda="Pasado el plazo, el comprador puede anular y recuperar su dinero.">{id => <input id={id} className="input" inputMode="numeric" value={form.plazo_fecha_horas} onChange={e => setForm({ ...form, plazo_fecha_horas: e.target.value })} />}</Campo>
         <Campo label="Días para confirmar la entrega sola" ayuda="Si el comprador no confirma ni reclama.">{id => <input id={id} className="input" inputMode="numeric" value={form.confirmacion_dias} onChange={e => setForm({ ...form, confirmacion_dias: e.target.value })} />}</Campo>
         <Campo label="Días de espera para pagar al vendedor" ayuda="0 = apenas se confirma la entrega.">{id => <input id={id} className="input" inputMode="numeric" value={form.liberacion_dias} onChange={e => setForm({ ...form, liberacion_dias: e.target.value })} />}</Campo>
       </div>

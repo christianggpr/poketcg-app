@@ -87,8 +87,10 @@ export function fmtUsd(usd: number | null | undefined): string {
 
 export type TipoCambio = { usd_pen: number; eur_pen: number; t?: number; fuente?: string };
 /** Ajustes públicos de pagos (Fase 3): a dónde pagar y plazos; lo privado no viaja al cliente. */
-export type AjustesPagos = { yape_numero: string; yape_nombre: string; metodos: string[]; whatsapp: string; reserva_min: number; confirmacion_dias: number; liberacion_dias: number; retiro_minimo: number; dias_pago: number[] };
-export const PAGOS_POR_DEFECTO: AjustesPagos = { yape_numero: '949114582', yape_nombre: '', metodos: ['Yape', 'Plin'], whatsapp: '', reserva_min: 30, confirmacion_dias: 3, liberacion_dias: 0, retiro_minimo: 0, dias_pago: [0, 1, 2, 3, 4, 5, 6] };
+export type AjustesPagos = { yape_numero: string; yape_nombre: string; metodos: string[]; whatsapp: string; reserva_min: number; confirmacion_dias: number; liberacion_dias: number; retiro_minimo: number; dias_pago: number[]; modo_limite: 'sabado' | 'dias'; entrega_dias: number; plazo_fecha_horas: number };
+export const PAGOS_POR_DEFECTO: AjustesPagos = { yape_numero: '949114582', yape_nombre: '', metodos: ['Yape', 'Plin'], whatsapp: '', reserva_min: 30, confirmacion_dias: 3, liberacion_dias: 0, retiro_minimo: 0, dias_pago: [0, 1, 2, 3, 4, 5, 6], modo_limite: 'dias', entrega_dias: 7, plazo_fecha_horas: 48 };
+/** Texto del plazo de entrega según el modo configurado. */
+export const textoPlazo = (p: Pick<AjustesPagos, 'modo_limite' | 'entrega_dias'>): string => (p.modo_limite === 'sabado' ? 'hasta el sábado (si el pago se confirma viernes o sábado, el sábado siguiente)' : `hasta ${p.entrega_dias} días después de confirmado el pago`);
 export type Ajustes = {
   fx: TipoCambio;
   pisos: { normal: number; especial: number };

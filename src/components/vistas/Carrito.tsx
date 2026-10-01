@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
-import { crearPago, tiendasActivas, DIAS_CORTOS, type Tienda } from '@/lib/compras';
+import { crearPago, saldoComprador, tiendasActivas, DIAS_CORTOS, type Tienda } from '@/lib/compras';
 import type { LineaCarrito } from '@/lib/mercado';
-import { fmtPen } from '@/lib/precios-core';
+import { fmtPen, textoPlazo } from '@/lib/precios-core';
 import { reputacionesDe, type VendedorPublico } from '@/lib/reputacion';
 import { VendedorChip } from '../Vendedor';
 import { useCatalogo } from '../CatalogoProvider';
@@ -27,6 +27,9 @@ export function Carrito() {
   const router = useRouter();
   const [comprar, setComprar] = useState(false);
   const [ocupado, setOcupado] = useState<string | null>(null);
+  const [saldo, setSaldo] = useState(0);
+  const [usarSaldo, setUsarSaldo] = useState(true);
+  useEffect(() => { saldoComprador().then(s => setSaldo(s.saldo)).catch(() => setSaldo(0)); }, []);
   const [reputaciones, setReputaciones] = useState<Map<string, VendedorPublico>>(new Map());
   const comision = precios.ajustes.comision;
   const lineas = mercado.carrito;
@@ -89,17 +92,18 @@ export function Carrito() {
           <div className="row" style={{ justifyContent: 'space-between' }}><span>{mercado.unidades} {mercado.unidades === 1 ? 'carta' : 'cartas'} de {vendedores.length} {vendedores.length === 1 ? 'vendedor' : 'vendedores'}</span><span>{fmtPen(total)}</span></div>
           <div className="row small muted" style={{ justifyContent: 'space-between' }}><span>Comisión de PokéTCG ({Math.round(comision * 100)} %, la paga el vendedor)</span><span>{fmtPen(Math.round(total * comision * 100) / 100)}</span></div>
           <div className="row" style={{ justifyContent: 'space-between', fontWeight: 800, fontSize: 18, marginTop: 6 }}><span>Total</span><span data-testid="total-carrito">{fmtPen(total)}</span></div>
+          {saldo > 0 ? <label className="check small" style={{ marginTop: 6 }} data-testid="usar-saldo"><input type="checkbox" checked={usarSaldo} onChange={e => setUsarSaldo(e.target.checked)} /><span>Usar mi saldo de <b>{fmtPen(saldo)}</b>{usarSaldo ? <> → por Yape/Plin pagas <b>{fmtPen(Math.max(0, Math.round((total - saldo) * 100) / 100))}</b>{saldo >= total ? ' (nada: tu saldo cubre todo y la compra se confirma al instante)' : ''}</> : null}</span></label> : null}
           <button className="btn primary block" style={{ marginTop: 10 }} disabled={!!conProblema.length} onClick={() => setComprar(true)} data-testid="btn-comprar">Comprar</button>
-          <p className="small muted" style={{ marginTop: 8 }}>Pagas por Yape al número de la app y subes la foto del comprobante. Recoges tus cartas en la tienda que elijas; el vendedor las deja ahí a más tardar el sábado.</p>
+          <p className="small muted" style={{ marginTop: 8 }}>Pagas por Yape al número de la app y subes la foto del comprobante. Recoges tus cartas en la tienda que elijas; el vendedor las deja ahí {textoPlazo(precios.ajustes.pagos)}.</p>
         </div>
       ) : null}
-      {comprar ? <ElegirTienda total={total} onClose={() => setComprar(false)} onListo={id => { mercado.recargarCarrito(); router.push(`/app/compras/${id}`); }} /> : null}
+      {comprar ? <ElegirTienda total={total} usarSaldo={usarSaldo && saldo > 0} onClose={() => setComprar(false)} onListo={id => { mercado.recargarCarrito(); router.push(`/app/compras/${id}`); }} /> : null}
     </div>
   );
 }
 
 /** Paso 1 de la compra: elegir la tienda/sede donde recoger. */
-function ElegirTienda({ total, onClose, onListo }: { total: number; onClose: () => void; onListo: (pagoId: string) => void }) {
+function ElegirTienda({ total, usarSaldo, onClose, onListo }: { total: number; usarSaldo: boolean; onClose: () => void; onListo: (pagoId: string) => void }) {
   const toast = useToast();
   const [tiendas, setTiendas] = useState<Tienda[] | null>(null);
   const [sel, setSel] = useState<string>('');
@@ -108,9 +112,10 @@ function ElegirTienda({ total, onClose, onListo }: { total: number; onClose: () 
   async function confirmar() {
     if (!sel) { toast('Elige una tienda', 'danger'); return; }
     setOcupado(true);
-    const r = await crearPago(sel);
+    const r = await crearPago(sel, usarSaldo);
     setOcupado(false);
     if (!r.ok || !r.pago_id) { toast(r.error || 'No se pudo iniciar la compra', 'danger', 4000); return; }
+    if (r.confirmado) toast('¡Compra pagada con tu saldo y confirmada!', 'ok', 4000);
     onListo(r.pago_id);
   }
   return (

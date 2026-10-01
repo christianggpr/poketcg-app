@@ -39,7 +39,8 @@ export async function POST(req: Request) {
     if (p.yape_nombre != null) v.yape_nombre = String(p.yape_nombre).trim().slice(0, 60);
     if (p.whatsapp != null) { const t = String(p.whatsapp).replace(/\D/g, ''); if (t && !/^9\d{8}$/.test(t)) return json({ ok: false, error: 'El WhatsApp debe ser un celular de 9 dígitos que empiece en 9.' }, 400); v.whatsapp = t; }
     if (Array.isArray(p.dias_pago)) { const d = [...new Set(p.dias_pago.map(Number).filter(n => Number.isInteger(n) && n >= 0 && n <= 6))].sort(); v.dias_pago = d; }
-    for (const [k, min, max] of [['reserva_min', 5, 1440], ['confirmacion_dias', 1, 30], ['retiro_minimo', 0, 1000]] as const) {
+    if (p.modo_limite != null) { if (p.modo_limite !== 'sabado' && p.modo_limite !== 'dias') return json({ ok: false, error: 'Modo de plazo inválido.' }, 400); v.modo_limite = p.modo_limite; }
+    for (const [k, min, max] of [['reserva_min', 5, 1440], ['confirmacion_dias', 1, 30], ['retiro_minimo', 0, 1000], ['liberacion_dias', 0, 30], ['entrega_dias', 1, 30], ['plazo_fecha_horas', 1, 240]] as const) {
       if (p[k] != null) { const n = num(p[k], min, max); if (n == null) return json({ ok: false, error: `Valor inválido para ${k}.` }, 400); v[k] = n; }
     }
     await admin.from('ajustes_globales').upsert({ clave: 'pagos', valor: v, actualizado_en: new Date().toISOString() });

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
 import { ETIQUETA_ORDEN, fechaDia, fechaHora, usernamesDe, type Orden, type OrdenItem, type Tienda as TiendaT } from '@/lib/compras';
+import { ReclamoSheet } from '../ReclamoSheet';
 import { comprimirImagen } from '@/lib/fotos';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { useCatalogo } from '../CatalogoProvider';
@@ -28,6 +29,7 @@ export function Tienda() {
   const [retirar, setRetirar] = useState<Orden | null>(null);
   const [codigo, setCodigo] = useState('');
   const [recibir, setRecibir] = useState<Orden | null>(null);
+  const [reclamar, setReclamar] = useState<Orden | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const esTienda = perfil.rol === 'tienda' || perfil.rol === 'admin';
@@ -35,7 +37,7 @@ export function Tienda() {
   const cargar = useCallback(async () => {
     const sb = supabaseBrowser();
     if (perfil.tienda_id) { const { data: t } = await sb.from('tiendas').select('*').eq('id', perfil.tienda_id).maybeSingle(); setTienda((t as TiendaT) || null); }
-    let q = sb.from('ordenes').select('*').in('estado', ['pago_confirmado', 'en_tienda', 'entregada', 'saldo_liberado']).order('creada', { ascending: false }).limit(200);
+    let q = sb.from('ordenes').select('*').in('estado', ['pago_confirmado', 'en_tienda', 'disputa', 'entregada', 'saldo_liberado', 'cancelada']).order('creada', { ascending: false }).limit(200);
     if (perfil.rol === 'tienda' && perfil.tienda_id) q = q.eq('tienda_id', perfil.tienda_id);
     const { data } = await q;
     const lista = ((data || []) as Orden[]).map(o => ({ ...o, subtotal: Number(o.subtotal) }));
@@ -80,14 +82,15 @@ export function Tienda() {
     if (r.ok) { toast(`Orden #${retirar.numero} entregada`, 'ok'); setRetirar(null); setCodigo(''); cargar(); } else toast(r.error || 'No se pudo', 'danger', 4000);
   }
 
-  const grupos: [string, string, string][] = [['pago_confirmado', 'Por llegar', 'El vendedor las traerá hasta la fecha límite.'], ['en_tienda', 'Por retirar', 'Pide el código de retiro de 6 dígitos al comprador.'], ['entregada', 'Entregadas', '']];
+  const grupos: [string, string, string][] = [['pago_confirmado', 'Por llegar', 'El vendedor las traerá hasta la fecha límite.'], ['en_tienda', 'Por retirar', 'Pide el código de retiro de 6 dígitos al comprador. Si el comprador revisa y no está conforme, registra el reclamo y guarda el sobre.'], ['disputa', 'En reclamo', 'Guarda el sobre hasta que el administrador resuelva.'], ['devolver', 'Devolver al vendedor', 'El reclamo se resolvió a favor del comprador: el vendedor pasará a recoger su sobre.'], ['entregada', 'Entregadas', '']];
   return (
     <div>
       <h2 style={{ marginTop: 0 }}>🏪 {tienda ? tienda.nombre : 'Tienda'}</h2>
       <p className="small muted">{tienda ? `${tienda.direccion}${tienda.horario ? ' · ' + tienda.horario : ''}` : perfil.rol === 'admin' ? 'Vista de administrador: todas las tiendas.' : 'Tu cuenta no tiene sede asignada.'} Aquí solo se ven nombres de usuario, cartas y códigos.</p>
       {!ordenes ? <p className="small muted"><span className="spinner" /> Cargando…</p> : null}
       {grupos.map(([estado, titulo, ayuda]) => {
-        const lista = (ordenes || []).filter(o => (estado === 'entregada' ? o.estado === 'entregada' || o.estado === 'saldo_liberado' : o.estado === estado));
+        const lista = (ordenes || []).filter(o => (estado === 'entregada' ? o.estado === 'entregada' || o.estado === 'saldo_liberado' : estado === 'devolver' ? o.estado === 'cancelada' && /^Reclamo/.test(o.motivo || '') : o.estado === estado));
+        if (estado === 'devolver' && !lista.length) return null;
         return (
           <div key={estado} className="panel">
             <h3 style={{ marginTop: 0 }}>{titulo} <span className="muted">({lista.length})</span></h3>
@@ -102,13 +105,15 @@ export function Tienda() {
                     {items.filter(i => i.orden_id === o.id).map(i => { const c = cat.carta(i.carta_id); const set = c ? cat.setOf(c) : undefined; return <span key={i.id} className="row" style={{ gap: 6, alignItems: 'center' }}><Thumb carta={c} set={set} /><span className="small">{i.cantidad}× {c ? nombreCarta(c, perfil.idioma_nombres) : i.carta_id} <span className="muted">{nombreColeccion(set, perfil.idioma_nombres)} {c ? numLabel(c, set) : ''}{i.idioma ? ' · ' + i.idioma : ''}{i.acabado ? ' · ' + i.acabado : ''}</span></span></span>; })}
                   </div>
                   {o.estado === 'pago_confirmado' ? <div className="row" style={{ gap: 6, marginTop: 8 }}><button className="btn sm primary" disabled={ocupado} onClick={() => setRecibir(o)} data-testid="btn-recibido">📥 Recibido en tienda</button></div> : null}
-                  {o.estado === 'en_tienda' ? <div className="row" style={{ gap: 6, marginTop: 8 }}><button className="btn sm primary" disabled={ocupado} onClick={() => { setRetirar(o); setCodigo(''); }} data-testid="btn-retirado">✅ Retirado por el comprador</button>{o.foto_entrega_url ? <a className="btn sm ghost" href={o.foto_entrega_url} target="_blank" rel="noreferrer">Foto</a> : null}</div> : null}
+                  {o.estado === 'en_tienda' ? <div className="row" style={{ gap: 6, marginTop: 8 }}><button className="btn sm primary" disabled={ocupado} onClick={() => { setRetirar(o); setCodigo(''); }} data-testid="btn-retirado">✅ Retirado por el comprador</button><button className="btn sm" disabled={ocupado} onClick={() => setReclamar(o)} data-testid="btn-reclamo-tienda">⚠️ El comprador no está conforme</button>{o.foto_entrega_url ? <a className="btn sm ghost" href={o.foto_entrega_url} target="_blank" rel="noreferrer">Foto</a> : null}</div> : null}
+                  {o.estado === 'disputa' || (o.estado === 'cancelada' && o.motivo) ? <div className="small muted" style={{ marginTop: 6 }}>{o.motivo}</div> : null}
                 </div>
               </div>
             ))}
           </div>
         );
       })}
+      {reclamar ? <ReclamoSheet orden={reclamar} porTienda onClose={() => setReclamar(null)} onListo={() => { setReclamar(null); cargar(); }} /> : null}
       {recibir ? (
         <Sheet titulo={`Recibir orden #${recibir.numero}`} onClose={() => setRecibir(null)} pie={<><button className="btn" onClick={() => setRecibir(null)}>Cancelar</button><button className="btn" disabled={ocupado} onClick={() => input.current?.click()}>📷 Con foto</button><button className="btn primary" disabled={ocupado} onClick={() => recibido(recibir)} data-testid="btn-recibido-sin-foto">Marcar recibida</button></>}>
           <p className="small muted">Revisa que las cartas coincidan con la orden. Si puedes, toma una foto de las cartas en el mostrador: quedará en el registro.</p>

@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
-import { cancelarPago, ETIQUETA_ORDEN, ETIQUETA_PAGO, fechaDia, fechaHora, misPagos, pagoDetalle, subirComprobante, urlVoucher, usernamesDe, type Orden, type OrdenItem, type Pago, type Tienda } from '@/lib/compras';
+import { anularOrden, cancelarPago, ETIQUETA_ORDEN, ETIQUETA_PAGO, ETIQUETA_RESOLUCION, fechaDia, fechaHora, misPagos, MOTIVOS_RECLAMO, pagoDetalle, puedeAnular, reclamosDe, retirarSaldo, saldoComprador, subirComprobante, urlVoucher, usernamesDe, type Orden, type OrdenItem, type Pago, type Reclamo, type SaldoComprador, type Tienda } from '@/lib/compras';
+import { ReclamoSheet } from '../ReclamoSheet';
 import { fmtPen } from '@/lib/precios-core';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { calificarOrden, reputacionesDe, type VendedorPublico } from '@/lib/reputacion';
@@ -31,6 +32,7 @@ export function Compras() {
         <h2 style={{ margin: 0 }}>🧾 Mis compras</h2>
         <Link href="/app/mercado" className="btn sm ghost">🛒 Mercado</Link>
       </div>
+      <SaldoPanel />
       {error ? <Aviso tipo="danger">{error}</Aviso> : null}
       {!pagos && !error ? <p className="muted small"><span className="spinner" /> Cargando…</p> : null}
       {pagos && !pagos.length ? <div className="empty"><div className="big">🧾</div><p><b>Todavía no has comprado.</b></p><p className="muted">Arma tu carrito en el Mercado y pulsa «Comprar».</p></div> : null}
@@ -44,6 +46,39 @@ export function Compras() {
           </Link>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** Saldo del comprador (devoluciones): se usa en la siguiente compra o se retira a Yape/Plin/banco. */
+function SaldoPanel() {
+  const toast = useToast();
+  const [saldo, setSaldo] = useState<SaldoComprador | null>(null);
+  const [abrir, setAbrir] = useState(false);
+  const [confirmar, setConfirmar] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
+  const cargar = () => saldoComprador().then(setSaldo);
+  useEffect(() => { cargar(); }, []);
+  if (!saldo || (saldo.saldo <= 0 && !saldo.movimientos.length && saldo.retiro_pendiente <= 0)) return null;
+  async function retirar() {
+    setOcupado(true);
+    const r = await retirarSaldo();
+    setOcupado(false);
+    if (r.ok) { toast(r.sin_datos ? `Retiro de ${fmtPen(r.monto || 0)} registrado: registra tus datos de cobro en Ajustes para que te paguemos` : `Retiro de ${fmtPen(r.monto || 0)} en camino: se paga en el siguiente día de pago`, 'ok', 5000); cargar(); } else toast(r.error || 'No se pudo', 'danger', 4000);
+  }
+  const TIPO: Record<string, string> = { devolucion: 'Devolución', uso_compra: 'Usado en compra', retiro: 'Retiro', ajuste: 'Ajuste' };
+  return (
+    <div className="panel" style={{ marginTop: 10 }} data-testid="saldo-comprador">
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+        <div><b>💳 Tu saldo: <span data-testid="saldo-monto">{fmtPen(saldo.saldo)}</span></b>{saldo.retiro_pendiente > 0 ? <span className="small muted"> · {fmtPen(saldo.retiro_pendiente)} en camino a tu Yape</span> : null}</div>
+        <div className="row" style={{ gap: 6 }}>
+          {saldo.saldo > 0 ? <button className="btn sm" disabled={ocupado} onClick={() => setConfirmar(true)} data-testid="btn-retirar-saldo">Retirar a mi Yape/Plin</button> : null}
+          <button className="btn sm ghost" onClick={() => setAbrir(a => !a)}>{abrir ? 'Ocultar' : 'Movimientos'}</button>
+        </div>
+      </div>
+      <p className="small muted" style={{ margin: '4px 0 0' }}>Las devoluciones caen aquí al instante. Se descuenta solo en tu siguiente compra, o lo retiras y te lo pagamos en el siguiente día de pago a tus datos de cobro.</p>
+      {abrir ? <div className="card-list" style={{ marginTop: 8 }}>{saldo.movimientos.map(m => <div key={m.id} className="card-row" style={{ cursor: 'default' }}><div className="card-main"><div className="card-name">{TIPO[m.tipo] || m.tipo} · <span style={{ color: m.monto >= 0 ? 'var(--ok)' : 'inherit' }}>{m.monto >= 0 ? '+' : ''}{fmtPen(m.monto)}</span></div><div className="card-set">{m.detalle} · {fechaHora(m.creado)}</div></div></div>)}{!saldo.movimientos.length ? <p className="small muted">Sin movimientos.</p> : null}</div> : null}
+      {confirmar ? <Confirmar titulo="Retirar tu saldo" texto={`Te pagaremos ${fmtPen(saldo.saldo)} a tus datos de cobro (Ajustes) en el siguiente día de pago. Si prefieres, puedes dejarlo y se descuenta solo en tu próxima compra.`} okLabel="Sí, retirar" onOk={() => { setConfirmar(false); retirar(); }} onClose={() => setConfirmar(false)} /> : null}
     </div>
   );
 }
@@ -67,6 +102,9 @@ export function CompraDetalle({ id }: { id: string }) {
   const [reputaciones, setReputaciones] = useState<Map<string, VendedorPublico>>(new Map());
   const [resenas, setResenas] = useState<Map<string, { puntaje: number; comentario: string; creada: string }>>(new Map());
   const [calificar, setCalificar] = useState<Orden | null>(null);
+  const [reclamos, setReclamos] = useState<Map<string, Reclamo>>(new Map());
+  const [reclamar, setReclamar] = useState<Orden | null>(null);
+  const [anular, setAnular] = useState<Orden | null>(null);
   const [ahora, setAhora] = useState(Date.now());
   const input = useRef<HTMLInputElement>(null);
   const pagosAj = precios.ajustes.pagos;
@@ -78,6 +116,7 @@ export function CompraDetalle({ id }: { id: string }) {
         setVendedores(await usernamesDe(d.ordenes.map(o => o.vendedor_id)));
         setVoucher(await urlVoucher(d.pago.voucher_url));
         reputacionesDe(d.ordenes.map(o => o.vendedor_id)).then(setReputaciones);
+        reclamosDe(d.ordenes.map(o => o.id)).then(setReclamos);
         const { data: rs } = await sbReputacion().from('resenas').select('orden_id, puntaje, comentario, creada').in('orden_id', d.ordenes.map(o => o.id));
         setResenas(new Map(((rs || []) as { orden_id: string; puntaje: number; comentario: string; creada: string }[]).map(r => [r.orden_id, { puntaje: Number(r.puntaje), comentario: r.comentario, creada: r.creada }])));
       }
@@ -120,6 +159,10 @@ export function CompraDetalle({ id }: { id: string }) {
     const r = await fetch('/api/ordenes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion: 'entregada', id: o.id }) }).then(x => x.json()).catch(() => ({ ok: false, error: 'Sin conexión' }));
     if (r.ok) { toast('¡Listo! Las cartas ya están en tu colección: colócalas desde Cajas → Por colocar.', 'ok', 4500); cargar(); notif.recargar(); } else toast(r.error || 'No se pudo confirmar', 'danger', 4000);
   }
+  async function anularOrdenAhora(o: Orden) {
+    const r = await anularOrden(o.id);
+    if (r.ok) { toast('Orden anulada: el dinero ya está en tu saldo', 'ok', 4500); cargar(); notif.recargar(); } else toast(r.error || 'No se pudo anular', 'danger', 5000);
+  }
   async function cancelarCompra() {
     const r = await cancelarPago(pago.id);
     if (r.ok) { toast('Compra cancelada; las cartas volvieron al mercado', 'ok'); cargar(); } else toast(r.error || 'No se pudo cancelar', 'danger');
@@ -134,7 +177,7 @@ export function CompraDetalle({ id }: { id: string }) {
       {pago.estado === 'pendiente' && !vencida ? (
         <div className="panel" data-testid="instrucciones-pago">
           <h3 style={{ marginTop: 0 }}>1. Paga por {metodos}</h3>
-          <p>Envía <b>{fmtPen(pago.monto)}</b> al número <b style={{ fontSize: 20 }}>{pagosAj?.yape_numero || '949114582'}</b>{pagosAj?.yape_nombre ? <> a nombre de <b>{pagosAj.yape_nombre}</b></> : null}.</p>
+          <p>Envía <b data-testid="monto-yape">{fmtPen(pago.monto_yape ?? pago.monto)}</b> al número <b style={{ fontSize: 20 }}>{pagosAj?.yape_numero || '949114582'}</b>{pagosAj?.yape_nombre ? <> a nombre de <b>{pagosAj.yape_nombre}</b></> : null}.{(pago.monto_saldo || 0) > 0 ? <span className="small muted"> (El total es {fmtPen(pago.monto)}: {fmtPen(pago.monto_saldo || 0)} se descontaron de tu saldo.)</span> : null}</p>
           <p className="small" style={{ color: 'var(--warn)' }}>⏱️ Tienes <b>{minutos} min {String(segundos).padStart(2, '0')} s</b> para enviar el comprobante; si no, la reserva se libera y las cartas vuelven al mercado.</p>
           <h3>2. Sube la captura y el número de operación</h3>
           <div className="row wrap" style={{ gap: 8, alignItems: 'center' }}>
@@ -150,7 +193,7 @@ export function CompraDetalle({ id }: { id: string }) {
       {vencida ? <Aviso tipo="warn">La reserva venció sin comprobante. Las cartas volvieron al mercado; puedes armar el carrito otra vez.</Aviso> : null}
       {pago.estado === 'revision' ? <Aviso tipo="info"><b>Recibimos tu comprobante</b> (operación {pago.n_operacion}). Lo revisamos y te avisamos por notificación y correo apenas se confirme. Las cartas siguen reservadas para ti.</Aviso> : null}
       {pago.estado === 'rechazado' ? <Aviso tipo="danger"><b>El pago no fue aceptado:</b> {pago.motivo}. Si fue un error, vuelve a comprar y sube el comprobante correcto.</Aviso> : null}
-      {pago.estado === 'confirmado' ? <Aviso tipo="ok"><b>Pago confirmado.</b> {tienda ? `Recoge tus cartas en ${tienda.nombre} (${tienda.direccion}${tienda.horario ? ' · ' + tienda.horario : ''}).` : ''} Te avisaremos cuando cada orden esté en la tienda, con su código de retiro.</Aviso> : null}
+      {pago.estado === 'confirmado' ? <Aviso tipo="ok"><b>Pago confirmado{pago.n_operacion === 'SALDO' ? ' con tu saldo' : ''}.</b> {tienda ? `Recoge tus cartas en ${tienda.nombre} (${tienda.direccion}${tienda.horario ? ' · ' + tienda.horario : ''}).` : ''} Te avisaremos cuando cada orden esté en la tienda, con su código de retiro.</Aviso> : null}
       {voucher ? <p className="small"><a href={voucher} target="_blank" rel="noreferrer">Ver mi comprobante</a></p> : null}
 
       <h3 style={{ marginBottom: 6 }}>{ordenes.length === 1 ? 'Tu orden' : `Tus ${ordenes.length} órdenes (una por vendedor)`}</h3>
@@ -160,7 +203,11 @@ export function CompraDetalle({ id }: { id: string }) {
             <div><b>Orden #{o.numero}</b> · vende {vendedores.get(o.vendedor_id) ? <VendedorChip username={vendedores.get(o.vendedor_id)!} reputacion={reputaciones.get(o.vendedor_id)?.reputacion} corto /> : '…'} · {fmtPen(o.subtotal)}</div>
             <span className="pill primary">{ETIQUETA_ORDEN[o.estado]}</span>
           </div>
-          {o.estado === 'pago_confirmado' ? <div className="small muted" style={{ marginTop: 4 }}>El vendedor debe dejarla en la tienda hasta el <b>{fechaDia(o.fecha_limite)}</b>{o.fecha_entrega ? <> (eligió el {fechaDia(o.fecha_entrega)})</> : null}.</div> : null}
+          {o.estado === 'pago_confirmado' ? <div className="small muted" style={{ marginTop: 4 }}>El vendedor debe dejarla en la tienda hasta el <b>{fechaDia(o.fecha_limite)}</b>{o.fecha_entrega ? <> (eligió el {fechaDia(o.fecha_entrega)})</> : <> (tiene {pagosAj?.plazo_fecha_horas ?? 48} h para elegir la fecha)</>}.</div> : null}
+          {o.estado === 'pago_confirmado' && puedeAnular(o, pagosAj?.plazo_fecha_horas ?? 48) ? <div className="notice warn small" style={{ marginTop: 6 }}>⏰ El vendedor {o.fecha_entrega ? 'no entregó en la fecha prometida' : 'no eligió fecha de entrega a tiempo'}. Puedes esperar o <button className="link" onClick={() => setAnular(o)} data-testid="btn-anular-orden">anular y recuperar tu dinero</button> (vuelve a tu saldo al instante).</div> : null}
+          {o.estado === 'en_tienda' ? <div className="small muted" style={{ marginTop: 6 }}>Revisa las cartas en la tienda antes de llevártelas. ¿Algo no está bien? <button className="link" onClick={() => setReclamar(o)} data-testid="btn-reclamar">Abrir un reclamo</button> (déjalas en la tienda).</div> : null}
+          {o.estado === 'disputa' && reclamos.get(o.id) ? <div className="notice info small" style={{ marginTop: 6 }} data-testid="orden-disputa">📝 <b>Reclamo #{reclamos.get(o.id)!.numero} en revisión</b> · {MOTIVOS_RECLAMO[reclamos.get(o.id)!.motivo]}. Deja las cartas en la tienda; te avisamos cuando el administrador lo resuelva.</div> : null}
+          {o.estado !== 'disputa' && reclamos.get(o.id)?.estado === 'resuelto' ? <div className="small" style={{ marginTop: 4 }} data-testid="orden-reclamo-resuelto">📝 Reclamo #{reclamos.get(o.id)!.numero} resuelto: {ETIQUETA_RESOLUCION[reclamos.get(o.id)!.resolucion!]}{reclamos.get(o.id)!.monto_devuelto ? ` (${fmtPen(reclamos.get(o.id)!.monto_devuelto!)} a tu saldo)` : ''}{reclamos.get(o.id)!.nota_admin ? ` · ${reclamos.get(o.id)!.nota_admin}` : ''}.</div> : null}
           {o.estado === 'en_tienda' ? <div className="notice ok" style={{ marginTop: 6 }}>🏪 <b>Ya está en la tienda.</b> Muestra este código para recogerla: <b style={{ fontSize: 22, letterSpacing: 2 }} data-testid="codigo-retiro">{o.codigo_retiro}</b><div style={{ marginTop: 6 }}><button className="btn sm primary" onClick={() => setConfirmarEntrega(o)} data-testid="btn-entregado">✅ Ya la recogí (Entregado)</button></div></div> : null}
           {o.estado === 'pago_confirmado' ? <div className="small muted" style={{ marginTop: 4 }}>¿Ya tienes la carta en la mano? <button className="link" onClick={() => setConfirmarEntrega(o)}>Marcar como entregada</button></div> : null}
           {o.estado === 'entregada' || o.estado === 'saldo_liberado' ? <div className="small" style={{ marginTop: 4 }} data-testid="orden-entregada">✅ Entregada el {fechaHora(o.entregada_en)}. Las cartas ya están en tu colección: <Link href="/app/cajas">colócalas en una caja</Link> (Cajas → Por colocar).</div> : null}
@@ -186,6 +233,8 @@ export function CompraDetalle({ id }: { id: string }) {
       ))}
       {calificar ? <CalificarSheet orden={calificar} vendedor={vendedores.get(calificar.vendedor_id) || ''} inicial={resenas.get(calificar.id)} onClose={() => setCalificar(null)} onListo={() => { setCalificar(null); cargar(); }} /> : null}
       {confirmarEntrega ? <Confirmar titulo={`Confirmar entrega de la orden #${confirmarEntrega.numero}`} texto="Confirma solo si ya tienes las cartas en tu poder. Con tu confirmación se paga al vendedor." okLabel="Sí, ya las tengo" onOk={() => { const o = confirmarEntrega; setConfirmarEntrega(null); marcarEntregada(o); }} onClose={() => setConfirmarEntrega(null)} /> : null}
+      {reclamar ? <ReclamoSheet orden={reclamar} onClose={() => setReclamar(null)} onListo={() => { setReclamar(null); cargar(); notif.recargar(); }} /> : null}
+      {anular ? <Confirmar titulo={`Anular la orden #${anular.numero}`} texto={`Se anula la compra de estas cartas y ${fmtPen(anular.subtotal)} vuelven a tu saldo al instante (lo usas en otra compra o lo retiras a tu Yape). El vendedor recibe una falta.`} okLabel="Anular y recuperar mi dinero" peligro onOk={() => { const o = anular; setAnular(null); anularOrdenAhora(o); }} onClose={() => setAnular(null)} /> : null}
       {cancelar ? <Confirmar titulo="Cancelar la compra" texto="Las cartas volverán al mercado y tendrás que armar el carrito de nuevo si cambias de idea." okLabel="Cancelar compra" peligro onOk={() => { setCancelar(false); cancelarCompra(); }} onClose={() => setCancelar(false)} /> : null}
       {pago.estado !== 'pendiente' ? <p className="small" style={{ marginTop: 8 }}><button className="link" onClick={() => router.push('/app/mercado')}>Seguir comprando</button></p> : null}
     </div>

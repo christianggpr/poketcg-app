@@ -48,7 +48,8 @@ export default async function Terminos() {
 
       <h2>8. Entrega en tienda y código de retiro</h2>
       <ul>
-        <li>El vendedor deja las cartas en la tienda elegida. <b>Fecha límite:</b> si el pago se confirma de domingo a jueves, el sábado de esa misma semana; si se confirma viernes o sábado, el sábado de la semana siguiente. La fecha exacta aparece en cada orden.</li>
+        <li>El vendedor deja las cartas en la tienda elegida. <b>Fecha límite:</b> {pagos.modo_limite === 'sabado' ? 'si el pago se confirma de domingo a jueves, el sábado de esa misma semana; si se confirma viernes o sábado, el sábado de la semana siguiente' : `hasta ${pagos.entrega_dias} días después de confirmado el pago`}. El vendedor tiene <b>{pagos.plazo_fecha_horas} horas</b> para elegir la fecha de entrega. La fecha exacta aparece en cada orden.</li>
+        <li>Si el vendedor no elige fecha a tiempo o no entrega en la fecha prometida, puedes <b>anular la orden tú mismo</b> desde Mis compras: el dinero vuelve a tu <b>saldo</b> de {APP_NAME} al instante (lo usas en otra compra o lo retiras a tu Yape/Plin/cuenta en el siguiente día de pago). Lo mismo ocurre automáticamente si pasa la fecha límite.</li>
         <li>La tienda registra la recepción («En tienda»). Desde ese momento tienes en la app un <b>código de retiro de 6 dígitos</b>: muéstralo solo a la tienda al recoger tus cartas y no lo compartas con nadie.</li>
         <li>Revisa las cartas al recogerlas y marca «Entregado» en la app (o lo hará la tienda con tu código). Si pasan <b>{pagos.confirmacion_dias} días</b> desde «En tienda» sin novedad, la orden se confirma automáticamente.</li>
         <li>Las tiendas custodian las cartas de buena fe mientras están en su local; su responsabilidad se limita al valor pagado por la orden.</li>
@@ -63,8 +64,8 @@ export default async function Terminos() {
 
       <h2>10. Problemas, devoluciones y disputas</h2>
       <ul>
-        <li>Si al recoger tus cartas falta alguna, es distinta a la publicada o está dañada, <b>no marques «Entregado»</b>: escríbenos a {ADMIN_EMAIL} o por WhatsApp dentro del plazo de {pagos.confirmacion_dias} días desde «En tienda», con fotos. Retendremos el pago al vendedor mientras se resuelve.</li>
-        <li>Según el caso, te devolvemos el dinero por {metodos}, coordinamos la entrega correcta o descontamos la parte que falte. Una vez confirmada la entrega (por ti o automáticamente) no hay devoluciones, salvo fraude comprobado.</li>
+        <li>Revisa las cartas <b>en la tienda, antes de llevártelas</b>. Si falta alguna, es distinta a la publicada o está en peor estado, <b>no te las lleves ni marques «Entregado»</b>: déjalas en la tienda y abre un <b>reclamo</b> desde la orden (con fotos) dentro del plazo de {pagos.confirmacion_dias} días desde «En tienda»; la tienda también puede registrarlo por ti. La orden queda en disputa y el pago al vendedor en espera.</li>
+        <li>Según el caso, te devolvemos el dinero a tu saldo (total o parcial) o la orden se entrega tal cual. Una vez que retiras las cartas de la tienda o confirmas la entrega (tú o automáticamente) se considera aceptada y no hay devoluciones, salvo fraude comprobado.</li>
         <li>{APP_NAME} media de buena fe entre comprador y vendedor y decide con la información disponible (fotos, registros de la tienda y de la app). Los vendedores que entreguen cartas distintas a lo publicado pueden ser suspendidos.</li>
         <li>Reclamos: {ADMIN_EMAIL}. Puedes solicitar el Libro de Reclamaciones al mismo correo; los atendemos en el plazo que fija la ley.</li>
       </ul>

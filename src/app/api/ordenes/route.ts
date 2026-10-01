@@ -9,6 +9,7 @@ export const runtime = 'nodejs';
 /**
  * Acciones sobre una orden con la sesión del usuario (la base decide quién puede):
  * { accion: 'fecha', id, fecha } · { accion: 'en_tienda', id, foto? } · { accion: 'entregada', id, codigo? }
+ * { accion: 'anular', id } · { accion: 'reclamo', id, motivo, detalle, fotos[] }
  * Después envía los correos generados y borra las fotos de las publicaciones que se agotaron.
  */
 export async function POST(req: Request) {
@@ -21,6 +22,9 @@ export async function POST(req: Request) {
   if (b.accion === 'fecha') r = await supabase.rpc('elegir_fecha_entrega', { p_orden: id, p_fecha: String(b.fecha || '') });
   else if (b.accion === 'en_tienda') r = await supabase.rpc('marcar_en_tienda', { p_orden: id, p_foto: b.foto ? String(b.foto) : null });
   else if (b.accion === 'entregada') r = await supabase.rpc('marcar_entregada', { p_orden: id, p_codigo: b.codigo ? String(b.codigo) : null, p_modo: null });
+  // Fase 4 · B: el comprador anula solo; reclamo desde la tienda (comprador o cuenta de tienda)
+  else if (b.accion === 'anular') r = await supabase.rpc('anular_orden_comprador', { p_orden: id });
+  else if (b.accion === 'reclamo') r = await supabase.rpc('abrir_reclamo', { p_orden: id, p_motivo: String(b.motivo || 'otro'), p_detalle: String(b.detalle || '').slice(0, 1000), p_fotos: Array.isArray(b.fotos) ? b.fotos.map(String).slice(0, 3) : [] });
   else return json({ ok: false, error: 'Acción desconocida.' }, 400);
   if (r.error) return json({ ok: false, error: r.error.message }, 400);
   const res = r.data as { ok: boolean; error?: string; publicaciones_vendidas?: string[] };

@@ -69,6 +69,8 @@ async function publicar(carta: string, cantidad: number, precio: number, vendedo
 test('plazo de entrega: dom–jue → sábado de esa semana; vie–sáb → sábado de la siguiente', async t => {
   if (!conBase(t)) return;
   const f = async (iso: string) => (await q<{ d: string }>(`select public.fecha_limite_entrega($1::timestamptz)::text as d`, [iso]))[0].d;
+  await q(`update public.ajustes_globales set valor = valor || '{"modo_limite":"sabado"}' where clave = 'pagos'`);   // (la Fase 4 usa "dias" por defecto)
+  t.after(async () => { await q(`update public.ajustes_globales set valor = valor || '{"modo_limite":"dias"}' where clave = 'pagos'`); });
   assert.equal(await f('2026-09-30T15:00:00-05:00'), '2026-10-03');   // miércoles
   assert.equal(await f('2026-09-27T09:00:00-05:00'), '2026-10-03');   // domingo
   assert.equal(await f('2026-10-01T23:30:00-05:00'), '2026-10-03');   // jueves noche (hora de Lima)
@@ -280,7 +282,7 @@ test('tarea diaria: recordatorios, confirmación automática a los N días y ór
   assert.equal((await q<{ cantidad: number }>(`select cantidad from public.entradas where id = $1`, [b.entrada]))[0].cantidad, 2, 'la copia volvió a la entrada del vendedor');
   assert.equal((await q<{ vendidas: number }>(`select vendidas from public.publicaciones where id = $1`, [b.pub]))[0].vendidas, 0);
   assert.equal((await q<{ disponibles: number }>(`select disponibles from public.mercado where id = $1`, [b.pub]))[0].disponibles, 2);
-  assert.match((await q<{ titulo: string }>(`select titulo from public.notificaciones where usuario_id = $1 and tipo = 'orden_vencida' order by id desc limit 1`, [ids.admin]))[0].titulo, /devolver/);
+  assert.match((await q<{ titulo: string }>(`select titulo from public.notificaciones where usuario_id = $1 and tipo = 'orden_vencida' order by id desc limit 1`, [ids.admin]))[0].titulo, /devueltos al saldo/);   // Fase 4: el dinero vuelve solo al saldo del comprador
   assert.match((await q<{ cuerpo: string }>(`select cuerpo from public.notificaciones where usuario_id = $1 and tipo = 'orden_vencida_vendedor' order by id desc limit 1`, [ids.vendedor]))[0].cuerpo, /volvieron a tu colección/);
   // venta total vencida: la entrada (borrada al confirmar) se vuelve a crear en su caja y la publicación "vendida" se reactiva
   const c = await comprarYConfirmar('tst2-2', 1, 9, 1);

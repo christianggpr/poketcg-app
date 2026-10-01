@@ -168,7 +168,9 @@ export function OrdenVendedorDetalle({ id }: { id: string }) {
       ) : null}
       {orden.estado === 'en_tienda' ? <Aviso tipo="info">La carta está en la tienda desde el {fechaHora(orden.en_tienda_en)}. Cuando el comprador la recoja, tu ganancia queda lista para pagarte.</Aviso> : null}
       {orden.estado === 'entregada' || orden.estado === 'saldo_liberado' ? <Aviso tipo="ok">Entregada el {fechaHora(orden.entregada_en)}. Tu ganancia de {fmtPen(orden.neto_vendedor)} {orden.estado === 'saldo_liberado' ? 'ya fue liberada' : 'se paga en el siguiente día de pago'}; revisa tus datos de cobro en Ajustes.</Aviso> : null}
-      {orden.estado === 'vencida' ? <Aviso tipo="danger">{orden.motivo || 'La orden venció.'}</Aviso> : null}
+      {orden.estado === 'vencida' ? <Aviso tipo="danger">{orden.motivo || 'La orden venció.'} Las cartas volvieron a tu colección y el comprador recibió su dinero. Queda registrada como falta en tu reputación.</Aviso> : null}
+      {orden.estado === 'disputa' ? <Aviso tipo="warn" data-testid="venta-disputa">📝 <b>Reclamo del comprador:</b> {orden.motivo || 'en revisión'}. Las cartas quedan en la tienda y tu pago en espera hasta que el administrador lo resuelva; te avisaremos.</Aviso> : null}
+      {orden.estado === 'cancelada' && /^Reclamo/.test(orden.motivo || '') ? <Aviso tipo="danger">{orden.motivo}. Las cartas volvieron a tu colección y están en la tienda: pasa a recogerlas. Queda registrada como falta en tu reputación.</Aviso> : null}
       {orden.foto_entrega_url ? <p className="small"><a href={orden.foto_entrega_url} target="_blank" rel="noreferrer">Ver foto de la entrega</a></p> : null}
     </div>
   );

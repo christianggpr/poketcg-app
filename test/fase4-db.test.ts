@@ -170,3 +170,162 @@ test('suspensión: no puede reservar ni comprar, sus publicaciones quedan pausad
   assert.equal((await rpc(ids.vendedor, 'reservar_copia', [pubO, 1])).ok, true);
   await rpc(ids.vendedor, 'liberar_reserva', [(await q<{ id: string }>(`select id from public.reservas where comprador_id = $1 and estado = 'activa'`, [ids.vendedor]))[0].id]);
 });
+
+// ---------------------------------------------------------------------------------------------
+// B · plazos, anulación por el comprador, saldo del comprador, reclamos
+// ---------------------------------------------------------------------------------------------
+const saldoDe = async (uid: string) => (await q<{ s: number }>(`select public.saldo_de($1) as s`, [uid]))[0].s;
+
+test('plazos: modo "dias" (7 días desde el pago) por defecto; modo "sabado" conserva la regla de la Fase 3', async t => {
+  if (!conBase(t)) return;
+  const modo = (await q<{ m: string }>(`select valor->>'modo_limite' as m from public.ajustes_globales where clave = 'pagos'`))[0].m;
+  assert.equal(modo, 'dias');
+  assert.equal((await q<{ d: string }>(`select public.fecha_limite_entrega('2026-09-30T15:00:00-05:00'::timestamptz)::text as d`))[0].d, '2026-10-07');
+  await q(`update public.ajustes_globales set valor = valor || '{"modo_limite":"sabado"}' where clave = 'pagos'`);
+  try {
+    assert.equal((await q<{ d: string }>(`select public.fecha_limite_entrega('2026-09-30T15:00:00-05:00'::timestamptz)::text as d`))[0].d, '2026-10-03');
+  } finally { await q(`update public.ajustes_globales set valor = valor || '{"modo_limite":"dias"}' where clave = 'pagos'`); }
+});
+
+test('anulación por el comprador: solo cuando el vendedor no eligió fecha en 48 h o no entregó en la fecha; devuelve copias y dinero al saldo', async t => {
+  if (!conBase(t)) return;
+  const { pub, entrada } = await publicar('tst4-1', 2, 10);
+  assert.equal((await rpc(ids.comprador, 'reservar_copia', [pub, 1])).ok, true);
+  const pago = await rpc(ids.comprador, 'crear_pago', [tienda]);
+  assert.equal((await rpc(ids.comprador, 'subir_comprobante', [pago.pago_id, 'https://x/v.jpg', 'ANU' + Date.now()])).ok, true);
+  assert.equal((await rpc(ids.admin, 'revisar_pago', [pago.pago_id, 'confirmar', null])).ok, true);
+  const o = (await q<{ id: string; subtotal: number }>(`select id, subtotal from public.ordenes where pago_id = $1`, [pago.pago_id]))[0];
+  assert.equal((await q<{ c: number }>(`select cantidad as c from public.entradas where id = $1`, [entrada]))[0].c, 1, 'una copia salió de la colección al confirmar');
+  const antes = await saldoDe(ids.comprador);
+  const pronto = await rpc(ids.comprador, 'anular_orden_comprador', [o.id]);
+  assert.equal(pronto.ok, false); assert.match(String(pronto.error), /48 h/);
+  assert.equal((await rpc(ids.otro, 'anular_orden_comprador', [o.id])).ok, false, 'solo el comprador');
+  await q(`update public.ordenes set pago_confirmado_en = now() - interval '49 hours' where id = $1`, [o.id]);
+  const anu = await rpc(ids.comprador, 'anular_orden_comprador', [o.id]);
+  assert.equal(anu.ok, true, JSON.stringify(anu));
+  const od = (await q<{ estado: string; falta_vendedor: boolean; anulada_por: string; motivo: string }>(`select estado, falta_vendedor, anulada_por, motivo from public.ordenes where id = $1`, [o.id]))[0];
+  assert.deepEqual([od.estado, od.falta_vendedor, od.anulada_por], ['vencida', true, 'comprador']); assert.match(od.motivo, /no eligió fecha/);
+  assert.equal((await q<{ c: number }>(`select cantidad as c from public.entradas where id = $1`, [entrada]))[0].c, 2, 'la copia volvió a la colección del vendedor');
+  assert.equal(await saldoDe(ids.comprador), Number((antes + o.subtotal).toFixed(2)));
+  assert.match((await q<{ titulo: string }>(`select titulo from public.notificaciones where usuario_id = $1 and tipo = 'orden_vencida' order by id desc limit 1`, [ids.comprador]))[0].titulo, /te devolvimos/);
+  assert.ok(Number((await q<{ r: { faltas: number } }>(`select reputacion as r from public.perfiles where id = $1`, [ids.vendedor]))[0].r.faltas) >= 1, 'cuenta como falta');
+  // fecha elegida y no cumplida → también se puede anular
+  const { pub: pub2 } = await publicar('tst4-2', 1, 4);
+  assert.equal((await rpc(ids.comprador, 'reservar_copia', [pub2, 1])).ok, true);
+  const pago2 = await rpc(ids.comprador, 'crear_pago', [tienda, false]);   // sin usar el saldo
+  assert.equal(pago2.monto_saldo, 0);
+  assert.equal((await rpc(ids.comprador, 'subir_comprobante', [pago2.pago_id, 'https://x/v.jpg', 'ANU2' + Date.now()])).ok, true);
+  assert.equal((await rpc(ids.admin, 'revisar_pago', [pago2.pago_id, 'confirmar', null])).ok, true);
+  const o2 = (await q<{ id: string; fecha_limite: string }>(`select id, fecha_limite::text from public.ordenes where pago_id = $1`, [pago2.pago_id]))[0];
+  assert.equal((await rpc(ids.vendedor, 'elegir_fecha_entrega', [o2.id, o2.fecha_limite])).ok, true);
+  assert.equal((await rpc(ids.comprador, 'anular_orden_comprador', [o2.id])).ok, false, 'la fecha aún no pasó');
+  await q(`update public.ordenes set fecha_entrega = (now() at time zone 'America/Lima')::date - 1 where id = $1`, [o2.id]);
+  const anu2 = await rpc(ids.comprador, 'anular_orden_comprador', [o2.id]);
+  assert.equal(anu2.ok, true); assert.match((await q<{ motivo: string }>(`select motivo from public.ordenes where id = $1`, [o2.id]))[0].motivo, /fecha prometida/);
+});
+
+test('saldo del comprador: se usa en la siguiente compra (si cubre todo, se confirma sola); se devuelve si el pago vence; se puede retirar', async t => {
+  if (!conBase(t)) return;
+  const saldo = await saldoDe(ids.comprador);
+  assert.ok(saldo >= 14, 'hay saldo de las anulaciones anteriores: ' + saldo);
+  // compra barata cubierta por el saldo → confirmada al instante, sin comprobante
+  const { pub } = await publicar('tst4-1', 1, 6);
+  assert.equal((await rpc(ids.comprador, 'reservar_copia', [pub, 1])).ok, true);
+  const pago = await rpc(ids.comprador, 'crear_pago', [tienda]);
+  assert.deepEqual([pago.ok, pago.monto_saldo, pago.monto_yape, pago.confirmado], [true, 6, 0, true], JSON.stringify(pago));
+  const pg = (await q<{ estado: string; n_operacion: string; monto_saldo: number }>(`select estado, n_operacion, monto_saldo from public.pagos where id = $1`, [pago.pago_id]))[0];
+  assert.deepEqual([pg.estado, pg.n_operacion, pg.monto_saldo], ['confirmado', 'SALDO', 6]);
+  assert.equal((await q<{ estado: string }>(`select estado from public.ordenes where pago_id = $1`, [pago.pago_id]))[0].estado, 'pago_confirmado');
+  assert.equal(await saldoDe(ids.comprador), Number((saldo - 6).toFixed(2)));
+  const mio = await como(ids.comprador, async c => (await c.query(`select public.mi_saldo_comprador() as s`)).rows[0].s) as { saldo: number; movimientos: { tipo: string; monto: number }[] };
+  assert.equal(Number(mio.saldo), Number((saldo - 6).toFixed(2))); assert.equal(mio.movimientos[0].tipo, 'uso_compra'); assert.equal(Number(mio.movimientos[0].monto), -6);
+  // compra cara: usa el saldo restante y el resto por Yape; si no llega el comprobante, el saldo vuelve
+  const resto = await saldoDe(ids.comprador);
+  const { pub: pub2 } = await publicar('tst4-2', 1, resto + 20);
+  assert.equal((await rpc(ids.comprador, 'reservar_copia', [pub2, 1])).ok, true);
+  const pago2 = await rpc(ids.comprador, 'crear_pago', [tienda]);
+  assert.deepEqual([pago2.ok, Number(pago2.monto_saldo), Number(pago2.monto_yape), pago2.confirmado ?? false], [true, resto, 20, false]);
+  assert.equal(await saldoDe(ids.comprador), 0);
+  await q(`update public.pagos set expira = now() - interval '1 minute' where id = $1`, [pago2.pago_id]);
+  await q(`select public.vencer_pagos()`);
+  assert.equal((await q<{ estado: string }>(`select estado from public.pagos where id = $1`, [pago2.pago_id]))[0].estado, 'vencido');
+  assert.equal(await saldoDe(ids.comprador), resto, 'el saldo usado volvió');
+  // retiro del saldo → entra como pago pendiente del Excel (sin datos de cobro queda "sin datos")
+  await q(`delete from public.datos_cobro where usuario_id = $1`, [ids.comprador]);
+  const ret = await rpc(ids.comprador, 'retirar_saldo', []);
+  assert.deepEqual([ret.ok, Number(ret.monto), ret.sin_datos], [true, resto, true]);
+  assert.equal(await saldoDe(ids.comprador), 0);
+  const r = (await q<{ estado: string; origen: string; monto: number }>(`select estado, origen, monto from public.retiros where id = $1`, [ret.retiro_id]))[0];
+  assert.deepEqual([r.estado, r.origen, r.monto], ['sin_datos', 'saldo', resto]);
+  assert.equal((await rpc(ids.comprador, 'retirar_saldo', [])).ok, false, 'sin saldo no hay retiro');
+  await q(`insert into public.datos_cobro (usuario_id, metodo, titular, cifrado) values ($1, 'yape', 'Camilo Cruz', 'x')`, [ids.comprador]);
+  assert.equal((await q<{ n: number }>(`select public.activar_retiros_sin_datos($1) as n`, [ids.comprador]))[0].n, 1);
+  assert.equal((await rpc(ids.admin, 'marcar_retiro_pagado', [ret.retiro_id, 'OP-S1', null])).ok, true);
+  assert.match((await q<{ cuerpo: string }>(`select cuerpo from public.notificaciones where usuario_id = $1 and tipo = 'retiro_pagado' order by id desc limit 1`, [ids.comprador]))[0].cuerpo, /Devolución de tu saldo/);
+  await q(`delete from public.datos_cobro where usuario_id = $1`, [ids.comprador]);
+});
+
+test('reclamos: solo en tienda, por el comprador o la tienda; el saldo del vendedor no se libera; el administrador resuelve (parcial, devolver, entregar)', async t => {
+  if (!conBase(t)) return;
+  async function ordenEnTienda(precio: number, recibe = ids.vendedor) {
+    const { pub, entrada } = await publicar('tst4-1', 1, precio);
+    assert.equal((await rpc(ids.comprador, 'reservar_copia', [pub, 1])).ok, true);
+    const pago = await rpc(ids.comprador, 'crear_pago', [tienda, false]);
+    assert.equal((await rpc(ids.comprador, 'subir_comprobante', [pago.pago_id, 'https://x/v.jpg', 'REC' + Date.now() + Math.random()])).ok, true);
+    assert.equal((await rpc(ids.admin, 'revisar_pago', [pago.pago_id, 'confirmar', null])).ok, true);
+    const o = (await q<{ id: string; numero: number; subtotal: number; neto_vendedor: number; fecha_limite: string }>(`select id, numero, subtotal, neto_vendedor, fecha_limite::text from public.ordenes where pago_id = $1`, [pago.pago_id]))[0];
+    assert.equal((await rpc(ids.comprador, 'abrir_reclamo', [o.id, 'estado', 'aún no', '{}'])).ok, false, 'antes de estar en tienda no hay reclamo');
+    assert.equal((await rpc(recibe, 'marcar_en_tienda', [o.id, 'https://x/e.jpg'])).ok, true);
+    return { ...o, entrada, pub };
+  }
+  // parcial: la carta tiene un defecto → S/ 5 vuelven al comprador y la orden se entrega
+  const a = await ordenEnTienda(20);
+  assert.equal((await rpc(ids.otro, 'abrir_reclamo', [a.id, 'estado', 'x', '{}'])).ok, false, 'un tercero no reclama');
+  assert.equal((await rpc(ids.comprador, 'abrir_reclamo', [a.id, 'invalido', 'x', '{}'])).ok, false);
+  const rec = await rpc(ids.comprador, 'abrir_reclamo', [a.id, 'estado', 'Tiene un doblez en la esquina', ['c/reclamo-1.jpg']]);
+  assert.equal(rec.ok, true, JSON.stringify(rec));
+  assert.equal((await q<{ estado: string }>(`select estado from public.ordenes where id = $1`, [a.id]))[0].estado, 'disputa');
+  assert.equal((await rpc(ids.comprador, 'abrir_reclamo', [a.id, 'otro', 'otra vez', '{}'])).ok, false, 'un solo reclamo abierto por orden');
+  assert.equal((await rpc(ids.comprador, 'marcar_entregada', [a.id, null, null])).ok, false, 'en disputa no se entrega');
+  await q(`select public.liberar_saldos()`);
+  assert.equal((await q<{ estado: string }>(`select estado from public.ordenes where id = $1`, [a.id]))[0].estado, 'disputa', 'el saldo del vendedor no se libera');
+  assert.match((await q<{ titulo: string }>(`select titulo from public.notificaciones where usuario_id = $1 and tipo = 'reclamo' order by id desc limit 1`, [ids.admin]))[0].titulo, /estado distinto/);
+  assert.match((await q<{ cuerpo: string }>(`select cuerpo from public.notificaciones where usuario_id = $1 and tipo = 'reclamo_vendedor' order by id desc limit 1`, [ids.vendedor]))[0].cuerpo, /doblez/);
+  assert.equal((await rpc(ids.comprador, 'resolver_reclamo', [rec.reclamo_id, 'devolver', null, ''])).ok, false, 'solo el administrador resuelve');
+  assert.equal((await rpc(ids.admin, 'resolver_reclamo', [rec.reclamo_id, 'parcial', 25, ''])).ok, false, 'parcial debe ser menor que el total');
+  const saldo0 = await saldoDe(ids.comprador);
+  const res = await rpc(ids.admin, 'resolver_reclamo', [rec.reclamo_id, 'parcial', 5, 'Descuento por el doblez']);
+  assert.deepEqual([res.ok, Number(res.devuelto)], [true, 5], JSON.stringify(res));
+  const oa = (await q<{ estado: string; neto_vendedor: number }>(`select estado, neto_vendedor from public.ordenes where id = $1`, [a.id]))[0];
+  assert.equal(oa.estado, 'saldo_liberado'); assert.equal(oa.neto_vendedor, Number((a.neto_vendedor - 5).toFixed(2)));
+  assert.equal(await saldoDe(ids.comprador), Number((saldo0 + 5).toFixed(2)));
+  assert.equal((await q(`select 1 from public.entradas where usuario_id = $1 and compra_orden_id = $2`, [ids.comprador, a.id])).length, 1, 'el comprador se queda con la carta');
+  const rr = (await q<{ estado: string; resolucion: string; monto_devuelto: number; nota_admin: string }>(`select estado, resolucion, monto_devuelto, nota_admin from public.reclamos where id = $1`, [rec.reclamo_id]))[0];
+  assert.deepEqual([rr.estado, rr.resolucion, rr.monto_devuelto, rr.nota_admin], ['resuelto', 'parcial', 5, 'Descuento por el doblez']);
+  // devolver: la tienda reclama por el comprador → la orden se anula, la copia vuelve al vendedor, el dinero al saldo, falta registrada
+  await q(`update public.perfiles set rol = 'tienda', tienda_id = $2 where id = $1`, [ids.otro, tienda]);
+  try {
+    const b = await ordenEnTienda(12, ids.otro);
+    const rec2 = await rpc(ids.otro, 'abrir_reclamo', [b.id, 'carta_distinta', 'El comprador dice que no es la carta', '{}']);
+    assert.equal(rec2.ok, true, JSON.stringify(rec2));
+    assert.equal((await q<{ p: string }>(`select abierto_por as p from public.reclamos where id = $1`, [rec2.reclamo_id]))[0].p, 'tienda');
+    const s1 = await saldoDe(ids.comprador);
+    const faltas0 = Number((await q<{ r: { faltas: number } }>(`select reputacion as r from public.perfiles where id = $1`, [ids.vendedor]))[0].r.faltas);
+    const dev = await rpc(ids.admin, 'resolver_reclamo', [rec2.reclamo_id, 'devolver', null, 'Era otra carta']);
+    assert.deepEqual([dev.ok, Number(dev.devuelto)], [true, 12]);
+    const ob = (await q<{ estado: string; falta_vendedor: boolean; anulada_por: string }>(`select estado, falta_vendedor, anulada_por from public.ordenes where id = $1`, [b.id]))[0];
+    assert.deepEqual([ob.estado, ob.falta_vendedor, ob.anulada_por], ['cancelada', true, 'reclamo']);
+    assert.equal((await q<{ c: number }>(`select cantidad as c from public.entradas where id = $1`, [b.entrada]))[0].c, 1, 'la copia volvió a la colección del vendedor');
+    assert.equal(await saldoDe(ids.comprador), Number((s1 + 12).toFixed(2)));
+    assert.equal(Number((await q<{ r: { faltas: number } }>(`select reputacion as r from public.perfiles where id = $1`, [ids.vendedor]))[0].r.faltas), faltas0 + 1);
+    assert.match((await q<{ titulo: string }>(`select titulo from public.notificaciones where usuario_id = $1 and tipo = 'reclamo_tienda' order by id desc limit 1`, [ids.otro]))[0].titulo, /entregar las cartas al vendedor/);
+    // entregar: el administrador no da la razón → la orden se entrega sin devolución
+    const c = await ordenEnTienda(9, ids.otro);
+    const rec3 = await rpc(ids.comprador, 'abrir_reclamo', [c.id, 'otro', 'No me gusta', '{}']);
+    const s2 = await saldoDe(ids.comprador);
+    const ent = await rpc(ids.admin, 'resolver_reclamo', [rec3.reclamo_id, 'entregar', null, 'La carta es la publicada']);
+    assert.deepEqual([ent.ok, Number(ent.devuelto)], [true, 0]);
+    assert.equal((await q<{ estado: string }>(`select estado from public.ordenes where id = $1`, [c.id]))[0].estado, 'saldo_liberado');
+    assert.equal(await saldoDe(ids.comprador), s2);
+  } finally { await q(`update public.perfiles set rol = 'usuario', tienda_id = null where id = $1`, [ids.otro]); }
+});
