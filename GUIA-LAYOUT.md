@@ -23,6 +23,7 @@ Publicado en **https://poketcg.pe** (repositorio `christianggpr/poketcg-app`, ra
 - **Mi Colección**: en el celular, título «Mi Colección», tarjeta **Precio de mi colección** (cartas y distintas) y chips Álbumes · Bulk · Buscar · Mis ventas. En PC, **menú lateral izquierdo** (300 px) con el precio de la colección, el menú (Álbumes, Bulk, Buscar / Escanear, Mis ventas con el número de órdenes por entregar) y **Por llegar** (compras pendientes). El lateral se muestra en Álbumes, Buscar/Escanear y Mis ventas; el Bulk y los detalles usan todo el ancho, como en las maquetas.
 - **Mercado**: chips Inicio · Mazos · Carrito · Mis compras en ambos tamaños. En el celular, el Inicio lleva el buscador grande con el botón de **buscar por foto** (abre el escáner); en PC se busca desde la barra superior.
 - Al iniciar sesión se abre Mi Colección → Álbumes. Las direcciones antiguas siguen funcionando.
+- *Actualizado por Mejoras 2 y los ajustes de layout 1 y 2 (ver `GUIA-AJUSTES-LAYOUT.md`): hoy Mi Colección = Álbumes · Bulk · Mazos (el buscador con cámara reemplaza la sección Buscar / Escanear), Mercado = Inicio · Mis compras · Mis ventas, el carrito es solo el botón amarillo, el Bulk en PC también lleva el menú lateral y el álbum tiene cuadrícula elegible con flechas a los costados.*
 
 ## 4. Bloque C · Mi Colección
 

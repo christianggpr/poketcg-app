@@ -42,7 +42,7 @@ Antes de confirmar, el **resumen**: copias que se publican, copias que te quedas
 
 ## 5. Bloque D · Mazos en Mi Colección
 
-- **Mi Colección**: Álbumes · Bulk · **Mazos** · Buscar / Escanear · Mis ventas (chips en el celular, menú lateral en PC). **Mercado**: Inicio · Carrito · Mis compras.
+- **Mi Colección**: Álbumes · Bulk · **Mazos** (chips en el celular, menú lateral en PC). **Mercado**: Inicio · Mis compras · Mis ventas. *(Actualizado por los ajustes de layout 2: ya no hay sección Buscar / Escanear ni chip Carrito; ver `GUIA-AJUSTES-LAYOUT.md`.)*
 - Las direcciones `/app/mazos` y `/app/mazos/<id>` siguen igual; "Comprar faltantes" sigue llevando al carrito.
 
 ## 6. Arreglo del desplazamiento (A1 de Mejoras 1)
