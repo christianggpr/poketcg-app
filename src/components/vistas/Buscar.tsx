@@ -44,10 +44,14 @@ export function Buscar() {
         <Link href="/app/escanear" className="btn" title="Identificar una carta con la cámara" data-testid="btn-escanear" style={{ flex: 'none' }}><Icono n="camara" /> Escanear</Link>
       </div>
       {qLenta.trim() ? (
-        <div className="card-list" style={{ marginTop: 10 }}>
+        <div className="card-list resultados-buscar" style={{ marginTop: 10 }} data-testid="resultados-buscar">
+          {/* Ajustes de layout 2 · 1: cada resultado dice dónde la tengo (álbum/Bulk y posición) y tiene Agregar y Ver en el mercado */}
           {resultados.map(r => (
-            <CardRow key={r.card.id} carta={r.card} entradas={col.entradas.filter(e => e.carta_id === r.card.id)} ubicador={ubicador}
-              extra={<div style={{ marginTop: 4 }}><button className="btn sm primary" onClick={e => { e.stopPropagation(); setAgregar(r.card); }} data-testid="btn-guardar-fila"><Icono n="mas" tam={16} /> Guardar</button></div>} />
+            <CardRow key={r.card.id} carta={r.card} entradas={col.entradas.filter(e => e.carta_id === r.card.id)} ubicador={ubicador} locCompleta
+              extra={<div className="row acciones-resultado" style={{ marginTop: 6, gap: 6, flexWrap: 'wrap' }}>
+                <button className="btn sm primary" onClick={e => { e.stopPropagation(); setAgregar(r.card); }} data-testid="btn-guardar-fila"><Icono n="mas" tam={16} /> Agregar</button>
+                <Link href={`/app/carta/${encodeURIComponent(r.card.id)}?desde=mercado#mercado`} className="btn sm" onClick={e => e.stopPropagation()} data-testid="btn-ver-mercado"><Icono n="tienda" tam={16} /> Ver en el mercado</Link>
+              </div>} />
           ))}
           {!resultados.length ? <div className="empty"><div className="big"><Icono n="buscar" tam={44} grosor={1.5} /></div>No encontré esa carta. Prueba con el nombre en inglés, el número con el total (025/165) o el código de la colección.</div> : null}
           <p className="small muted">Busca por nombre en español, inglés o japonés, por número ("25", "025/165", "TG12"), por colección ("151", "obsidian", "sv2a", "jp") o combinaciones ("pikachu 151").</p>

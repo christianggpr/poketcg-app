@@ -65,7 +65,10 @@ export function BarraSuperior({ principales, principal, interior }: { principale
   );
 }
 
-/** Buscador ancho de la barra superior (solo PC): busca en mi colección o en el mercado según la pestaña. */
+/**
+ * Buscador ancho de la barra superior (solo PC): busca en mi colección o en el mercado según la pestaña.
+ * Ajustes de layout 2 · 1: lleva dentro el botón de cámara (buscar por foto: abre el escáner).
+ */
 function BuscadorPC({ principal }: { principal: Principal }) {
   const router = useRouter();
   const [q, setQ] = useState('');
@@ -81,8 +84,14 @@ function BuscadorPC({ principal }: { principal: Principal }) {
     <form className="buscador-pc" role="search" onSubmit={buscar} data-testid="buscador-pc">
       <span className="ico"><Icono n="buscar" tam={20} /></span>
       <input className="input" type="search" value={q} onChange={e => setQ(e.target.value)} placeholder={principal === 'mercado' ? 'Buscar en el mercado' : 'Buscar en mi colección'} aria-label={principal === 'mercado' ? 'Buscar en el mercado' : 'Buscar en mi colección'} />
+      <BotonCamara />
     </form>
   );
+}
+
+/** Botón de cámara de los buscadores: abre el escáner (identificar una carta por foto). */
+function BotonCamara() {
+  return <Link href="/app/escanear" className="btn icon suave foto" aria-label="Buscar por foto (escáner)" title="Buscar por foto: abre el escáner" data-testid="btn-camara"><Icono n="camara" tam={20} /></Link>;
 }
 
 /** Barra inferior del celular: dos pestañas grandes (Mi Colección / Mercado). */
@@ -94,7 +103,7 @@ export function BarraInferiorCelular({ principales, principal }: { principales: 
   );
 }
 
-/** Chips de secciones (Álbumes · Bulk · Mazos · Buscar · Mis ventas / Inicio · Carrito · Mis compras). */
+/** Chips de secciones (Álbumes · Bulk · Mazos · Mis ventas / Inicio · Carrito · Mis compras). */
 export function ChipsSecciones({ secciones, activa, label, className = '' }: { secciones: Seccion[]; activa: Seccion | null; label?: string; className?: string }) {
   return (
     <nav className={`subtabs ${className}`} aria-label={label} data-testid="subtabs">
@@ -136,15 +145,19 @@ export function MenuPerfil() {
   );
 }
 
-/** Buscador grande del Inicio del Mercado (celular) con botón de buscar por foto (abre el escáner). */
-export function BuscadorMercadoCelular() {
+/**
+ * Buscador grande del inicio de cada pestaña en el celular, con botón de buscar por foto (abre el escáner):
+ * en el Mercado busca en el mercado; en Mi Colección (ajustes de layout 2 · 1) busca en mi colección y el catálogo.
+ */
+export function BuscadorCelular({ principal }: { principal: Principal }) {
   const router = useRouter();
   const [q, setQ] = useState('');
+  const destino = principal === 'mercado' ? '/app/mercado/buscar' : '/app/buscar';
   return (
-    <form className="buscador-mercado solo-celular" role="search" onSubmit={e => { e.preventDefault(); router.push(`/app/mercado/buscar${q.trim() ? '?q=' + encodeURIComponent(q.trim()) : ''}`); }}>
+    <form className="buscador-mercado solo-celular" role="search" onSubmit={e => { e.preventDefault(); router.push(`${destino}${q.trim() ? '?q=' + encodeURIComponent(q.trim()) : ''}`); }} data-testid={`buscador-celular-${principal}`}>
       <span className="ico"><Icono n="buscar" tam={20} /></span>
-      <input className="input" placeholder="Busca una carta, colección o número" aria-label="Buscar en el mercado" value={q} onChange={e => setQ(e.target.value)} data-testid="mercado-inicio-buscar" />
-      <Link href="/app/escanear" className="btn icon suave foto" aria-label="Buscar por foto (escáner)" title="Buscar por foto: abre el escáner"><Icono n="camara" tam={20} /></Link>
+      <input className="input" placeholder={principal === 'mercado' ? 'Busca una carta, colección o número' : 'Busca una carta en tu colección'} aria-label={principal === 'mercado' ? 'Buscar en el mercado' : 'Buscar en mi colección'} value={q} onChange={e => setQ(e.target.value)} data-testid={principal === 'mercado' ? 'mercado-inicio-buscar' : 'coleccion-inicio-buscar'} />
+      <BotonCamara />
     </form>
   );
 }

@@ -845,8 +845,11 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
 .carrusel-cabecera h3 { margin: 0; display: inline-flex; align-items: center; gap: 6px; }
 .carrusel-cabecera .nota { white-space: nowrap; }
 .buscador-mercado { margin: 0 0 14px; position: relative; }
-.buscador-mercado .input { padding-right: 60px; }
-.buscador-mercado .foto { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 44px; min-width: 44px; height: 44px; min-height: 44px; border-radius: 12px; }
+/* Ajustes de layout 2 · 1: el botón de cámara (escáner) va dentro del buscador, también en el de la barra superior de PC */
+.buscador-mercado .input, .buscador-pc .input { padding-right: 60px; }
+.buscador-mercado .foto, .buscador-pc .foto { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 44px; min-width: 44px; height: 44px; min-height: 44px; border-radius: 12px; }
+.buscador-pc .foto { background: var(--tarjeta); }
+.buscador-pc .foto:hover { background: var(--suave-2); }
 .recien > h3 .small { font-family: var(--fuente-texto); }
 
 /* Bloque C · Recibidas (hoja «¿Dónde la guardas?») */

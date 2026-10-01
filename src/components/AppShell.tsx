@@ -11,7 +11,7 @@ import { Aviso, Cargando } from './ui';
 import { Icono } from './Icono';
 import { liberarScrollSiNoHayHojas } from './Sheet';
 import { AplicarTemaUsuario } from './Tema';
-import { BarraInferiorCelular, BarraSuperior, BuscadorMercadoCelular, ChipsSecciones, type PestanaPrincipal, type Seccion } from './Barras';
+import { BarraInferiorCelular, BarraSuperior, BuscadorCelular, ChipsSecciones, type PestanaPrincipal, type Seccion } from './Barras';
 import { ResumenColeccion } from './ResumenColeccion';
 import { PorLlegar } from './vistas/PorLlegar';
 
@@ -27,7 +27,8 @@ const SECCIONES: Record<'coleccion' | 'mercado', Seccion[]> = {
     { href: '/app/bulk', label: 'Bulk', ico: 'bulk', rutas: ['/app/bulk', '/app/cajas'], testid: 'sec-bulk' },
     // Mejoras 2 · D: Mazos pasa de Mercado a Mi Colección (mismas direcciones /app/mazos y /app/mazos/<id>)
     { href: '/app/mazos', label: 'Mazos', ico: 'mazos', rutas: ['/app/mazos'], testid: 'sec-mazos' },
-    { href: '/app/buscar', label: 'Buscar / Escanear', labelCorto: 'Buscar', ico: 'buscar', rutas: ['/app/buscar', '/app/escanear', '/app/carta'], testid: 'sec-buscar' },
+    // Ajustes de layout 2 · 1: ya no hay sección "Buscar / Escanear": el buscador (con cámara) de la barra superior en PC y
+    // el de arriba de Mi Colección en el celular llevan a /app/buscar y /app/escanear, que siguen existiendo como pantallas.
     { href: '/app/ventas', label: 'Mis ventas', ico: 'ventas', rutas: ['/app/ventas'], testid: 'sec-ventas' }
   ],
   mercado: [
@@ -37,8 +38,8 @@ const SECCIONES: Record<'coleccion' | 'mercado', Seccion[]> = {
   ]
 };
 const pertenece = (ruta: string, prefijo: string) => ruta === prefijo || ruta.startsWith(prefijo + '/');
-/** Pantallas interiores (detalle de carta, álbum, Bulk, compra, mazo, orden, pago…): sin chips y con «volver» en el celular. */
-const esInterior = (ruta: string) => /^\/app\/(carta|album|compras|mazos|ventas\/ordenes)\/.+/.test(ruta) || ruta === '/app/notificaciones' || ruta === '/app/ajustes' || ruta === '/app/tienda';
+/** Pantallas interiores (detalle de carta, álbum, Bulk, compra, mazo, orden, pago, resultados de búsqueda, escáner…): sin chips y con «volver» en el celular. */
+const esInterior = (ruta: string) => /^\/app\/(carta|album|compras|mazos|ventas\/ordenes)\/.+/.test(ruta) || ['/app/notificaciones', '/app/ajustes', '/app/tienda', '/app/buscar', '/app/escanear'].includes(ruta);
 /** En PC, Mi Colección lleva menú lateral en Álbumes, Bulk (ajustes de layout · 6), Mazos, Buscar/Escanear y Mis ventas (no en los detalles de carta/álbum). */
 const conLateral = (ruta: string) => ['/app/album', '/app/bulk', '/app/cajas', '/app/mazos', '/app/buscar', '/app/escanear', '/app/ventas', '/app/ventas/ordenes'].includes(ruta) || ruta.startsWith('/app/bulk/');
 
@@ -86,8 +87,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </aside>
           ) : null}
           <div className="contenido">
-            {principal && inicioColeccion && listo ? <><h1 className="titulo-pestana solo-celular">Mi Colección</h1><ResumenColeccion className="solo-celular" /></> : null}
-            {principal && inicioMercado ? <><h1 className="titulo-pestana solo-celular">Mercado</h1><BuscadorMercadoCelular /></> : null}
+            {/* Ajustes de layout 2 · 1: en el celular, el buscador con cámara va debajo del precio de la colección (como en el Mercado) */}
+            {principal && inicioColeccion && listo ? <><h1 className="titulo-pestana solo-celular">Mi Colección</h1><ResumenColeccion className="solo-celular" /><BuscadorCelular principal="coleccion" /></> : null}
+            {principal && inicioMercado ? <><h1 className="titulo-pestana solo-celular">Mercado</h1><BuscadorCelular principal="mercado" /></> : null}
             {secciones.length && !interior ? <ChipsSecciones secciones={secciones} activa={seccionActiva} label={principal?.label} className={principal?.id === 'coleccion' ? 'solo-celular' : ''} /> : null}
             {!cat && !error ? <Cargando texto={estado || 'Cargando…'} /> : null}
             {cat && !col.cargado && !col.error ? <Cargando texto="Cargando tu colección…" /> : null}
@@ -126,7 +128,7 @@ function AvisosDeEntrada() {
   if (!bienvenida && !claveOk) return null;
   return (
     <>
-      {bienvenida ? <Aviso tipo="ok"><Icono n="fiesta" tam={16} /> ¡Tu correo quedó confirmado! Bienvenido/a, {perfil.nombres.split(' ')[0] || perfil.username}. Empieza por tus álbumes o crea un Bulk y añade tus primeras cartas desde Buscar. <button className="link" onClick={() => setBienvenida(false)}>Cerrar</button></Aviso> : null}
+      {bienvenida ? <Aviso tipo="ok"><Icono n="fiesta" tam={16} /> ¡Tu correo quedó confirmado! Bienvenido/a, {perfil.nombres.split(' ')[0] || perfil.username}. Empieza por tus álbumes o crea un Bulk y añade tus primeras cartas con el buscador (o la cámara) de arriba. <button className="link" onClick={() => setBienvenida(false)}>Cerrar</button></Aviso> : null}
       {claveOk ? <Aviso tipo="ok">Contraseña cambiada. <button className="link" onClick={() => setClaveOk(false)}>Cerrar</button></Aviso> : null}
     </>
   );

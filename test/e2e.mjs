@@ -185,6 +185,28 @@ try {
   r = await guardar('pikachu 151', { texto: '025/165', caja: 'Bulk 1', acabado: 'Reverse' }, 'Bulk 1 · posición 3 de 3');
   log('Pikachu reverse (otra entrada) →', r.donde);
 
+  // ---------- Ajustes de layout 2 · 1: ya no hay sección "Buscar / Escanear"; el buscador con cámara está arriba de Mi Colección
+  // (debajo del precio) y los resultados dicen dónde tengo cada carta, con Agregar y Ver en el mercado
+  await page.goto(APP + '/app/album');
+  await page.waitForSelector('[data-testid=coleccion-inicio-buscar]');
+  if (await page.$('[data-testid=sec-buscar]')) throw new Error('Mi Colección ya no debía tener el chip Buscar / Escanear');
+  if (!(await page.$('[data-testid=buscador-celular-coleccion] [data-testid=btn-camara]'))) throw new Error('el buscador de Mi Colección debía tener el botón de cámara');
+  const ordenInicio = await page.$$eval('.contenido [data-testid=resumen-coleccion], [data-testid=buscador-celular-coleccion]', els => els.map(e => e.dataset.testid));
+  if (ordenInicio.join(',') !== 'resumen-coleccion,buscador-celular-coleccion') throw new Error('el buscador debía ir debajo del precio de la colección: ' + ordenInicio.join(','));
+  await page.fill('[data-testid=coleccion-inicio-buscar]', 'pikachu 151');
+  await page.press('[data-testid=coleccion-inicio-buscar]', 'Enter');
+  await page.waitForURL(/\/app\/buscar\?q=pikachu/);
+  await page.waitForSelector('[data-testid=resultados-buscar] .card-row');
+  if (await page.$('[data-testid=subtabs]') || !(await page.$('[data-testid=volver-celular]'))) throw new Error('los resultados de búsqueda debían ser una pantalla interior (volver, sin chips)');
+  const filaPika = page.locator('[data-testid=resultados-buscar] .card-row', { hasText: '025/165' }).first();
+  const dondePika = await filaPika.locator('[data-testid=donde-la-tengo]').textContent();
+  if (!/×3/.test(dondePika) || !/Bulk 1/.test(dondePika) || !/#2 de 3/.test(dondePika) || !/#3 de 3/.test(dondePika)) throw new Error('el resultado no dice dónde tengo el Pikachu: ' + dondePika);
+  if (!(await filaPika.locator('[data-testid=btn-guardar-fila]:has-text("Agregar")').count()) || !(await filaPika.locator('[data-testid=btn-ver-mercado]:has-text("Ver en el mercado")').count())) throw new Error('faltan los botones Agregar / Ver en el mercado');
+  const filaNoTengo = page.locator('[data-testid=resultados-buscar] .card-row', { hasText: 'Todavía no la tienes' });
+  if (!(await filaNoTengo.count())) throw new Error('las cartas que no tengo debían decir "Todavía no la tienes"');
+  await foto(page, 'buscar-resultados');
+  log('sin sección Buscar / Escanear: buscador con cámara debajo del precio; resultados con ubicación (Bulk 1 #2 de 3 y #3 de 3), Agregar y Ver en el mercado');
+
   // ---------- Mi colección con valor
   await page.goto(APP + '/app/buscar');
   await page.waitForSelector('text=precio estimado');
@@ -1319,6 +1341,18 @@ try {
   const pagePc = await ctxPc.newPage();
   await entrar(pagePc, 'chris_tcg', 'clave12345');
   await comprobarScroll(pagePc, 'PC 1280×800');
+  // Ajustes de layout 2 · 1 (PC): el buscador de la barra superior tiene cámara, el menú lateral ya no tiene "Buscar / Escanear"
+  // y buscar desde la barra lleva a los resultados con ubicación y botones
+  await pagePc.goto(APP + '/app/album');
+  await pagePc.waitForSelector('[data-testid=menu-lateral] .lateral-menu a');
+  const menuLateral = await pagePc.$$eval('[data-testid=menu-lateral] .lateral-menu a', els => els.map(e => e.textContent.trim()));
+  if (menuLateral.some(t => /Buscar/.test(t)) || !(await pagePc.$('[data-testid=buscador-pc] [data-testid=btn-camara]'))) throw new Error('PC: menú lateral sin Buscar y buscador con cámara esperados: ' + menuLateral.join(' | '));
+  await pagePc.fill('[data-testid=buscador-pc] input', 'pikachu 151');
+  await pagePc.press('[data-testid=buscador-pc] input', 'Enter');
+  await pagePc.waitForURL(/\/app\/buscar\?q=pikachu/);
+  await pagePc.waitForSelector('[data-testid=resultados-buscar] .card-row [data-testid=btn-ver-mercado]');
+  if (!(await pagePc.$('[data-testid=menu-lateral]'))) throw new Error('PC: los resultados de búsqueda debían conservar el menú lateral de Mi Colección');
+  await foto(pagePc, 'pc-buscar');
   await ctxPc.close();
   const ctxCel = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'es-PE' });
   const pageCel = await ctxCel.newPage();
