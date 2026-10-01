@@ -11,6 +11,7 @@ import { Aviso, Cargando } from './ui';
 import { Icono } from './Icono';
 import { liberarScrollSiNoHayHojas } from './Sheet';
 import { AplicarTemaUsuario } from './Tema';
+import { FondoApp } from './Fondo';
 import { BarraInferiorCelular, BarraSuperior, BuscadorCelular, ChipsSecciones, type PestanaPrincipal, type Seccion } from './Barras';
 import { ResumenColeccion } from './ResumenColeccion';
 import { PorLlegar } from './vistas/PorLlegar';
@@ -72,6 +73,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div id="app" className={lateral ? 'con-lateral' : ''} data-pestana={principal?.id || ''}>
       <AplicarTemaUsuario />
+      <FondoApp />
       <BarraSuperior principales={PRINCIPALES} principal={principal} interior={interior} />
       <main id="main">
         <div className={`view ${lateral ? 'view-lateral' : ''}`}>

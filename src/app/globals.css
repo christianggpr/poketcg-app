@@ -1189,3 +1189,29 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
 .hoja-carpeta .pocket .album-venta { top: 4px; left: 4px; bottom: auto; }
 .hoja-carpeta .pocket .casilla-falta { left: 34px; right: 4px; }
 .hoja-carpeta .pocket .casilla-loc { left: 34px; }
+
+/* =====================================================================
+   Mejoras 3 · B: fondo de la app (un solo SVG fijo detrás de todo, patrón original en trazo, marca de agua suave)
+   ===================================================================== */
+.fondo-app { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.fondo-app svg { display: block; width: 100%; height: 100%; }
+.fondo-app.llamas { color: #E2571E; }
+.fondo-app.olas { color: #2E6BD6; }
+.fondo-app.hojas { color: #1E8A57; }
+.fondo-app.rayos { color: #C99A00; }
+.fondo-app.estrellas { color: #7C4DDB; }
+/* modo oscuro: el patrón en un tono claro con la misma opacidad baja */
+:root[data-theme="dark"] .fondo-app { color: #DCE3FF; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .fondo-app { color: #DCE3FF; } }
+.subtitulo-ajuste { margin: 18px 0 4px; font-size: 16px; }
+.fondos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (min-width: 700px) { .fondos { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.fondo-opcion { border: 3px solid transparent; padding: 0; border-radius: 16px; background: var(--tarjeta); box-shadow: var(--sombra); overflow: hidden; text-align: left; cursor: pointer; color: var(--texto); font-family: var(--fuente-texto); }
+.fondo-opcion.active { border-color: var(--primario); }
+.fondo-opcion .vista { display: block; height: 96px; background: var(--fondo); position: relative; overflow: hidden; }
+.fondo-opcion .vista svg { position: absolute; inset: 0; }
+.fondo-opcion .vista.llamas { color: #E2571E; } .fondo-opcion .vista.olas { color: #2E6BD6; } .fondo-opcion .vista.hojas { color: #1E8A57; } .fondo-opcion .vista.rayos { color: #C99A00; } .fondo-opcion .vista.estrellas { color: #7C4DDB; }
+.fondo-opcion .vista .nota { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-weight: 800; font-size: 13px; color: var(--texto-2); }
+.fondo-opcion .rotulo-fondo { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 8px 12px; font-weight: 800; min-height: 44px; }
+.fondo-opcion .elegido { color: var(--primario); font-size: 13px; }
+.rango { width: 100%; accent-color: var(--primario); min-height: 44px; }

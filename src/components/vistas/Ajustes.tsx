@@ -16,6 +16,7 @@ import { useToast } from '../Toast';
 import { Campo, Aviso } from '../ui';
 import { Reconocimiento } from './Reconocimiento';
 import { SelectorTema } from '../Tema';
+import { SelectorFondo } from '../Fondo';
 
 export function Ajustes() {
   const { perfil, setPerfil } = usePerfil();
@@ -70,6 +71,9 @@ export function Ajustes() {
         <h3>Apariencia</h3>
         <p className="small muted">«Claro» es el diseño de la app (viene por defecto). «Oscuro» para ver la colección de noche. «Automático» sigue el ajuste de tu celular o computadora. Se guarda para tu usuario en este dispositivo.</p>
         <SelectorTema />
+        <h4 className="subtitulo-ajuste">Fondo de la app</h4>
+        <p className="small muted">Una marca de agua suave detrás de todas las pantallas. No cambia los colores de los botones. Se guarda en tu perfil (celular y PC).</p>
+        <SelectorFondo />
       </div>
 
       <div className="panel">

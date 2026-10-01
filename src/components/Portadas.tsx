@@ -42,23 +42,28 @@ export function PatronMosaico({ patron, escala = 1, opacidad = 1, className = ''
   );
 }
 
-/** Logo oficial de la colección con respaldo: si ninguna fuente carga, símbolo + nombre. */
+/** Logo oficial de la colección con respaldo: mientras carga (y si ninguna fuente carga), símbolo + nombre. */
 export function LogoColeccion({ set, idioma }: { set: Coleccion; idioma: 'es' | 'en' | 'ja' }) {
   const fuentes = urlsLogo(set);
   const [i, setI] = useState(0);
-  useEffect(() => { setI(0); }, [set.id]);
+  const [cargado, setCargado] = useState(false);
+  useEffect(() => { setI(0); setCargado(false); }, [set.id]);
   const simbolo = urlSimbolo(set);
-  if (i < fuentes.length) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img className="logo-coleccion" src={fuentes[i]} alt={nombreColeccion(set, idioma, true)} loading="lazy" decoding="async" onError={() => setI(n => n + 1)} data-testid="logo-coleccion" />;
-  }
   return (
-    <span className="logo-texto" data-testid="logo-texto">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {simbolo ? <img className="setsym" src={simbolo} alt="" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} /> : null}
-      <span className="nombre-logo">{nombreColeccion(set, idioma, true)}</span>
-      {set.rg === 'ja' ? <span className="small muted">{set.sn}</span> : null}
-    </span>
+    <>
+      {i < fuentes.length ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="logo-coleccion" src={fuentes[i]} alt={nombreColeccion(set, idioma, true)} decoding="async" style={cargado ? undefined : { display: 'none' }} onLoad={() => setCargado(true)} onError={() => { setCargado(false); setI(n => n + 1); }} data-testid="logo-coleccion" />
+      ) : null}
+      {!cargado ? (
+        <span className="logo-texto" data-testid="logo-texto">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {simbolo ? <img className="setsym" src={simbolo} alt="" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} /> : null}
+          <span className="nombre-logo">{nombreColeccion(set, idioma, true)}</span>
+          {set.rg === 'ja' ? <span className="small muted">{set.sn}</span> : null}
+        </span>
+      ) : null}
+    </>
   );
 }
 

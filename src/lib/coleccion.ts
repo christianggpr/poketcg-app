@@ -93,6 +93,9 @@ export type Perfil = {
   reputacion?: Reputacion | null;
   acepto_terminos_en: string | null;
   idioma_nombres: IdiomaNombres;
+  /** Mejoras 3 · B: fondo de la app (liso | llamas | olas | hojas | rayos | estrellas | aleatorio) e intensidad 0–100. Faltan si la base aún no tiene 0008. */
+  fondo?: string | null;
+  fondo_intensidad?: number | null;
   creado_en: string;
   actualizado_en: string;
 };

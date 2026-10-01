@@ -1334,6 +1334,66 @@ try {
   await page.emulateMedia({ colorScheme: 'light' });
   log('modo claro por defecto (aunque el sistema esté en oscuro); Ajustes → Oscuro se conserva al recargar; Automático sigue al sistema');
 
+  // ---------- Mejoras 3 · B: fondo de la app (Ajustes → Apariencia → Fondo de la app), guardado en el perfil
+  await page.goto(APP + '/app/ajustes');
+  await page.waitForSelector('[data-testid=selector-fondo]');
+  const fondos = await page.$$eval('[data-testid=selector-fondo] .fondo-opcion .rotulo-fondo', els => els.map(e => e.textContent.replace('Elegido', '').trim()));
+  if (fondos.join(' · ') !== 'Liso · Llamas · Olas · Hojas · Rayos · Estrellas · Aleatorio') throw new Error('opciones de fondo inesperadas: ' + fondos.join(' · '));
+  const fondoApp = async () => page.$eval('[data-testid=fondo-app]', e => ({ fondo: e.dataset.fondo, patron: e.dataset.patron || null, intensidad: e.dataset.intensidad || null, svgs: e.querySelectorAll('svg').length, opacidad: e.querySelector('svg') ? getComputedStyle(e.querySelector('svg')).opacity : null, color: getComputedStyle(e).color, fijo: getComputedStyle(e).position, z: getComputedStyle(e).zIndex }));
+  let f = await fondoApp();
+  if (!(await page.$('[data-testid=fondo-hojas].active')) || f.patron !== 'hojas' || f.opacidad !== '0.08' || f.svgs !== 1 || f.fijo !== 'fixed' || f.z !== '-1') throw new Error('por defecto debía haber un solo SVG fijo con Hojas al 8 %: ' + JSON.stringify(f));
+  if (!(await page.$('[data-testid=fondo-aleatorio] .nota:has-text("cambia cada día")'))) throw new Error('Aleatorio debía decir que cambia cada día');
+  await page.click('[data-testid=fondo-olas]');
+  await page.waitForSelector('[data-testid=fondo-app][data-patron=olas]');
+  await page.waitForFunction(() => document.querySelector('[data-testid=selector-fondo]').textContent.indexOf('Guardando') < 0);
+  if (sql("select fondo || ':' || fondo_intensidad from public.perfiles where username = 'chris_tcg'") !== 'olas:40') throw new Error('el fondo no se guardó en el perfil');
+  await page.focus('[data-testid=intensidad-fondo]');
+  await page.keyboard.press('End');
+  await page.waitForSelector('[data-testid=fondo-app][data-intensidad="100"]');
+  f = await fondoApp();
+  if (f.opacidad !== '0.2') throw new Error('intensidad 100 % debía ser opacidad 0.2: ' + JSON.stringify(f));
+  await page.waitForFunction(() => document.querySelector('[data-testid=selector-fondo]').textContent.indexOf('Guardando') < 0);
+  await page.reload();
+  await page.waitForSelector('[data-testid=fondo-app][data-patron=olas][data-intensidad="100"]');
+  if (!(await page.$('[data-testid=fondo-olas].active'))) throw new Error('tras recargar debía seguir Olas al 100 %');
+  await foto(page, 'fondo-olas');
+  // Aleatorio: hoy toca uno de los cinco patrones; Liso: sin patrón
+  await page.click('[data-testid=fondo-aleatorio]');
+  await page.waitForSelector('[data-testid=fondo-app][data-fondo=aleatorio]');
+  f = await fondoApp();
+  if (!['llamas', 'olas', 'hojas', 'rayos', 'estrellas'].includes(f.patron)) throw new Error('Aleatorio debía elegir un patrón: ' + JSON.stringify(f));
+  await page.click('[data-testid=fondo-liso]');
+  await page.waitForSelector('[data-testid=fondo-app].liso');
+  if ((await fondoApp()).svgs !== 0) throw new Error('Liso no debía dibujar ningún patrón');
+  // modo oscuro: el patrón en tono claro con la misma opacidad; claro: el color del patrón
+  await page.click('[data-testid=fondo-hojas]');
+  await page.waitForSelector('[data-testid=fondo-app][data-patron=hojas]');
+  await page.click('[data-testid=tema-oscuro]');
+  await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'dark');
+  f = await fondoApp();
+  if (f.color !== 'rgb(220, 227, 255)' || f.opacidad !== '0.2') throw new Error('en oscuro el patrón debía ser claro: ' + JSON.stringify(f));
+  await page.click('[data-testid=tema-claro]');
+  await page.waitForFunction(() => document.documentElement.getAttribute('data-theme') === 'light');
+  if ((await fondoApp()).color !== 'rgb(30, 138, 87)') throw new Error('en claro Hojas debía ser verde');
+  // sin las columnas del perfil (0008 sin pegar) la elección se recuerda en el dispositivo
+  sql('alter table public.perfiles drop column if exists fondo; alter table public.perfiles drop column if exists fondo_intensidad;');
+  await page.reload();
+  await page.waitForSelector('[data-testid=selector-fondo]');
+  await page.click('[data-testid=fondo-rayos]');
+  await page.waitForSelector('[data-testid=fondo-app][data-patron=rayos]');
+  await page.reload();
+  await page.waitForSelector('[data-testid=fondo-app][data-patron=rayos]');
+  execSync('su postgres -c "psql -q -d poketcg_test -f supabase/migrations/0008_mejoras3.sql"');
+  await page.click('[data-testid=fondo-hojas]');
+  await page.waitForFunction(() => document.querySelector('[data-testid=selector-fondo]').textContent.indexOf('Guardando') < 0);
+  await page.evaluate(() => { const r = document.querySelector('[data-testid=intensidad-fondo]'); r.focus(); });
+  await page.keyboard.press('Home');
+  await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight');
+  await page.waitForSelector('[data-testid=fondo-app][data-patron=hojas][data-intensidad="40"]');
+  await page.waitForFunction(() => document.querySelector('[data-testid=selector-fondo]').textContent.indexOf('Guardando') < 0);
+  if (sql("select fondo || ':' || fondo_intensidad from public.perfiles where username = 'chris_tcg'") !== 'hojas:40') throw new Error('el fondo no volvió a guardarse en el perfil');
+  log('fondo de la app: Hojas al 8 % por defecto (un SVG fijo); Olas + 100 % guardado en el perfil y conservado al recargar; Aleatorio y Liso; tono claro en oscuro; sin columnas se recuerda en el dispositivo');
+
   // ---------- Mejoras 1 · A1: desplazamiento hasta el final en todas las páginas principales (PC y celular), también tras abrir y cerrar una hoja
   const cajaChris = sql(`select id from public.cajas where usuario_id = '${CHRIS}' order by orden limit 1`);
   const PAGINAS_SCROLL = ['/app/buscar', '/app/album', '/app/album/sv03.5', '/app/bulk', `/app/bulk/${cajaChris}`, '/app/mercado', '/app/mercado/buscar', '/app/carrito', '/app/mazos', '/app/compras', '/app/ventas', '/app/notificaciones', '/app/ajustes', '/admin', '/ayuda', '/tiendas', '/u/vendedora_lima', '/carta/sv03.5-001'];
