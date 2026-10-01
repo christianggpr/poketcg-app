@@ -38,8 +38,8 @@ const SECCIONES: Record<'coleccion' | 'mercado', Seccion[]> = {
 const pertenece = (ruta: string, prefijo: string) => ruta === prefijo || ruta.startsWith(prefijo + '/');
 /** Pantallas interiores (detalle de carta, álbum, Bulk, compra, mazo, orden, pago…): sin chips y con «volver» en el celular. */
 const esInterior = (ruta: string) => /^\/app\/(carta|album|compras|mazos|ventas\/ordenes)\/.+/.test(ruta) || ruta === '/app/notificaciones' || ruta === '/app/ajustes' || ruta === '/app/tienda';
-/** En PC, Mi Colección lleva menú lateral en Álbumes, Buscar/Escanear y Mis ventas (no en Bulk ni en los detalles, como en las maquetas). */
-const conLateral = (ruta: string) => ['/app/album', '/app/mazos', '/app/buscar', '/app/escanear', '/app/ventas', '/app/ventas/ordenes'].includes(ruta);
+/** En PC, Mi Colección lleva menú lateral en Álbumes, Bulk (ajustes de layout · 6), Mazos, Buscar/Escanear y Mis ventas (no en los detalles de carta/álbum). */
+const conLateral = (ruta: string) => ['/app/album', '/app/bulk', '/app/cajas', '/app/mazos', '/app/buscar', '/app/escanear', '/app/ventas', '/app/ventas/ordenes'].includes(ruta) || ruta.startsWith('/app/bulk/');
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const ruta = usePathname();
