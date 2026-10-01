@@ -63,7 +63,7 @@ function PorColocar({ entradas }: { entradas: Entrada[] }) {
       <div className="card-list">
         {lista.map(e => { const c = cat.carta(e.carta_id); const set = c ? cat.setOf(c) : undefined; return (
           <div key={e.id} className="card-row" style={{ cursor: 'default' }} data-testid="carta-por-colocar">
-            <span onClick={() => setDetalle(e)} role="button" style={{ cursor: 'pointer' }}><Thumb carta={c} set={set} /></span>
+            <span onClick={() => setDetalle(e)} role="button" style={{ cursor: 'pointer' }}><Thumb carta={c} set={set} idioma={e.idioma} /></span>
             <div className="card-main">
               <div className="card-name">{e.cantidad > 1 ? `${e.cantidad}× ` : ''}{nombreEntrada(cat, e, perfil.idioma_nombres)}</div>
               <div className="card-set">{coleccionEntrada(cat, e, perfil.idioma_nombres)} <span className="num">{numeroEntrada(cat, e)}</span>{e.idioma ? <span className="pill">{e.idioma}</span> : null}{e.acabado ? <span className="pill">{e.acabado}</span> : null}{e.condicion ? <span className="pill">{e.condicion}</span> : null}</div>
@@ -283,7 +283,7 @@ function BulkVista({ id }: { id?: string }) {
                   <tr key={e.id} className={`fila-bulk ${seleccionable ? 'seleccionable' : ''} ${sel.has(e.id) ? 'sel' : ''}`} onClick={() => abrirFila(e, seleccionable)} tabIndex={0} onKeyDown={ev => { if (ev.key === 'Enter') abrirFila(e, seleccionable); }}>
                     {elegir ? <td><input type="checkbox" className="sel" checked={sel.has(e.id)} disabled={!seleccionable} readOnly aria-label="Seleccionar" /></td> : null}
                     <td><span className="posicion">#{p.idx}</span></td>
-                    <td><span className="carta-celda"><Thumb carta={c} set={set} /><b>{nombreEntrada(cat, e, idioma)}</b></span></td>
+                    <td><span className="carta-celda"><Thumb carta={c} set={set} idioma={e.idioma} /><b>{nombreEntrada(cat, e, idioma)}</b></span></td>
                     <td>{coleccionEntrada(cat, e, idioma)}</td>
                     <td className="num">{c ? c.l : numeroEntrada(cat, e)}</td>
                     <td>{e.idioma || '—'}</td>
@@ -305,7 +305,7 @@ function BulkVista({ id }: { id?: string }) {
                     <div key={e.id} className={`entry-row ${seleccionable ? 'seleccionable' : ''}`} role="button" tabIndex={0} onClick={() => abrirFila(e, seleccionable)} onKeyDown={ev => { if (ev.key === 'Enter') abrirFila(e, seleccionable); }}>
                       {elegir ? <input type="checkbox" className="sel" checked={sel.has(e.id)} disabled={!seleccionable} readOnly aria-label="Seleccionar" /> : null}
                       <div className="posnum">#{p.idx}</div>
-                      <Thumb carta={c} set={set} />
+                      <Thumb carta={c} set={set} idioma={e.idioma} />
                       <div className="card-main">
                         <div className="card-name" style={{ fontSize: 14 }}>{nombreEntrada(cat, e, idioma)}</div>
                         <div className="card-set"><span className="num">{c ? `${c.l}${set?.cc ? '/' + set.cc : ''}` : numeroEntrada(cat, e)}</span>{e.idioma ? <span>· {e.idioma}</span> : null}{e.condicion ? <span>· {e.condicion}</span> : null}{e.acabado ? <span className="pill">{e.acabado}</span> : null}<EstadoPub pub={pub} />{e.nota ? <span className="faint"> · {e.nota}</span> : null}</div>

@@ -162,7 +162,7 @@ export function AlbumFisico({ id }: { id: string }) {
                 if (carta) setMenu(indice); else setPicker(indice);
               }}>
               <span className="pocket-n">{indice + 1}</span>
-              {carta ? <><Thumb carta={carta} set={cat.setOf(carta)} /><span className="pocket-have">{tengo ? `×${es!.reduce((n, e) => n + e.cantidad, 0)}` : 'falta'}</span><span className="pocket-name">{carta.l} · {nombreCarta(carta, idioma)}</span></> : <span className="pocket-plus">+</span>}
+              {carta ? <><Thumb carta={carta} set={cat.setOf(carta)} idioma={tengo && es && es.length ? es[0].idioma : null} /><span className="pocket-have">{tengo ? `×${es!.reduce((n, e) => n + e.cantidad, 0)}` : 'falta'}</span><span className="pocket-name">{carta.l} · {nombreCarta(carta, idioma)}</span></> : <span className="pocket-plus">+</span>}
             </div>
           );
         })}

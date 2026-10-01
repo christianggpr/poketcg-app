@@ -2,7 +2,7 @@
 import { Icono, PuntoEnergia } from '../Icono';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { cardTypeKey, cardTypeLabel, nombreCarta, nombreColeccion, numLabel, rarezaLabel, urlImagenGrande } from '@/lib/catalogo';
+import { cardTypeKey, cardTypeLabel, nombreCarta, nombreColeccion, numLabel, rarezaLabel } from '@/lib/catalogo';
 import type { Entrada } from '@/lib/coleccion';
 import { fmtPen, fmtUsd } from '@/lib/precios-core';
 import { useCatalogo } from '../CatalogoProvider';
@@ -32,7 +32,6 @@ export function CartaDetalle({ id }: { id: string }) {
   const toast = useToast();
   const [agregar, setAgregar] = useState(false);
   const [editar, setEditar] = useState<Entrada | null>(null);
-  const [imgError, setImgError] = useState(false);
   const carta = cat.carta(id);
   useEffect(() => { if (carta && !carta.sd) precios.pedir([carta.id]); }, [carta, precios]);
   if (!carta) return <div className="empty"><div className="big"><Icono n="buscar" tam={44} grosor={1.5} /></div>Esa carta no está en el catálogo. <Link href="/app/buscar">Volver a buscar</Link></div>;
@@ -43,7 +42,8 @@ export function CartaDetalle({ id }: { id: string }) {
   const v = precios.valor(carta, '');
   const defecto = precios.precioDefecto(carta, '');
   const fx = precios.ajustes.fx;
-  const grande = urlImagenGrande(carta, set);
+  // Imagen en el idioma de tus copias (español si las tienes en ES); grande, y si no carga, la pequeña
+  const idiomaImg = propias.find(e => e.idioma === 'ES') ? 'ES' : propias[0]?.idioma || null;
   const especie = carta.dex && carta.dex.length ? cat.especie(carta.dex[0]) : undefined;
   const cartaId = carta.id;
   const favorita = mercado.esFavorita(cartaId);
@@ -70,7 +70,7 @@ export function CartaDetalle({ id }: { id: string }) {
       <p className="small migas solo-pc-block"><Link href="/app/mercado" className="miga"><Icono n="izquierda" tam={16} /> Mercado</Link><span className="muted"> · </span><Link href="/app/buscar" className="miga">Buscar</Link>{set ? <><span className="muted"> · </span><Link href={`/app/album/${encodeURIComponent(set.id)}`} className="miga">Álbum {nombreSet}</Link></> : null}</p>
       <div className="carta-cuerpo">
         <div className="carta-imagen">
-          {grande && !imgError ? /* eslint-disable-next-line @next/next/no-img-element */ <img className="thumb xl imagen-grande" src={grande} alt={nombreCarta(carta, idioma)} onError={() => setImgError(true)} /> : <Thumb carta={carta} set={set} className="xl imagen-grande" />}
+          <Thumb carta={carta} set={set} className="xl imagen-grande" alt={nombreCarta(carta, idioma)} idioma={idiomaImg} grande prioridad />
           {!carta.sd ? (
             <div className="acciones-carta">
               <button className={`btn ${favorita ? 'primary' : ''}`} onClick={alternarFavorita} title={favorita ? 'Quitar de mi lista de deseos' : 'Agregar a mi lista de deseos'} aria-pressed={favorita} data-testid="btn-favorito"><Icono n="corazon" relleno={favorita} /> {favorita ? 'Favorita' : 'Favorito'}</button>

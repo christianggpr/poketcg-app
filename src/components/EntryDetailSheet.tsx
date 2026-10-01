@@ -54,7 +54,7 @@ export function EntryDetailSheet({ entrada, onClose }: { entrada: Entrada; onClo
     <>
       <Sheet titulo="Carta de tu colección" onClose={onClose} pie={<><button className="btn danger" onClick={() => setConfirmar(true)}>Eliminar</button><span className="grow" /><button className="btn" onClick={onClose}>Cerrar</button><button className="btn primary" onClick={guardar} disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar cambios'}</button></>}>
         <div className="card-row" style={{ cursor: 'default' }}>
-          <Thumb carta={carta} set={set} className="lg" />
+          <Thumb carta={carta} set={set} className="lg" idioma={entrada.idioma} />
           <div className="card-main">
             <div className="card-name">{carta ? nombreCarta(carta, perfil.idioma_nombres) : actual.personalizada?.nombre}</div>
             <div className="card-set">{carta ? <>{nombreColeccion(set, perfil.idioma_nombres)} <span className="num">{numLabel(carta, set)}</span></> : <>{actual.personalizada?.coleccion} <span className="num">{actual.personalizada?.numero}</span></>}</div>

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { Carta, Coleccion } from '@/lib/catalogo';
-import { nombreCarta, nombreColeccion } from '@/lib/catalogo';
+import { idiomaImagen, nombreCarta, nombreColeccion, urlsImagen } from '@/lib/catalogo';
 import type { Entrada } from '@/lib/coleccion';
 import { fmtPen } from '@/lib/precios-core';
 import { IDIOMAS_CARTA } from '@/lib/config';
@@ -109,7 +109,7 @@ export function Albumes() {
           const pct = a.total ? Math.round((a.distintas / a.total) * 100) : 0;
           return (
             <Link key={a.set.id + a.idioma} href={`/app/album/${encodeURIComponent(a.set.id)}?idioma=${encodeURIComponent(a.idioma)}`} className="album-card" data-testid="album-coleccion">
-              <div className="album-cover"><Thumb carta={a.portada} set={a.set} className="lg" alt="" /></div>
+              <div className="album-cover"><Thumb carta={a.portada} set={a.set} className="lg" alt="" idioma={a.idioma} /></div>
               <div className="album-body">
                 <div className="album-title"><span className="nombre">{nombreColeccion(a.set, idioma)}</span>{a.idioma === '—' ? <span className="pill" title="Cartas registradas sin idioma">sin idioma</span> : <span className={`pill ${a.idioma === 'JP' ? 'jp' : 'info'}`}>{a.idioma}</span>}</div>
                 <div className="bar" style={{ marginTop: 8 }} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}><div style={{ width: pct + '%' }} /></div>
@@ -203,6 +203,13 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   const totalPaginas = Math.max(1, Math.ceil(lista.length / POR_PAGINA));
   useEffect(() => { setPagina(1); }, [modo]);
   useEffect(() => { if (pagina > totalPaginas) setPagina(totalPaginas); }, [pagina, totalPaginas]);
+  // Mejoras 2 · A: se precargan en segundo plano las imágenes de la página siguiente (la hoja pasa sin esperar)
+  useEffect(() => {
+    if (!set || typeof window === 'undefined') return;
+    const siguientes = (esPC ? [pagina + 2, pagina + 3] : [pagina + 1]).filter(n => n <= totalPaginas).flatMap(n => lista.slice((n - 1) * POR_PAGINA, n * POR_PAGINA));
+    const t = setTimeout(() => { for (const c of siguientes) { const u = urlsImagen(c, set, idiomaImagen(idiomaAlb))[0]; if (u) { const im = new Image(); im.decoding = 'async'; im.src = u; } } }, 500);
+    return () => clearTimeout(t);
+  }, [pagina, esPC, totalPaginas, lista, set, idiomaAlb]);
 
   if (!set) return <div className="empty">Esa colección no existe. <Link href="/app/album">Volver</Link></div>;
   const sinIdioma = idiomaAlb === '—' ? [...propias.values()].flat() : [];
@@ -240,7 +247,7 @@ export function AlbumColeccion({ setId }: { setId: string }) {
     if (qty) {
       return (
         <Link href={`/app/carta/${encodeURIComponent(c.id)}`} className="pocket filled album-cell" title={titulo} data-testid="casilla-tengo">
-          <Thumb carta={c} set={set} alt={nombreCarta(c, idioma)} />
+          <Thumb carta={c} set={set} alt={nombreCarta(c, idioma)} idioma={idiomaAlb} />
           <span className="pocket-n">{c.l}</span>
           {qty > 1 ? <span className="casilla-cant">×{qty}</span> : null}
           {enVenta ? <span className="album-venta" title="En venta en el mercado"><Icono n="ventas" tam={11} /></span> : null}
@@ -250,7 +257,9 @@ export function AlbumColeccion({ setId }: { setId: string }) {
     }
     return (
       <Link href={`/app/carta/${encodeURIComponent(c.id)}#mercado`} className="pocket missing album-cell" title={titulo} data-testid="casilla-falta" onClick={e => { if (c.sd) { e.preventDefault(); setAgregar(c); } }}>
-        <span className="casilla-falta"><b>{c.l}</b>{red ? <span className="casilla-mercado album-red">En mercado · {fmtPen(red.precio_min)}</span> : <span className="casilla-sin">Sin stock</span>}</span>
+        <Thumb carta={c} set={set} alt={nombreCarta(c, idioma)} idioma={idiomaAlb} />
+        <span className="pocket-n">{c.l}</span>
+        <span className="casilla-falta">{red ? <span className="casilla-mercado album-red">En mercado · {fmtPen(red.precio_min)}</span> : <span className="casilla-sin">Sin stock</span>}</span>
       </Link>
     );
   };

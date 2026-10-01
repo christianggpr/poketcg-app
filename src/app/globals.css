@@ -573,7 +573,7 @@ textarea.input { min-height: 72px; resize: vertical; }
 .pocket { position: relative; aspect-ratio: 63 / 88; border-radius: 8px; border: 2px dashed var(--carpeta-linea); background: var(--carpeta-casilla); display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; min-height: 44px; }
 .pocket.filled { border-style: solid; border-color: transparent; background: var(--carpeta-casilla); }
 .pocket.missing { border-style: dashed; border-color: var(--carpeta-linea); background: var(--carpeta-casilla); }
-.pocket.missing img { filter: grayscale(1) brightness(.45); }
+.pocket.missing img { filter: grayscale(1) brightness(1.08) contrast(.85); opacity: .5; }
 .pocket.selected { outline: 3px solid var(--acento); outline-offset: -1px; }
 .pocket.drop { outline: 3px solid var(--primario); outline-offset: -1px; }
 .pocket img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -774,8 +774,7 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
 /* Componentes base (bloque A): MiniCarta, CasillaAlbum, Cabecera */
 .minicarta .thumb { width: 100%; height: 100%; border-radius: var(--radio-carta); display: block; }
 .pocket .casilla-cant { position: absolute; top: 4px; right: 4px; font-size: 10.5px; font-weight: 800; background: var(--carpeta); color: #fff; padding: 1px 6px; border-radius: 999px; }
-.pocket .casilla-falta { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--carpeta-texto); font-weight: 800; }
-.pocket .casilla-falta b { font-family: var(--fuente-titulos); font-size: 20px; font-weight: 700; }
+.pocket .casilla-falta { position: absolute; left: 4px; right: 4px; bottom: 4px; display: flex; justify-content: center; color: var(--carpeta-texto); font-weight: 800; pointer-events: none; }
 .pocket .casilla-mercado { font-size: 10.5px; font-weight: 800; background: var(--info-fondo); color: var(--info-texto); padding: 2px 6px; border-radius: 6px; white-space: nowrap; }
 .cabecera { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; min-height: 48px; }
 .cabecera .volver { flex: none; width: 44px; border-radius: 50%; }
@@ -897,7 +896,7 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
 .hoja-carpeta .pocket .casilla-loc .loc { font-size: 10px; padding: 2px 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .hoja-carpeta .pocket:hover .casilla-loc, .hoja-carpeta .pocket:focus-visible .casilla-loc { display: flex; }
 .hoja-carpeta .pocket .album-venta { position: absolute; left: 4px; bottom: 4px; top: auto; background: var(--ok-fondo); color: var(--ok-texto); padding: 2px 5px; border-radius: 999px; display: inline-flex; }
-.hoja-carpeta .casilla-sin { font-size: 10.5px; font-weight: 800; color: var(--carpeta-texto); opacity: .8; }
+.hoja-carpeta .casilla-sin { font-size: 10.5px; font-weight: 800; color: var(--carpeta-texto); background: rgba(13, 18, 36, .78); padding: 2px 7px; border-radius: 6px; }
 .hoja-carpeta .pocket.missing:hover { background: var(--carpeta-linea); }
 .puntos-pagina { display: flex; justify-content: center; gap: 6px; margin: 12px 0 4px; }
 .puntos-pagina span { width: 8px; height: 8px; border-radius: 50%; background: var(--suave-2); }
@@ -1057,3 +1056,21 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
 .topbar .btn.sm { white-space: nowrap; }
 @media (min-width: 700px) { .topbar .brand-sub { display: block; } }
 @media (max-width: 480px) { .topbar .topbar-right .btn.ghost { display: none; } .topbar .btn.sm { padding-left: 12px; padding-right: 12px; font-size: 14px; } }
+
+/* Mejoras 2 · A · imágenes reales en los álbumes */
+/* Casilla de texto (nombre, número y colección) para las cartas sin imagen en ninguna fuente pública */
+.thumb-texto { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1cqw; padding: 5%; text-align: center; container-type: inline-size; overflow: hidden; line-height: 1.12; background: var(--suave-2); color: var(--texto-2); box-shadow: inset 0 0 0 1px var(--linea); text-decoration: none; }
+.thumb-texto .tt-num { font-family: var(--fuente-titulos); font-weight: 700; font-size: 24cqw; line-height: 1; color: var(--texto); }
+.thumb-texto .tt-nombre { font-weight: 800; font-size: 12.5cqw; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.thumb-texto .tt-nombre-jp { font-weight: 700; font-size: 10cqw; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.thumb-texto .tt-col { font-weight: 700; font-size: 8.5cqw; opacity: .8; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.pocket .thumb-texto, .album-cover .thumb-texto { background: var(--carpeta-casilla); color: var(--carpeta-texto); box-shadow: none; }
+.pocket .thumb-texto .tt-num { color: #fff; }
+.pocket.missing .thumb-texto { opacity: .9; }
+.pocket.missing .thumb-texto .tt-num { display: none; }
+/* La hoja del álbum: las cartas que faltan se ven en gris y más claras; el número arriba a la izquierda como en las que tengo */
+.hoja-carpeta .pocket.missing .pocket-n { background: rgba(255, 255, 255, .82); color: var(--carpeta); }
+.hoja-carpeta .pocket.missing { border-color: transparent; }
+.hoja-carpeta .pocket.missing:hover img { opacity: .72; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pocket.missing img { filter: grayscale(1) brightness(.9) contrast(.85); opacity: .45; } }
+:root[data-theme="dark"] .pocket.missing img { filter: grayscale(1) brightness(.9) contrast(.85); opacity: .45; }
