@@ -153,10 +153,10 @@ function Respaldo() {
   async function importar(modo: 'reemplazar' | 'combinar') {
     if (!pendiente) return;
     const r = pendiente; setPendiente(null); setResultado('');
-    setProgreso('Creando cajas…');
+    setProgreso('Creando Bulks…');
     const r1 = await fetch('/api/importar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paso: 'cajas', modo, cajas: r.boxes }) });
     const j1 = await r1.json().catch(() => ({}));
-    if (!j1.ok) { setProgreso(''); toast(j1.error || 'No se pudieron importar las cajas', 'danger'); return; }
+    if (!j1.ok) { setProgreso(''); toast(j1.error || 'No se pudieron importar los Bulks', 'danger'); return; }
     let insertadas = 0, sinCatalogo = 0;
     for (let i = 0; i < r.entries.length; i += 400) {
       setProgreso(`Guardando cartas… ${Math.min(i + 400, r.entries.length)} de ${r.entries.length}`);
@@ -176,7 +176,7 @@ function Respaldo() {
     descargar(`poketcg-respaldo-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(payload, null, 1), 'application/json');
   };
   const exportarCsv = () => {
-    const filas: (string | number)[][] = [['Caja', 'Posición', 'Colección', 'Número', 'Nombre', 'Cantidad', 'Acabado', 'Idioma', 'Estado', 'Rareza', 'Precio unitario S/', 'Total S/', 'Mercado S/', 'Mercado USD', 'Id', 'Nota']];
+    const filas: (string | number)[][] = [['Bulk', 'Posición', 'Colección', 'Número', 'Nombre', 'Cantidad', 'Acabado', 'Idioma', 'Estado', 'Rareza', 'Precio unitario S/', 'Total S/', 'Mercado S/', 'Mercado USD', 'Id', 'Nota']];
     for (const caja of cajasOrdenadas(col.cajas)) {
       for (const p of ubicador.posiciones(caja).lista) {
         const e = p.entrada; const c = cat.carta(e.carta_id); const d = c && !c.sd ? precios.precioDefecto(c, e.acabado) : null; const v = precios.valor(c, e.acabado);
@@ -203,7 +203,7 @@ function Respaldo() {
       {resultado ? <Aviso tipo="ok">{resultado}</Aviso> : null}
       {pendiente ? (
         <Sheet titulo="Importar respaldo" onClose={() => setPendiente(null)}>
-          <p className="muted">El archivo tiene <b>{pendiente.boxes.length}</b> cajas y <b>{pendiente.entries.length}</b> cartas.</p>
+          <p className="muted">El archivo tiene <b>{pendiente.boxes.length}</b> Bulks (cajas) y <b>{pendiente.entries.length}</b> cartas.</p>
           <div className="stack">
             <button className="btn primary" onClick={() => importar('reemplazar')}>Reemplazar mi colección actual</button>
             <button className="btn" onClick={() => importar('combinar')}>Combinar (añadir a lo que ya tengo)</button>

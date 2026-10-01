@@ -232,9 +232,9 @@ export function Escanear() {
         )}
       </div>
       <div className="row wrap" style={{ marginTop: 6 }}>
-        <div className="field grow"><label>Guardar en la caja</label>
+        <div className="field grow"><label>Guardar en el Bulk</label>
           <select className="input" value={cajaId || ''} onChange={e => { setCajaId(e.target.value || null); try { localStorage.setItem('poketcg:ultimaCaja', e.target.value); } catch { /* nada */ } }}>
-            {cajas.length ? cajas.map(b => <option key={b.id} value={b.id}>📦 {b.nombre}</option>) : <option value="">— crea una caja en Cajas —</option>}
+            {cajas.length ? cajas.map(b => <option key={b.id} value={b.id}>📦 {b.nombre}</option>) : <option value="">— crea un Bulk en la sección Bulk —</option>}
           </select></div>
         <div className="field grow"><label>Limitar a una colección (opcional, mejora el acierto)</label>
           <select className="input" value={scanSet} onChange={e => { setScanSet(e.target.value); prefs.scanSet = e.target.value; }}>

@@ -147,7 +147,7 @@ test('comprobante → revisión (aviso al administrador, operación repetida) �
   assert.equal((await q<{ estado: string }>(`select estado from public.reservas where orden_id is not null and comprador_id = $1 order by creada desc limit 1`, [ids.comprador]))[0].estado, 'comprada');
   const avisoVendedor = await q<{ cuerpo: string; canales: string[] }>(`select cuerpo, canales from public.notificaciones where usuario_id = $1 and tipo = 'venta_confirmada' order by id desc limit 1`, [ids.vendedor]);
   assert.equal(avisoVendedor.length, 1);
-  assert.match(avisoVendedor[0].cuerpo, /Tienda F3/); assert.match(avisoVendedor[0].cuerpo, /Caja "Caja F3"/); assert.match(avisoVendedor[0].cuerpo, /Bidoof/); assert.match(avisoVendedor[0].cuerpo, /salieron de tu colección/);
+  assert.match(avisoVendedor[0].cuerpo, /Tienda F3/); assert.match(avisoVendedor[0].cuerpo, /Bulk "Caja F3"/); assert.match(avisoVendedor[0].cuerpo, /Bidoof/); assert.match(avisoVendedor[0].cuerpo, /salieron de tu colección/);
   assert.ok(avisoVendedor[0].canales.includes('whatsapp'));
   assert.equal((await q(`select 1 from public.notificaciones where usuario_id = $1 and tipo = 'pago_confirmado'`, [ids.comprador])).length, 1);
   // otra compra con el mismo número de operación → aviso de repetido
@@ -231,7 +231,7 @@ test('vendedor: fecha de entrega dentro del plazo y en día que abre la tienda; 
   assert.equal((await rpc(ids.comprador, 'marcar_entregada', [orden.id, null, null])).ok, false, 'no se entrega dos veces');
   assert.equal((await q(`select 1 from public.entradas where usuario_id = $1 and compra_orden_id = $2`, [ids.comprador, orden.id])).length, 1, 'entregar_al_comprador es idempotente');
   assert.match((await q<{ cuerpo: string }>(`select cuerpo from public.notificaciones where usuario_id = $1 and tipo = 'entregada' order by id desc limit 1`, [ids.vendedor]))[0].cuerpo, /38\.00/);
-  assert.match((await q<{ cuerpo: string }>(`select cuerpo from public.notificaciones where usuario_id = $1 and tipo = 'entregada_comprador' order by id desc limit 1`, [ids.comprador]))[0].cuerpo, /Por colocar/);
+  assert.match((await q<{ cuerpo: string }>(`select cuerpo from public.notificaciones where usuario_id = $1 and tipo = 'entregada_comprador' order by id desc limit 1`, [ids.comprador]))[0].cuerpo, /Álbumes → Recibidas/);
 });
 
 test('tienda con cuenta: "recibido" lo marca la sede y "retirado" exige el código; la última copia deja la publicación vendida', async t => {

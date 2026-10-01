@@ -108,16 +108,16 @@ export function PublicarSheet({ entrada, onClose }: { entrada: Entrada; onClose:
         </div>
         <div className="field"><label>Precio por copia</label>
           <div className="stack">
-            <label className="check"><input type="radio" name="tipo" checked={tipo === 'defecto'} onChange={() => setTipo('defecto')} /><span><b>Precio por defecto: {fmtPen(defecto.pen)}</b> <span className="muted">({defecto.origen === 'piso' ? `piso de ${fmtPen(defecto.piso)}` : 'valor de mercado de hoy'}; se actualiza solo cada día)</span></span></label>
+            <label className="check"><input type="radio" name="tipo" checked={tipo === 'defecto'} onChange={() => setTipo('defecto')} /><span><b>Precio por defecto: {fmtPen(defecto.pen)}</b> <span className="muted">({defecto.origen === 'piso' ? `piso de ${fmtPen(defecto.piso)}` : 'precio de mercado de hoy'}; se actualiza solo cada día)</span></span></label>
             <label className="check"><input type="radio" name="tipo" checked={tipo === 'manual'} onChange={() => setTipo('manual')} /><span><b>Precio manual</b></span></label>
             {tipo === 'manual' ? <div className="row" style={{ gap: 6, alignItems: 'center' }}><span>S/</span><input className="input" inputMode="decimal" style={{ maxWidth: 140 }} value={manual} onChange={e => setManual(e.target.value)} /><button className="btn sm ghost" onClick={() => { setTipo('defecto'); setManual(String(defecto.pen)); }}>Volver al precio por defecto</button></div> : null}
           </div>
         </div>
         <div className="small" style={{ lineHeight: 1.7 }}>
-          <div>Valor de mercado hoy: <b>{mercado ? fmtPen(mercado.pen) : 'sin precio'}</b>{mercado ? <span className="muted"> ({mercado.label}{mercado.approx ? ' aprox.' : ''} · {mercado.src})</span> : null}</div>
+          <div>Precio de mercado hoy: <b>{mercado ? fmtPen(mercado.pen) : 'sin precio'}</b>{mercado ? <span className="muted"> ({mercado.label}{mercado.approx ? ' aprox.' : ''} · {mercado.src})</span> : null}</div>
           <div>Precio más bajo en la red (misma carta, idioma, acabado y estado): <b>{masBajo === undefined ? '…' : masBajo ? `${fmtPen(masBajo.precio)} (@${masBajo.vendedor})` : 'nadie más la vende'}</b></div>
           <div>Recibirás <b>{fmtPen(netoVendedor(precioFinal || 0, comision))}</b> por copia <span className="muted">(precio − {Math.round(comision * 100)} % de comisión)</span></div>
-          {tipo === 'manual' && mercado && Math.abs(desvio) >= 0.3 ? <Aviso tipo="warn">Tu precio está {desvio > 0 ? 'un ' + Math.round(desvio * 100) + ' % por encima' : 'un ' + Math.round(-desvio * 100) + ' % por debajo'} del valor de mercado.</Aviso> : null}
+          {tipo === 'manual' && mercado && Math.abs(desvio) >= 0.3 ? <Aviso tipo="warn">Tu precio está {desvio > 0 ? 'un ' + Math.round(desvio * 100) + ' % por encima' : 'un ' + Math.round(-desvio * 100) + ' % por debajo'} del precio de mercado.</Aviso> : null}
           {necesitaFoto ? <Aviso tipo="info">Por encima de S/ 50 la foto real de la carta es obligatoria: la publicación quedará pausada hasta que la agregues.</Aviso> : null}
         </div>
 
@@ -158,11 +158,11 @@ export function EstadoPub({ pub, conPrecio = true }: { pub: Publicacion | undefi
 }
 
 /** Pregunta "¿subir a la nube para vender?" con las tres respuestas de la Fase 2. */
-export function PreguntaVenta({ titulo = '¿Quieres subir las cartas de esta caja a la nube para venderlas en el mercado?', detalle, onTodas, onElegir, onNo, elegirLabel = 'Elegir cuáles', soloEsta, ocupado }: { titulo?: string; detalle?: React.ReactNode; onTodas: () => void; onElegir?: () => void; onNo: () => void; elegirLabel?: string; soloEsta?: () => void; ocupado?: boolean }) {
+export function PreguntaVenta({ titulo = '¿Quieres subir las cartas de este Bulk a la nube para venderlas en el mercado?', detalle, onTodas, onElegir, onNo, elegirLabel = 'Elegir cuáles', soloEsta, ocupado }: { titulo?: string; detalle?: React.ReactNode; onTodas: () => void; onElegir?: () => void; onNo: () => void; elegirLabel?: string; soloEsta?: () => void; ocupado?: boolean }) {
   return (
     <div className="notice info" style={{ marginTop: 12 }} data-testid="pregunta-venta">
       <b>{titulo}</b>
-      <div className="small muted" style={{ margin: '4px 0 8px' }}>{detalle || 'Se publican con el precio por defecto (el mayor entre el piso y el valor de mercado); podrás cambiar precios, pausar o retirar cuando quieras. Los compradores solo ven tu nombre de usuario.'}</div>
+      <div className="small muted" style={{ margin: '4px 0 8px' }}>{detalle || 'Se publican con el precio por defecto (el mayor entre el piso y el precio de mercado); podrás cambiar precios, pausar o retirar cuando quieras. Los compradores solo ven tu nombre de usuario.'}</div>
       <div className="row wrap" style={{ gap: 6 }}>
         <button className="btn sm primary" disabled={ocupado} onClick={onTodas}>Sí, todas</button>
         {soloEsta ? <button className="btn sm" disabled={ocupado} onClick={soloEsta}>Solo esta carta</button> : null}

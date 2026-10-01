@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const mapa: Record<string, string> = {};
     const nuevas: { nombre: string; descripcion: string; orden: number; modo: string; orden_colecciones: string; idV1: string }[] = [];
     for (const c of cajas.sort((a, b2) => (a.order || 0) - (b2.order || 0))) {
-      const nombre = String(c.name || '').trim() || 'Caja';
+      const nombre = String(c.name || '').trim() || 'Bulk';
       const ya = porNombre.get(nombre.toLowerCase());
       if (ya && b.modo !== 'reemplazar') { mapa[c.id] = ya; continue; }
       nuevas.push({ nombre, descripcion: String(c.desc || ''), orden: ++orden, modo: c.mode === 'manual' ? 'manual' : 'auto', orden_colecciones: c.setOrder === 'desc' ? 'desc' : 'asc', idV1: c.id });

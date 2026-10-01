@@ -39,7 +39,7 @@ export function CardRow({ carta, entradas, ubicador, onClick, extra, dim }: { ca
         {qty > 0 ? (
           <div className="small" style={{ marginTop: 3 }}>
             <span className="pill primary">×{qty}</span>{' '}
-            {ubicador ? propias.slice(0, 3).map(e => <span key={e.id} style={{ marginRight: 6 }}><LocChip loc={ubicador.ubicacion(e)} corto /></span>) : null}
+            {ubicador ? propias.slice(0, 3).map(e => <span key={e.id} style={{ marginRight: 6 }}><LocChip loc={ubicador.donde(e)} corto /></span>) : null}
             {propias.length > 3 ? <span className="faint">+{propias.length - 3}</span> : null}
           </div>
         ) : null}

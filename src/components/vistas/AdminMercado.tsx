@@ -88,7 +88,7 @@ export function AdminMercado() {
           </div>
           <div className="row"><button className="btn primary" type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar ajustes'}</button></div>
         </form>
-        <p className="small muted">Precio por defecto de una carta = máximo entre su piso y su valor de mercado en soles. Ej.: normal con mercado S/ 0.40 → {fmtPen(Math.max(Number(form.normal) || 0, 0.4))}; holo con mercado S/ 1.50 → {fmtPen(Math.max(Number(form.especial) || 0, 1.5))}; S/ 12 → {fmtPen(12)}.</p>
+        <p className="small muted">Precio por defecto de una carta = máximo entre su piso y su precio de mercado en soles. Ej.: normal con mercado S/ 0.40 → {fmtPen(Math.max(Number(form.normal) || 0, 0.4))}; holo con mercado S/ 1.50 → {fmtPen(Math.max(Number(form.especial) || 0, 1.5))}; S/ 12 → {fmtPen(12)}.</p>
       </div>
 
       <MazosMeta />

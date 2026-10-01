@@ -652,3 +652,8 @@ details.faq .faq-resp { padding: 0 12px 12px; font-size: 14px; color: var(--fg);
 }
 .menu-perfil .menu a:hover, .menu-perfil .menu button:hover { background: var(--bg-sunken); }
 .menu-perfil .menu form { margin: 0; }
+
+/* Mejoras 1 · C: sugerencia de destino y ubicaciones en álbum */
+.sugerencia { margin-top: 6px; padding: 8px 10px; border-radius: 10px; background: var(--primary-soft); color: var(--fg); }
+.sugerencia .warn { color: var(--warn); font-weight: 600; margin-top: 2px; }
+.loc.album { background: var(--warn-soft); color: var(--warn); }

@@ -15,15 +15,22 @@ type Ctx = {
   cajas: Caja[];
   entradas: Entrada[];
   albumes: Album[];
+  /** Mejoras 1: todos los bolsillos de mis álbumes personalizados (para ubicaciones y sugerencias). */
+  casillas: Casilla[];
   publicaciones: Publicacion[];
   ultimaCajaId: string | null;
   recargar: () => Promise<void>;
+  recargarCasillas: () => Promise<void>;
+  /** Mejoras 1: guarda una entrada en un álbum por colección (sale del Bulk y de cualquier bolsillo). */
+  colocarEnColeccion: (entradaId: string, setId: string) => Promise<boolean>;
+  /** Mejoras 1: guarda una entrada en el bolsillo de un álbum personalizado (sale del Bulk). */
+  colocarEnAlbum: (entradaId: string, albumId: string, indice: number) => Promise<boolean>;
   crearCaja: (datos: { nombre: string; descripcion?: string; modo?: 'auto' | 'manual'; orden_colecciones?: 'asc' | 'desc' }) => Promise<Caja | null>;
   editarCaja: (id: string, datos: Partial<Pick<Caja, 'nombre' | 'descripcion' | 'modo' | 'orden_colecciones' | 'en_venta' | 'preguntar_venta'>>) => Promise<boolean>;
   moverCaja: (id: string, dir: -1 | 1) => Promise<void>;
   eliminarCaja: (id: string, conCartas: boolean) => Promise<boolean>;
   agregarEntrada: (d: NuevaEntrada) => Promise<{ entrada: Entrada; fusionada: boolean } | null>;
-  editarEntrada: (id: string, datos: Partial<Pick<Entrada, 'cantidad' | 'acabado' | 'idioma' | 'condicion' | 'nota' | 'caja_id' | 'posicion'>>) => Promise<boolean>;
+  editarEntrada: (id: string, datos: Partial<Pick<Entrada, 'cantidad' | 'acabado' | 'idioma' | 'condicion' | 'nota' | 'caja_id' | 'posicion' | 'album_coleccion'>>) => Promise<boolean>;
   editarVarias: (ids: string[], datos: Partial<Pick<Entrada, 'idioma' | 'acabado' | 'condicion' | 'caja_id'>>) => Promise<number>;
   eliminarEntrada: (id: string) => Promise<boolean>;
   crearAlbum: (d: { nombre: string; descripcion?: string; paginas: number; columnas: number; filas: number }) => Promise<Album | null>;
@@ -48,6 +55,7 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
   const [cajas, setCajas] = useState<Caja[]>([]);
   const [entradas, setEntradas] = useState<Entrada[]>([]);
   const [albumes, setAlbumes] = useState<Album[]>([]);
+  const [casillas, setCasillas] = useState<Casilla[]>([]);
   const [publicaciones, setPublicaciones] = useState<Publicacion[]>([]);
   const [cargado, setCargado] = useState(false);
   const [error, setError] = useState('');
@@ -60,18 +68,23 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
     const p = await supabaseBrowser().from('publicaciones').select('*').in('estado', ['activa', 'pausada', 'reservada']).order('creada');
     if (!p.error) setPublicaciones(p.data as Publicacion[]);   // la tabla puede no existir hasta pegar 0002_fase2.sql
   }, []);
+  const recargarCasillas = useCallback(async () => {
+    const r = await supabaseBrowser().from('album_casillas').select('*').order('album_id').order('indice');
+    if (!r.error) setCasillas(r.data as Casilla[]);
+  }, []);
   const recargar = useCallback(async () => {
     const sb = supabaseBrowser();
     const [c, e, a] = await Promise.all([
       sb.from('cajas').select('*').order('orden'),
       sb.from('entradas').select('*').order('creado_en'),
       sb.from('albumes').select('*').order('creado_en'),
-      recargarPublicaciones()
+      recargarPublicaciones(),
+      recargarCasillas()
     ]);
     if (c.error || e.error || a.error) { setError((c.error || e.error || a.error)!.message); return; }
     setCajas(c.data as Caja[]); setEntradas(e.data as Entrada[]); setAlbumes(a.data as Album[]);
     setError(''); setCargado(true);
-  }, [recargarPublicaciones]);
+  }, [recargarPublicaciones, recargarCasillas]);
 
   useEffect(() => {
     recargar();
@@ -100,10 +113,35 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
   }
 
   const api = useMemo<Ctx>(() => ({
-    cargado, error, cajas, entradas, albumes, publicaciones, ultimaCajaId, recargar, recargarPublicaciones,
+    cargado, error, cajas, entradas, albumes, casillas, publicaciones, ultimaCajaId, recargar, recargarPublicaciones, recargarCasillas,
+    async colocarEnColeccion(entradaId, setId) {
+      const sb = supabaseBrowser();
+      const { data, error } = await sb.from('entradas').update({ caja_id: null, posicion: null, album_coleccion: setId }).eq('id', entradaId).select('*').single();
+      if (error) { setError(error.message); return false; }
+      await sb.from('album_casillas').update({ entrada_id: null }).eq('entrada_id', entradaId);   // ya no está en un bolsillo
+      setEntradas(x => upsert(x, data as Entrada));
+      setCasillas(x => x.map(c => (c.entrada_id === entradaId ? { ...c, entrada_id: null } : c)));
+      if (publicaciones.some(p => p.entrada_id === entradaId)) await recargarPublicaciones();
+      return true;
+    },
+    async colocarEnAlbum(entradaId, albumId, indice) {
+      const sb = supabaseBrowser();
+      const e = entradas.find(x => x.id === entradaId);
+      const ocupado = casillas.find(c => c.album_id === albumId && c.indice === indice && c.entrada_id && c.entrada_id !== entradaId);
+      if (ocupado) { setError('Ese bolsillo ya tiene una carta.'); return false; }
+      const { error: e1 } = await sb.from('album_casillas').upsert({ album_id: albumId, indice, carta_id: e?.carta_id || null, entrada_id: entradaId }, { onConflict: 'album_id,indice' });
+      if (e1) { setError(e1.message); return false; }
+      await sb.from('album_casillas').update({ entrada_id: null }).eq('entrada_id', entradaId).neq('album_id', albumId);
+      const { data, error } = await sb.from('entradas').update({ caja_id: null, posicion: null, album_coleccion: null }).eq('id', entradaId).select('*').single();
+      if (error) { setError(error.message); return false; }
+      setEntradas(x => upsert(x, data as Entrada));
+      await recargarCasillas();
+      if (publicaciones.some(p => p.entrada_id === entradaId)) await recargarPublicaciones();
+      return true;
+    },
     async crearCaja(d) {
       const orden = cajas.reduce((m, c) => Math.max(m, c.orden), 0) + 1;
-      const { data, error } = await supabaseBrowser().from('cajas').insert({ nombre: d.nombre.trim() || `Caja ${cajas.length + 1}`, descripcion: d.descripcion || '', modo: d.modo || 'auto', orden_colecciones: d.orden_colecciones || 'asc', orden }).select('*').single();
+      const { data, error } = await supabaseBrowser().from('cajas').insert({ nombre: d.nombre.trim() || `Bulk ${cajas.length + 1}`, descripcion: d.descripcion || '', modo: d.modo || 'auto', orden_colecciones: d.orden_colecciones || 'asc', orden }).select('*').single();
       if (error) { setError(error.message); return null; }
       setCajas(x => upsert(x, data as Caja));
       return data as Caja;
@@ -156,13 +194,16 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
       return { entrada: data as Entrada, fusionada: false };
     },
     async editarEntrada(id, d) {
-      const datos = { ...d };
+      const datos: Record<string, unknown> = { ...d };
+      let saleDelAlbum = false;
       if (d.caja_id !== undefined) {
         const actual = entradas.find(e => e.id === id);
         if (actual && actual.caja_id !== d.caja_id) datos.posicion = entradas.filter(e => e.caja_id === d.caja_id).reduce((m, e) => Math.max(m, e.posicion || 0), 0) + 1;
+        if (d.caja_id) { datos.album_coleccion = null; saleDelAlbum = true; }   // al ir a un Bulk deja el álbum y el bolsillo
       }
       const { data, error } = await supabaseBrowser().from('entradas').update(datos).eq('id', id).select('*').single();
       if (error) { setError(error.message); return false; }
+      if (saleDelAlbum && casillas.some(c => c.entrada_id === id)) { await supabaseBrowser().from('album_casillas').update({ entrada_id: null }).eq('entrada_id', id); setCasillas(x => x.map(c => (c.entrada_id === id ? { ...c, entrada_id: null } : c))); }
       setEntradas(x => upsert(x, data as Entrada));
       const nueva = data as Entrada;
       if (publicaciones.some(p => p.entrada_id === id) || cajas.find(c => c.id === nueva.caja_id)?.en_venta) await recargarPublicaciones();
@@ -217,10 +258,12 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
       if (!carta_id && !entrada_id) {
         const { error } = await sb.from('album_casillas').delete().eq('album_id', albumId).eq('indice', indice);
         if (error) { setError(error.message); return false; }
+        recargarCasillas();
         return true;
       }
       const { error } = await sb.from('album_casillas').upsert({ album_id: albumId, indice, carta_id, entrada_id }, { onConflict: 'album_id,indice' });
       if (error) { setError(error.message); return false; }
+      recargarCasillas();
       return true;
     },
     async moverCasilla(albumId, de, a) {
@@ -235,6 +278,7 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
       if (destino) filas.push({ album_id: albumId, indice: de, carta_id: destino.carta_id, entrada_id: destino.entrada_id });
       const { error } = await sb.from('album_casillas').insert(filas);
       if (error) { setError(error.message); return false; }
+      recargarCasillas();
       return true;
     },
     publicacionDe: entradaId => publicaciones.find(p => p.entrada_id === entradaId && PUBLICACION_VIVA.has(p.estado)),
@@ -283,7 +327,7 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
       } else setPublicaciones(x => { let y = x; for (const f of filas) y = upsert(y, f); return y; });
       return filas.length;
     }
-  }), [cargado, error, cajas, entradas, albumes, publicaciones, ultimaCajaId, recargar, recargarPublicaciones]);
+  }), [cargado, error, cajas, entradas, albumes, casillas, publicaciones, ultimaCajaId, recargar, recargarPublicaciones, recargarCasillas]);
 
   return <ColeccionCtx.Provider value={api}>{children}</ColeccionCtx.Provider>;
 }

@@ -26,17 +26,21 @@ export function EntryDetailSheet({ entrada, onClose }: { entrada: Entrada; onClo
   const carta = cat.carta(entrada.carta_id);
   const set = carta ? cat.setOf(carta) : undefined;
   const [d, setD] = useState({ cantidad: entrada.cantidad, acabado: entrada.acabado, idioma: entrada.idioma, condicion: entrada.condicion, nota: entrada.nota, caja_id: entrada.caja_id, posicion: entrada.posicion });
+  // ubicación elegida: un Bulk (id), el álbum por colección ('album') o ninguna ('')
+  const [ubic, setUbic] = useState<string>(entrada.caja_id ? entrada.caja_id : entrada.album_coleccion ? 'album' : '');
   const [confirmar, setConfirmar] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [vender, setVender] = useState(false);
   const actual = col.entradas.find(e => e.id === entrada.id) || entrada;
-  const loc = ubicador.ubicacion(actual);
+  const loc = ubicador.donde(actual);
   const caja = col.cajas.find(c => c.id === actual.caja_id);
   const pub = col.publicacionDe(actual.id);
 
   async function guardar() {
     setGuardando(true);
-    const ok = await col.editarEntrada(entrada.id, { cantidad: Math.max(1, d.cantidad), acabado: d.acabado, idioma: d.idioma, condicion: d.condicion, nota: d.nota, caja_id: d.caja_id, posicion: d.posicion });
+    const aAlbum = ubic === 'album' && !!carta;
+    let ok = await col.editarEntrada(entrada.id, { cantidad: Math.max(1, d.cantidad), acabado: d.acabado, idioma: d.idioma, condicion: d.condicion, nota: d.nota, caja_id: aAlbum ? null : (ubic || null), posicion: d.posicion, ...(aAlbum ? {} : { album_coleccion: null }) });
+    if (ok && aAlbum && actual.album_coleccion !== carta!.s) ok = await col.colocarEnColeccion(entrada.id, carta!.s);
     setGuardando(false);
     if (ok) { toast('Guardado', 'ok'); onClose(); } else toast('No se pudo guardar', 'danger');
   }
@@ -73,7 +77,7 @@ export function EntryDetailSheet({ entrada, onClose }: { entrada: Entrada; onClo
           <div className="field grow"><label>Nota</label><input className="input" value={d.nota} onChange={e => setD(x => ({ ...x, nota: e.target.value }))} /></div>
         </div>
         <div className="row wrap">
-          <Campo label="Caja">{id => <select id={id} className="input" value={d.caja_id || ''} onChange={e => setD(x => ({ ...x, caja_id: e.target.value || null }))}><option value="">Sin caja</option>{cajasOrdenadas(col.cajas).map(c => <option key={c.id} value={c.id}>📦 {c.nombre}</option>)}</select>}</Campo>
+          <Campo label="Ubicación">{id => <select id={id} className="input" value={ubic} onChange={e => { setUbic(e.target.value); setD(x => ({ ...x, caja_id: e.target.value && e.target.value !== 'album' ? e.target.value : null })); }} data-testid="select-ubicacion"><option value="">Sin ubicación</option>{carta ? <option value="album">📒 Álbum {nombreColeccion(set, perfil.idioma_nombres, true)} {d.idioma || (set?.rg === 'ja' ? 'JP' : 'EN')}</option> : null}{cajasOrdenadas(col.cajas).map(c => <option key={c.id} value={c.id}>📦 {c.nombre}</option>)}</select>}</Campo>
           {caja && caja.modo === 'manual' ? <div className="field"><label>Posición (orden manual)</label><input className="input" type="number" min={1} value={d.posicion || ''} onChange={e => setD(x => ({ ...x, posicion: parseInt(e.target.value, 10) || null }))} /></div> : null}
         </div>
       </Sheet>

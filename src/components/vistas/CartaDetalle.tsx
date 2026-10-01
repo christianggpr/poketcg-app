@@ -90,7 +90,7 @@ export function CartaDetalle({ id }: { id: string }) {
             {v ? (
               <div className="finishes">{v.finishes.map(f => { const esCm = v.src === 'Cardmarket'; const eur = esCm ? f.usd / (precios.fx || 1) : null; const pen = esCm ? (eur as number) * fx.eur_pen : f.usd * fx.usd_pen; return <span key={f.k} className="pill">{f.label} <b>{fmtPen(pen)}</b> <span className="faint">{esCm ? `€${(eur as number).toFixed(2)}` : fmtUsd(f.usd)}</span></span>; })}<span className="small muted">Fuente: {v.src} · cambio {v.src === 'Cardmarket' ? `€1 = S/ ${fx.eur_pen.toFixed(3)}` : `US$1 = S/ ${fx.usd_pen.toFixed(3)}`}</span></div>
             ) : rec ? <p className="small muted">Sin precio de mercado para esta carta{carta.sinTcgdex ? ' (no está en TCGdex)' : ''}.</p> : <p className="small muted">Consultando…</p>}
-            <p className="small" style={{ marginTop: 6 }}>Precio por defecto en el mercado PokéTCG: <b>{fmtPen(defecto.pen)}</b> <span className="muted">({defecto.origen === 'piso' ? `piso de ${fmtPen(defecto.piso)}` : 'valor de mercado'}; con acabado reverse/holo el piso es {fmtPen(precios.ajustes.pisos.especial)})</span></p>
+            <p className="small" style={{ marginTop: 6 }}>Precio por defecto en el mercado PokéTCG: <b>{fmtPen(defecto.pen)}</b> <span className="muted">({defecto.origen === 'piso' ? `piso de ${fmtPen(defecto.piso)}` : 'precio de mercado'}; con acabado reverse/holo el piso es {fmtPen(precios.ajustes.pisos.especial)})</span></p>
           </div>
           <div className="bloque">
             <h3><span>En tu colección</span><span className="count">{propias.reduce((n, e) => n + e.cantidad, 0)}</span></h3>
@@ -100,14 +100,14 @@ export function CartaDetalle({ id }: { id: string }) {
                   <div className="card-row" key={e.id} role="button" tabIndex={0} onClick={() => setEditar(e)}>
                     <div className="card-main">
                       <div className="card-name">×{e.cantidad} {e.acabado ? <span className="pill">{e.acabado}</span> : null} {e.idioma ? <span className="pill">{e.idioma}</span> : null} {e.condicion ? <span className="pill">{e.condicion}</span> : null} <EstadoPub pub={col.publicacionDe(e.id)} /></div>
-                      <div className="card-set"><LocChip loc={ubicador.ubicacion(e)} /> <span className="faint">· añadida {haceCuanto(e.creado_en)}</span>{e.nota ? <div className="small muted">{e.nota}</div> : null}</div>
+                      <div className="card-set"><LocChip loc={ubicador.donde(e)} /> <span className="faint">· añadida {haceCuanto(e.creado_en)}</span>{e.nota ? <div className="small muted">{e.nota}</div> : null}</div>
                     </div>
                     <div className="card-side">{(() => { const dd = precios.precioDefecto(carta, e.acabado); return <span className={`price ${dd.origen === 'piso' ? 'piso' : ''}`}>{fmtPen(dd.pen * e.cantidad)}</span>; })()}</div>
                   </div>
                 ))}
               </div>
             ) : <p className="muted">Todavía no la tienes.</p>}
-            <button className="btn primary" style={{ marginTop: 8 }} onClick={() => setAgregar(true)}>+ Guardar en una caja</button>
+            <button className="btn primary" style={{ marginTop: 8 }} onClick={() => setAgregar(true)}>+ Guardar en mi colección</button>
           </div>
           {!carta.sd ? <div className="bloque" id="mercado"><OfertasCarta carta={carta} /></div> : null}
         </div>

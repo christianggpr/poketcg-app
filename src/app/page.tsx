@@ -40,7 +40,7 @@ export default async function Portada() {
       <main id="main">
         <section className="hero">
           <h1>Todas tus cartas Pokémon TCG, registradas y ubicadas al instante.</h1>
-          <p className="lead">Registra tu colección, organízala en cajas y álbumes, y encuentra cualquier carta en segundos: la app te dice en qué caja y en qué posición está, desde cualquier dispositivo. Y cuando quieras, vende tus repetidas o compra las que te faltan a otros coleccionistas, con entrega segura en tienda.</p>
+          <p className="lead">Registra tu colección, organízala en álbumes y Bulks, y encuentra cualquier carta en segundos: la app te dice en qué álbum o Bulk y en qué posición está, desde cualquier dispositivo. Y cuando quieras, vende tus repetidas o compra las que te faltan a otros coleccionistas, con entrega segura en tienda.</p>
           <div className="cta">
             <Link className="btn primary" href="/registro">Crear mi cuenta gratis</Link>
             <Link className="btn" href="/ingresar">Ya tengo cuenta</Link>
@@ -77,11 +77,11 @@ export default async function Portada() {
           ) : null}
 
           <div className="features">
-            <div className="feature"><div className="ico">📦</div><b>Cajas con posición exacta</b><span>Cada carta con su caja y su número de posición; la app calcula sola dónde va la siguiente.</span></div>
+            <div className="feature"><div className="ico">📦</div><b>Álbumes y Bulk con posición exacta</b><span>Cada carta con su álbum (casilla) o su Bulk y número de posición; la app sugiere sola dónde va la siguiente.</span></div>
             <div className="feature"><div className="ico">📒</div><b>Álbumes por colección e idioma</b><span>Ve lo que tienes y lo que te falta de cada colección, y arma tus álbumes físicos página por página.</span></div>
             <div className="feature"><div className="ico">🔍</div><b>Búsqueda en cualquier idioma</b><span>Catálogo de más de 34 000 cartas internacionales y japonesas con nombres en español, inglés y japonés.</span></div>
-            <div className="feature"><div className="ico">💵</div><b>Valor de tu colección</b><span>Precio de mercado por acabado (normal, reverse, holo) y valor total de lo que tienes.</span></div>
-            <div className="feature"><div className="ico">🛒</div><b>Mercado entre coleccionistas</b><span>Vende desde tus cajas y compra con pago por Yape/Plin, entrega en tienda y código de retiro. Sin cargos al comprador; el vendedor cobra cada día.</span></div>
+            <div className="feature"><div className="ico">💵</div><b>Precio de tu colección</b><span>Precio de mercado por acabado (normal, reverse, holo) y precio total de lo que tienes.</span></div>
+            <div className="feature"><div className="ico">🛒</div><b>Mercado entre coleccionistas</b><span>Vende desde tu colección y compra con pago por Yape/Plin, entrega en tienda y código de retiro. Sin cargos al comprador; el vendedor cobra cada día.</span></div>
             <div className="feature"><div className="ico">⭐</div><b>Vendedores con reputación</b><span>Reseñas, insignias y perfil público de cada vendedor. Si no entrega, anulas con un toque y recuperas tu dinero al instante.</span></div>
             <div className="feature"><div className="ico">🃏</div><b>Mazos meta</b><span>Los mazos del formato actual con el porcentaje que ya tienes y «comprar lo que me falta».</span></div>
             <div className="feature"><div className="ico">❤️</div><b>Lista de deseos</b><span>Marca las cartas que buscas y te avisamos cuando alguien las publique.</span></div>

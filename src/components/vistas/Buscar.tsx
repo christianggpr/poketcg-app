@@ -44,7 +44,7 @@ export function Buscar() {
         <div className="card-list" style={{ marginTop: 10 }}>
           {resultados.map(r => (
             <CardRow key={r.card.id} carta={r.card} entradas={col.entradas.filter(e => e.carta_id === r.card.id)} ubicador={ubicador}
-              extra={<div style={{ marginTop: 4 }}><button className="btn sm" onClick={e => { e.stopPropagation(); setAgregar(r.card); }}>+ Guardar en una caja</button></div>} />
+              extra={<div style={{ marginTop: 4 }}><button className="btn sm" onClick={e => { e.stopPropagation(); setAgregar(r.card); }}>+ Guardar en mi colección</button></div>} />
           ))}
           {!resultados.length ? <div className="empty"><div className="big">🫥</div>No encontré esa carta. Prueba con el nombre en inglés, el número con el total (025/165) o el código de la colección.</div> : null}
           <p className="small muted">Busca por nombre en español, inglés o japonés, por número ("25", "025/165", "TG12"), por colección ("151", "obsidian", "sv2a", "jp") o combinaciones ("pikachu 151").</p>
@@ -69,7 +69,7 @@ function MiColeccion({ onAgregar }: { onAgregar: (c: Carta) => void }) {
   const ids = useMemo(() => [...new Set(col.entradas.map(e => e.carta_id).filter((x): x is string => !!x))], [col.entradas]);
   usePedirPrecios(ids);
 
-  // Valor de la colección = Σ precio por defecto (máx(piso, mercado)) × cantidad, en soles
+  // Precio de la colección = Σ precio por defecto (máx(piso, mercado)) × cantidad, en soles
   const valor = useMemo(() => {
     let pen = 0, conMercado = 0;
     for (const e of col.entradas) {
@@ -93,7 +93,7 @@ function MiColeccion({ onAgregar }: { onAgregar: (c: Carta) => void }) {
       <div className="empty" style={{ marginTop: 20 }}>
         <div className="big">📦</div>
         <p><b>Tu colección está vacía.</b></p>
-        <p className="muted">Busca una carta arriba y guárdala en una caja, o crea tus cajas desde la pestaña Cajas. Si vienes de PokéBóveda (versión anterior), importa tu respaldo en Ajustes.</p>
+        <p className="muted">Busca una carta arriba y guárdala en tu colección (álbum o Bulk), o crea tus Bulks desde la sección Bulk. Si vienes de PokéBóveda (versión anterior), importa tu respaldo en Ajustes.</p>
       </div>
     );
   }
@@ -105,7 +105,7 @@ function MiColeccion({ onAgregar }: { onAgregar: (c: Carta) => void }) {
     <div style={{ marginTop: 14 }}>
       <div className="stat" style={{ marginBottom: 12 }}>
         <div className="box"><b>{total.toLocaleString('es-PE')}</b><span>cartas ({col.entradas.length} distintas)</span></div>
-        <div className="box" title="Suma del precio por defecto del mercado PokéTCG (máximo entre el piso y el valor de mercado) por la cantidad de cada carta"><b>{precios.version === 0 && precios.cargando ? '…' : fmtPen(valor.pen)}</b><span>valor estimado ({valor.conMercado} con precio de mercado){precios.cargando ? ' · actualizando…' : ''}</span></div>
+        <div className="box" title="Suma del precio por defecto del mercado PokéTCG (máximo entre el piso y el precio de mercado) por la cantidad de cada carta"><b>{precios.version === 0 && precios.cargando ? '…' : fmtPen(valor.pen)}</b><span>precio estimado ({valor.conMercado} con precio de mercado){precios.cargando ? ' · actualizando…' : ''}</span></div>
         <div className="box"><b>{col.cajas.length}</b><span>{col.cajas.length === 1 ? 'caja' : 'cajas'}</span></div>
       </div>
       <FilterBar f={f} onChange={setF} langs={langs} />

@@ -133,7 +133,7 @@ export function AlbumFisico({ id }: { id: string }) {
       </div>
       <div className="stat" style={{ margin: '10px 0' }}>
         <div className="box"><b>{stats.tengo} / {stats.asignadas}</b><span>cartas que tienes de las asignadas</span></div>
-        <div className="box"><b>{fmtPen(stats.valor)}</b><span>valor de lo que tienes</span></div>
+        <div className="box"><b>{fmtPen(stats.valor)}</b><span>precio de lo que tienes</span></div>
         <div className="box"><b>{fmtPen(stats.falta)}</b><span>para completar</span></div>
       </div>
       <div className="binder-toolbar">
@@ -176,12 +176,12 @@ export function AlbumFisico({ id }: { id: string }) {
               <div className="card-main">
                 <div className="card-name">{nombreCarta(cartaMenu, idioma)}</div>
                 <div className="card-set">{nombreColeccion(cat.setOf(cartaMenu), idioma)} <span className="num">{cartaMenu.l}</span></div>
-                <div className="small" style={{ marginTop: 4 }}>{(propias.get(cartaMenu.id) || []).length ? (propias.get(cartaMenu.id) || []).map(e => <span key={e.id} style={{ marginRight: 6 }}><LocChip loc={ubicador.ubicacion(e)} corto /></span>) : <span className="album-miss">No la tienes todavía</span>}</div>
+                <div className="small" style={{ marginTop: 4 }}>{(propias.get(cartaMenu.id) || []).length ? (propias.get(cartaMenu.id) || []).map(e => <span key={e.id} style={{ marginRight: 6 }}><LocChip loc={ubicador.donde(e)} corto /></span>) : <span className="album-miss">No la tienes todavía</span>}</div>
               </div>
             </div>
           ) : null}
           <div className="stack" style={{ marginTop: 12 }}>
-            {cartaMenu && !(propias.get(cartaMenu.id) || []).length ? <button className="btn primary" onClick={() => { setMenu(null); setAgregar(cartaMenu); }}>+ Ya la tengo: guardar en una caja</button> : null}
+            {cartaMenu && !(propias.get(cartaMenu.id) || []).length ? <button className="btn primary" onClick={() => { setMenu(null); setAgregar(cartaMenu); }}>+ Ya la tengo: guardar en mi colección</button> : null}
             {cartaMenu ? <Link className="btn" href={`/app/carta/${encodeURIComponent(cartaMenu.id)}`}>Ver la carta</Link> : null}
             <button className="btn" onClick={() => { setSeleccion(menu); setMenu(null); }}>Mover a otro bolsillo</button>
             <button className="btn" onClick={() => { const i = menu; setMenu(null); setPicker(i); }}>Cambiar la carta de este bolsillo</button>
@@ -192,7 +192,7 @@ export function AlbumFisico({ id }: { id: string }) {
       {agregar ? <AddEntrySheet carta={agregar} onClose={() => setAgregar(null)} /> : null}
       {rellenar ? <RellenarSheet desde={inicio} onClose={() => setRellenar(false)} onElegir={(s, desde) => { setRellenar(false); rellenarCon(s, desde); }} /> : null}
       {editar ? <EditorAlbum album={album} onClose={() => setEditar(false)} /> : null}
-      {borrar ? <Confirmar titulo="Eliminar álbum" texto={`Se eliminará el álbum "${album.nombre}" y la asignación de sus bolsillos. Tus cartas no se borran de las cajas.`} okLabel="Eliminar" peligro onOk={async () => { const ok = await col.eliminarAlbum(album.id); if (ok) { toast('Álbum eliminado', 'ok'); router.replace('/app/album'); } }} onClose={() => setBorrar(false)} /> : null}
+      {borrar ? <Confirmar titulo="Eliminar álbum" texto={`Se eliminará el álbum "${album.nombre}" y la asignación de sus bolsillos. Tus cartas no se borran de tu colección.`} okLabel="Eliminar" peligro onOk={async () => { const ok = await col.eliminarAlbum(album.id); if (ok) { toast('Álbum eliminado', 'ok'); router.replace('/app/album'); } }} onClose={() => setBorrar(false)} /> : null}
     </div>
   );
 }

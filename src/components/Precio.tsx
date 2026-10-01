@@ -5,7 +5,7 @@ import { fmtPen, fmtUsd } from '@/lib/precios-core';
 import { usePrecios } from './PreciosProvider';
 
 /**
- * Precio de una carta en soles (precio por defecto del mercado PokéTCG = máx(piso, valor de mercado)),
+ * Precio de una carta en soles (precio por defecto del mercado PokéTCG = máx(piso, precio de mercado)),
  * multiplicado por la cantidad. Pide el precio si aún no está en caché.
  */
 export function Precio({ carta, acabado = '', cantidad = 1, corto = true }: { carta: Carta | null | undefined; acabado?: string; cantidad?: number; corto?: boolean }) {

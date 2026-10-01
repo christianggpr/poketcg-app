@@ -157,7 +157,7 @@ export function CompraDetalle({ id }: { id: string }) {
   }
   async function marcarEntregada(o: Orden) {
     const r = await fetch('/api/ordenes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion: 'entregada', id: o.id }) }).then(x => x.json()).catch(() => ({ ok: false, error: 'Sin conexión' }));
-    if (r.ok) { toast('¡Listo! Las cartas ya están en tu colección: colócalas desde Cajas → Por colocar.', 'ok', 4500); cargar(); notif.recargar(); } else toast(r.error || 'No se pudo confirmar', 'danger', 4000);
+    if (r.ok) { toast('¡Listo! Las cartas ya están en tu colección: dinos dónde las guardas desde Álbumes → Recibidas.', 'ok', 4500); cargar(); notif.recargar(); } else toast(r.error || 'No se pudo confirmar', 'danger', 4000);
   }
   async function anularOrdenAhora(o: Orden) {
     const r = await anularOrden(o.id);
@@ -210,7 +210,7 @@ export function CompraDetalle({ id }: { id: string }) {
           {o.estado !== 'disputa' && reclamos.get(o.id)?.estado === 'resuelto' ? <div className="small" style={{ marginTop: 4 }} data-testid="orden-reclamo-resuelto">📝 Reclamo #{reclamos.get(o.id)!.numero} resuelto: {ETIQUETA_RESOLUCION[reclamos.get(o.id)!.resolucion!]}{reclamos.get(o.id)!.monto_devuelto ? ` (${fmtPen(reclamos.get(o.id)!.monto_devuelto!)} a tu saldo)` : ''}{reclamos.get(o.id)!.nota_admin ? ` · ${reclamos.get(o.id)!.nota_admin}` : ''}.</div> : null}
           {o.estado === 'en_tienda' ? <div className="notice ok" style={{ marginTop: 6 }}>🏪 <b>Ya está en la tienda.</b> Muestra este código para recogerla: <b style={{ fontSize: 22, letterSpacing: 2 }} data-testid="codigo-retiro">{o.codigo_retiro}</b><div style={{ marginTop: 6 }}><button className="btn sm primary" onClick={() => setConfirmarEntrega(o)} data-testid="btn-entregado">✅ Ya la recogí (Entregado)</button></div></div> : null}
           {o.estado === 'pago_confirmado' ? <div className="small muted" style={{ marginTop: 4 }}>¿Ya tienes la carta en la mano? <button className="link" onClick={() => setConfirmarEntrega(o)}>Marcar como entregada</button></div> : null}
-          {o.estado === 'entregada' || o.estado === 'saldo_liberado' ? <div className="small" style={{ marginTop: 4 }} data-testid="orden-entregada">✅ Entregada el {fechaHora(o.entregada_en)}. Las cartas ya están en tu colección: <Link href="/app/bulk">colócalas en una caja</Link> (Cajas → Por colocar).</div> : null}
+          {o.estado === 'entregada' || o.estado === 'saldo_liberado' ? <div className="small" style={{ marginTop: 4 }} data-testid="orden-entregada">✅ Entregada el {fechaHora(o.entregada_en)}. Las cartas ya están en tu colección: <Link href="/app/album">dinos dónde las guardas</Link> (Álbumes → Recibidas).</div> : null}
           {o.estado === 'entregada' || o.estado === 'saldo_liberado' ? (
             resenas.get(o.id)
               ? <div className="small" style={{ marginTop: 6 }} data-testid="mi-resena">Tu calificación: <Estrellas valor={resenas.get(o.id)!.puntaje} tam={18} />{resenas.get(o.id)!.comentario ? <> «{resenas.get(o.id)!.comentario}»</> : null}{Date.now() - Date.parse(resenas.get(o.id)!.creada) < 7 * 86400000 ? <> · <button className="link" onClick={() => setCalificar(o)}>cambiar</button></> : null}</div>

@@ -38,21 +38,27 @@ function PorColocar({ entradas }: { entradas: Entrada[] }) {
   const lista = [...entradas].sort((a, b) => (b.compra_orden_id ? 1 : 0) - (a.compra_orden_id ? 1 : 0) || b.creado_en.localeCompare(a.creado_en));
 
   async function colocar(e: Entrada) {
-    if (!cajaDestino) { toast('Crea una caja primero', 'danger'); return; }
+    if (!cajaDestino) { toast('Crea un Bulk primero', 'danger'); return; }
     setOcupado(e.id);
     const ok = await col.editarEntrada(e.id, { caja_id: cajaDestino });
     setOcupado(null);
     if (!ok) { toast('No se pudo colocar', 'danger'); return; }
     setColocadaId(e.id);
   }
+  const hoja = colocada ? (
+    <Sheet titulo="¡Colocada!" onClose={() => setColocadaId(null)} pie={<button className="btn primary" onClick={() => setColocadaId(null)} data-testid="btn-colocada-listo">Listo</button>}>
+      <div data-testid="colocacion"><Colocacion entrada={colocada} loc={ubicador.donde(colocada)} /></div>
+    </Sheet>
+  ) : null;
+  if (!entradas.length) return hoja;   // sin cartas por colocar solo queda (si acaso) la hoja "¡Colocada!"
   return (
     <div className="panel" style={{ marginTop: 12 }} data-testid="por-colocar">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
         <h3 style={{ margin: 0 }}>📥 Por colocar <span className="muted">({totalCartas(entradas)})</span></h3>
         {cajas.length ? <label className="small row" style={{ gap: 6, alignItems: 'center' }}>Colocar en <select className="input" style={{ width: 'auto', minHeight: 34, padding: '5px 10px', fontSize: 13 }} value={cajaDestino} onChange={e => setDestino(e.target.value)} data-testid="select-caja-colocar">{cajas.map(c => <option key={c.id} value={c.id}>📦 {c.nombre}</option>)}</select></label> : null}
       </div>
-      <p className="small muted">Cartas que todavía no tienen caja: las que compraste en el mercado llegan aquí. Elige la caja y pulsa «Colocar»: la app te dice en qué posición va.</p>
-      {!cajas.length ? <p className="notice warn small">Crea una caja para poder colocarlas.</p> : null}
+      <p className="small muted">Cartas que todavía no tienen lugar. Elige el Bulk y pulsa «Colocar»: la app te dice en qué posición va. Las que compraste en el mercado también aparecen en Álbumes → Recibidas, con una sugerencia de álbum.</p>
+      {!cajas.length ? <p className="notice warn small">Crea un Bulk para poder colocarlas.</p> : null}
       <div className="card-list">
         {lista.map(e => { const c = cat.carta(e.carta_id); const set = c ? cat.setOf(c) : undefined; return (
           <div key={e.id} className="card-row" style={{ cursor: 'default' }} data-testid="carta-por-colocar">
@@ -67,11 +73,7 @@ function PorColocar({ entradas }: { entradas: Entrada[] }) {
         ); })}
       </div>
       {detalle ? <EntryDetailSheet entrada={detalle} onClose={() => setDetalle(null)} /> : null}
-      {colocada ? (
-        <Sheet titulo="¡Colocada!" onClose={() => setColocadaId(null)} pie={<button className="btn primary" onClick={() => setColocadaId(null)} data-testid="btn-colocada-listo">Listo</button>}>
-          <div data-testid="colocacion"><Colocacion entrada={colocada} loc={ubicador.ubicacion(colocada)} /></div>
-        </Sheet>
-      ) : null}
+      {hoja}
     </div>
   );
 }
@@ -90,11 +92,11 @@ export function EditorCaja({ caja, onClose }: { caja?: Caja | null; onClose: (gu
     if (caja) {
       const ok = await col.editarCaja(caja.id, { nombre: nombre.trim() || caja.nombre, descripcion, modo, orden_colecciones: ordenCol });
       setGuardando(false);
-      if (ok) { toast('Caja guardada', 'ok'); onClose({ ...caja, nombre, descripcion, modo, orden_colecciones: ordenCol }); } else toast('No se pudo guardar', 'danger');
+      if (ok) { toast('Bulk guardado', 'ok'); onClose({ ...caja, nombre, descripcion, modo, orden_colecciones: ordenCol }); } else toast('No se pudo guardar', 'danger');
     } else {
       const c = await col.crearCaja({ nombre, descripcion, modo, orden_colecciones: ordenCol });
       setGuardando(false);
-      if (c) { toast('Caja creada', 'ok'); setCreada(c); } else toast('No se pudo crear la caja', 'danger');
+      if (c) { toast('Bulk creado', 'ok'); setCreada(c); } else toast('No se pudo crear el Bulk', 'danger');
     }
   }
   if (creada) {
@@ -107,27 +109,27 @@ export function EditorCaja({ caja, onClose }: { caja?: Caja | null; onClose: (gu
       onClose({ ...creada, ...d });
     };
     return (
-      <Sheet titulo="Caja creada" onClose={() => onClose(creada)} pie={<button className="btn block" onClick={() => onClose(creada)}>Cerrar</button>}>
+      <Sheet titulo="Bulk creado" onClose={() => onClose(creada)} pie={<button className="btn block" onClick={() => onClose(creada)}>Cerrar</button>}>
         <p style={{ margin: 0 }}>📦 <b>{creada.nombre}</b> ya está lista para guardar cartas.</p>
         <PreguntaVenta ocupado={guardando}
-          detalle="«Sí, todas»: cada carta que guardes en esta caja se publicará sola con el precio por defecto (el mayor entre el piso y el valor de mercado). «Elegir cuáles»: te lo preguntaremos carta por carta. Podrás cambiar precios, pausar o retirar cuando quieras; los compradores solo ven tu nombre de usuario."
-          onTodas={() => responder({ en_venta: true }, 'Caja en venta: lo que guardes aquí se publicará solo')}
+          detalle="«Sí, todas»: cada carta que guardes en este Bulk se publicará sola con el precio por defecto (el mayor entre el piso y el precio de mercado). «Elegir cuáles»: te lo preguntaremos carta por carta. Podrás cambiar precios, pausar o retirar cuando quieras; los compradores solo ven tu nombre de usuario."
+          onTodas={() => responder({ en_venta: true }, 'Bulk en venta: lo que guardes aquí se publicará solo')}
           onElegir={() => responder({}, 'Te preguntaremos carta por carta')}
-          onNo={() => responder({ preguntar_venta: false }, 'Esta caja no se sube a la nube. Puedes activar "Caja en venta" cuando quieras')} />
+          onNo={() => responder({ preguntar_venta: false }, 'Este Bulk no se sube a la nube. Puedes activar "Bulk en venta" cuando quieras')} />
       </Sheet>
     );
   }
   return (
-    <Sheet titulo={caja ? 'Editar caja' : 'Nueva caja'} onClose={() => onClose()} pie={<><button className="btn" onClick={() => onClose()}>Cancelar</button><button className="btn primary" onClick={guardar} disabled={guardando}>{caja ? 'Guardar' : 'Crear caja'}</button></>}>
+    <Sheet titulo={caja ? 'Editar Bulk' : 'Nuevo Bulk'} onClose={() => onClose()} pie={<><button className="btn" onClick={() => onClose()}>Cancelar</button><button className="btn primary" onClick={guardar} disabled={guardando}>{caja ? 'Guardar' : 'Crear Bulk'}</button></>}>
       <Campo label="Nombre (la identificación que usas)" ayuda="Ej.: Caja 1, Caja A, Roja…">{id => <input id={id} className="input" autoFocus value={nombre} onChange={e => setNombre(e.target.value)} />}</Campo>
       <Campo label="Descripción (opcional)">{id => <input id={id} className="input" value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="dónde está, qué guarda…" />}</Campo>
-      <div className="field"><label>Cómo ordenas esta caja</label>
+      <div className="field"><label>Cómo ordenas este Bulk</label>
         <div className="stack">
           <label className="check"><input type="radio" name="modo" checked={modo === 'auto'} onChange={() => setModo('auto')} /><span><b>Por colección y número</b> (recomendado): la app calcula sola la posición de cada carta.</span></label>
           <label className="check"><input type="radio" name="modo" checked={modo === 'manual'} onChange={() => setModo('manual')} /><span><b>Orden manual</b>: tú asignas el número de posición a cada carta.</span></label>
         </div>
       </div>
-      {modo === 'auto' ? <div className="field"><label>Orden de las colecciones dentro de la caja</label>
+      {modo === 'auto' ? <div className="field"><label>Orden de las colecciones dentro del Bulk</label>
         <div className="seg"><button className={ordenCol === 'asc' ? 'active' : ''} onClick={() => setOrdenCol('asc')}>Antiguas primero</button><button className={ordenCol === 'desc' ? 'active' : ''} onClick={() => setOrdenCol('desc')}>Nuevas primero</button></div>
       </div> : null}
     </Sheet>
@@ -151,19 +153,20 @@ export function Cajas() {
     }
     return m;
   }, [col.entradas, cat, perfil.idioma_nombres]);
-  const sinCaja = col.entradas.filter(e => !e.caja_id);
+  const enBolsillo = new Set(col.casillas.filter(c => c.entrada_id).map(c => c.entrada_id as string));
+  const sinCaja = col.entradas.filter(e => !e.caja_id && !e.album_coleccion && !enBolsillo.has(e.id));   // sin lugar: ni Bulk, ni álbum, ni bolsillo
 
   return (
     <div>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <h2 style={{ margin: 0 }}>Cajas</h2>
+        <h2 style={{ margin: 0 }}>Bulk</h2>
         <div className="row" style={{ gap: 6 }}>
           <Link href="/app/ventas" className="btn sm">🏷️ Mis ventas{col.publicaciones.length ? ` (${col.publicaciones.length})` : ''}</Link>
-          <button className="btn primary sm" onClick={() => setEditor({ abierto: true, caja: null })}>+ Nueva caja</button>
+          <button className="btn primary sm" onClick={() => setEditor({ abierto: true, caja: null })}>+ Nuevo Bulk</button>
         </div>
       </div>
-      <p className="small muted">El orden de las cajas es el orden físico de izquierda a derecha. Usa ◀ ▶ para moverlas. Total: {totalCartas(col.entradas).toLocaleString('es-PE')} cartas.</p>
-      {!cajas.length ? <div className="empty"><div className="big">📦</div><p><b>Aún no tienes cajas.</b></p><p className="muted">Crea tus cajas con la identificación que usas (Caja 1, Caja A, Roja…). Luego, al guardar una carta, la app te dirá en qué posición va.</p></div> : null}
+      <p className="small muted">Un Bulk es una caja o fila donde guardas cartas en orden. El orden de los Bulks es el físico, de izquierda a derecha; usa ◀ ▶ para moverlos. Total: {totalCartas(col.entradas).toLocaleString('es-PE')} cartas.</p>
+      {!cajas.length ? <div className="empty"><div className="big">📦</div><p><b>Aún no tienes Bulks.</b></p><p className="muted">Crea tus Bulks con la identificación que usas (Bulk 1, Bulk A, Rojo…). Luego, al guardar una carta, la app te dirá en qué posición va.</p></div> : null}
       <div className="box-grid">
         {cajas.map((c, i) => {
           const r = resumen.get(c.id);
@@ -186,7 +189,7 @@ export function Cajas() {
           );
         })}
       </div>
-      {sinCaja.length ? <PorColocar entradas={sinCaja} /> : null}
+      <PorColocar entradas={sinCaja} />
       {editor.abierto ? <EditorCaja caja={editor.caja} onClose={() => setEditor({ abierto: false })} /> : null}
     </div>
   );
@@ -215,7 +218,7 @@ export function CajaDetalle({ id }: { id: string }) {
   const [personalizada, setPersonalizada] = useState<Personalizada | null>(null);
   const [editarEntrada, setEditarEntrada] = useState<Entrada | null>(null);
   const [pNombre, setPNombre] = useState(''); const [pCol, setPCol] = useState(''); const [pNum, setPNum] = useState('');
-  if (!caja) return <div className="empty"><div className="big">📦</div>Esa caja no existe. <Link href="/app/bulk">Volver a Bulk</Link></div>;
+  if (!caja) return <div className="empty"><div className="big">📦</div>Ese Bulk no existe. <Link href="/app/bulk">Volver a Bulk</Link></div>;
   const pos = ubicador.posiciones(caja);
   const idioma = perfil.idioma_nombres;
   const entradasCaja = pos.lista.map(p => p.entrada);
@@ -230,8 +233,8 @@ export function CajaDetalle({ id }: { id: string }) {
     const ok = await col.editarCaja(caja!.id, { en_venta: v, preguntar_venta: false });
     setOcupado(false);
     if (!ok) { toast('No se pudo cambiar', 'danger'); return; }
-    if (v) toast('Caja en venta: sus cartas están publicadas y las nuevas se publicarán solas', 'ok', 3500);
-    else toast('Las cartas nuevas de esta caja ya no se publicarán solas. Las publicaciones actuales siguen en venta (puedes retirarlas desde Mis ventas).', '', 4500);
+    if (v) toast('Bulk en venta: sus cartas están publicadas y las nuevas se publicarán solas', 'ok', 3500);
+    else toast('Las cartas nuevas de este Bulk ya no se publicarán solas. Las publicaciones actuales siguen en venta (puedes retirarlas desde Mis ventas).', '', 4500);
   }
   async function publicarSeleccion() {
     setOcupado(true);
@@ -253,7 +256,7 @@ export function CajaDetalle({ id }: { id: string }) {
     <div>
       <p className="small"><Link href="/app/bulk">← Bulk</Link></p>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <div><h2 style={{ margin: 0 }}>📦 {caja.nombre}</h2><div className="small muted">Caja {ubicador.ordinal(caja)}ª de izquierda a derecha · {pos.total} {pos.total === 1 ? 'posición' : 'posiciones'} · {caja.modo === 'manual' ? 'orden manual' : `por colección y nº (${caja.orden_colecciones === 'desc' ? 'nuevas primero' : 'antiguas primero'})`}{caja.descripcion ? ` · ${caja.descripcion}` : ''}{pubsCaja.length ? ` · ${pubsCaja.length} en el mercado` : ''}</div></div>
+        <div><h2 style={{ margin: 0 }}>📦 {caja.nombre}</h2><div className="small muted">Bulk {ubicador.ordinal(caja)}º de izquierda a derecha · {pos.total} {pos.total === 1 ? 'posición' : 'posiciones'} · {caja.modo === 'manual' ? 'orden manual' : `por colección y nº (${caja.orden_colecciones === 'desc' ? 'nuevas primero' : 'antiguas primero'})`}{caja.descripcion ? ` · ${caja.descripcion}` : ''}{pubsCaja.length ? ` · ${pubsCaja.length} en el mercado` : ''}</div></div>
         <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
           <button className="btn primary sm" onClick={() => setPicker(true)}>+ Añadir carta</button>
           <button className="btn sm" onClick={() => setEditar(true)}>Editar</button>
@@ -262,8 +265,8 @@ export function CajaDetalle({ id }: { id: string }) {
       </div>
       <div className="row" style={{ alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
         <label className="row" style={{ alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-          <button className={`switch ${caja.en_venta ? 'on' : ''}`} role="switch" aria-checked={caja.en_venta} aria-label="Caja en venta" disabled={ocupado} data-testid="switch-venta" onClick={() => { if (caja.en_venta) cambiarVenta(false); else setConfirmarVenta(true); }} />
-          <span><b>Caja en venta</b> <span className="small muted">{caja.en_venta ? '· cada carta que guardes aquí se publica sola' : '· sus cartas solo se publican si tú lo eliges'}</span></span>
+          <button className={`switch ${caja.en_venta ? 'on' : ''}`} role="switch" aria-checked={caja.en_venta} aria-label="Bulk en venta" disabled={ocupado} data-testid="switch-venta" onClick={() => { if (caja.en_venta) cambiarVenta(false); else setConfirmarVenta(true); }} />
+          <span><b>Bulk en venta</b> <span className="small muted">{caja.en_venta ? '· cada carta que guardes aquí se publica sola' : '· sus cartas solo se publican si tú lo eliges'}</span></span>
         </label>
         <span className="grow" />
         {!elegir && publicables.length ? <button className="btn sm" onClick={() => setElegir(true)}>☑️ Elegir cuáles vender</button> : null}
@@ -305,7 +308,7 @@ export function CajaDetalle({ id }: { id: string }) {
             </div>
           );
         })}
-        {!pos.total ? <div className="empty"><div className="big">🫙</div>Esta caja está vacía. Pulsa "Añadir carta".</div> : null}
+        {!pos.total ? <div className="empty"><div className="big">🫙</div>Este Bulk está vacío. Pulsa "Añadir carta".</div> : null}
       </div>
       {picker ? <CardPicker onPick={c => { setPicker(false); setAgregar(c); }} onClose={() => setPicker(false)} onPersonalizada={() => { setPicker(false); setFormPersonalizada(true); }} /> : null}
       {agregar ? <AddEntrySheet carta={agregar} cajaInicial={caja.id} onClose={() => setAgregar(null)} /> : null}
@@ -319,8 +322,8 @@ export function CajaDetalle({ id }: { id: string }) {
       {personalizada ? <AddEntrySheet personalizada={personalizada} cajaInicial={caja.id} onClose={() => setPersonalizada(null)} /> : null}
       {editarEntrada ? <EntryDetailSheet entrada={editarEntrada} onClose={() => setEditarEntrada(null)} /> : null}
       {editar ? <EditorCaja caja={caja} onClose={() => setEditar(false)} /> : null}
-      {confirmarVenta ? <Confirmar titulo="Poner la caja en venta" texto={`Se publicarán en el mercado las ${publicables.length - pubsCaja.length} ${publicables.length - pubsCaja.length === 1 ? 'carta' : 'cartas'} del catálogo que hay en esta caja con el precio por defecto (${fmtPen(precios.ajustes.pisos.normal)} las normales, ${fmtPen(precios.ajustes.pisos.especial)} las holo/reverse/especiales, o el valor de mercado si es mayor) y cada carta que guardes aquí se publicará sola. Podrás cambiar precios, pausar o retirar cuando quieras. Las de más de S/ 50 quedan pausadas hasta que les agregues una foto.`} okLabel="Poner en venta" onOk={() => { setConfirmarVenta(false); cambiarVenta(true); }} onClose={() => setConfirmarVenta(false)} /> : null}
-      {borrar ? <Confirmar titulo="Eliminar caja" texto={`Se eliminará la caja "${caja.nombre}". Las cartas que tenga quedarán sin caja (no se borran).`} okLabel="Eliminar caja" peligro onOk={async () => { const ok = await col.eliminarCaja(caja.id, false); if (ok) { toast('Caja eliminada', 'ok'); router.replace('/app/bulk'); } }} onClose={() => setBorrar(false)} /> : null}
+      {confirmarVenta ? <Confirmar titulo="Poner el Bulk en venta" texto={`Se publicarán en el mercado las ${publicables.length - pubsCaja.length} ${publicables.length - pubsCaja.length === 1 ? 'carta' : 'cartas'} del catálogo que hay en esta caja con el precio por defecto (${fmtPen(precios.ajustes.pisos.normal)} las normales, ${fmtPen(precios.ajustes.pisos.especial)} las holo/reverse/especiales, o el precio de mercado si es mayor) y cada carta que guardes aquí se publicará sola. Podrás cambiar precios, pausar o retirar cuando quieras. Las de más de S/ 50 quedan pausadas hasta que les agregues una foto.`} okLabel="Poner en venta" onOk={() => { setConfirmarVenta(false); cambiarVenta(true); }} onClose={() => setConfirmarVenta(false)} /> : null}
+      {borrar ? <Confirmar titulo="Eliminar Bulk" texto={`Se eliminará el Bulk "${caja.nombre}". Las cartas que tenga quedarán sin ubicación (no se borran).`} okLabel="Eliminar Bulk" peligro onOk={async () => { const ok = await col.eliminarCaja(caja.id, false); if (ok) { toast('Bulk eliminado', 'ok'); router.replace('/app/bulk'); } }} onClose={() => setBorrar(false)} /> : null}
     </div>
   );
 }

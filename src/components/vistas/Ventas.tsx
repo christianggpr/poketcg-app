@@ -71,7 +71,7 @@ export function Ventas() {
     <div>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
         <h2 style={{ margin: 0 }}>🏷️ Mis ventas</h2>
-        <div className="row" style={{ gap: 6 }}><Link href="/app/ventas/ordenes" className="btn sm primary" data-testid="btn-ordenes-venta">📦 Órdenes de venta</Link><Link href="/app/bulk" className="btn sm ghost">Cajas</Link></div>
+        <div className="row" style={{ gap: 6 }}><Link href="/app/ventas/ordenes" className="btn sm primary" data-testid="btn-ordenes-venta">📦 Órdenes de venta</Link><Link href="/app/bulk" className="btn sm ghost">📦 Bulk</Link></div>
       </div>
       <p className="small muted">Lo que tienes publicado en el mercado. Los compradores solo ven tu nombre de usuario (@{perfil.username}); nunca tu DNI, teléfono ni nombre real. La comisión es del {Math.round(comision * 100)} % sobre el precio de venta.</p>
       <MiReputacion />
@@ -102,7 +102,7 @@ export function Ventas() {
         </div>
       ) : null}
       {!col.publicaciones.length ? (
-        <div className="empty"><div className="big">🏷️</div><p><b>Todavía no tienes nada en venta.</b></p><p className="muted">Activa «Caja en venta» en una caja, elige cartas sueltas desde la caja, o abre una carta de tu colección y pulsa «Vender en el mercado».</p></div>
+        <div className="empty"><div className="big">🏷️</div><p><b>Todavía no tienes nada en venta.</b></p><p className="muted">Activa «Bulk en venta» en un Bulk, elige cartas sueltas desde el Bulk, o abre una carta de tu colección y pulsa «Vender en el mercado».</p></div>
       ) : !filas.length ? <div className="empty muted">Nada en este estado.</div> : null}
       <div className="card-list" style={{ marginTop: 10 }}>
         {filas.map(({ pub, entrada }) => {

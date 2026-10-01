@@ -86,7 +86,7 @@ export function Mercado() {
         <div className="seg">
           <button className={orden === 'novedad' ? 'active' : ''} onClick={() => setOrden('novedad')}>Novedad</button>
           <button className={orden === 'precio' ? 'active' : ''} onClick={() => setOrden('precio')}>Precio ↑</button>
-          <button className={orden === 'valor' ? 'active' : ''} onClick={() => setOrden('valor')}>Valor ↓</button>
+          <button className={orden === 'valor' ? 'active' : ''} onClick={() => setOrden('valor')}>Precio ↓</button>
         </div>
         <button className={`btn sm ${mas || set || idioma || acabado || condicion || min || max ? 'primary' : ''}`} onClick={() => setMas(m => !m)}>Filtros{[set, idioma, acabado, condicion, min || max].filter(Boolean).length ? ` (${[set, idioma, acabado, condicion, min || max].filter(Boolean).length})` : ''}</button>
         <label className="check small" style={{ alignItems: 'center' }}><input type="checkbox" checked={soloFaltan} onChange={e => setSoloFaltan(e.target.checked)} /> Solo las que me faltan</label>

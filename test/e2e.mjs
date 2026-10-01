@@ -135,19 +135,19 @@ try {
   await page.goto(APP + '/app/cajas');
   await page.waitForURL(/\/app\/bulk$/);
   if (!(await page.$('[data-testid=sec-bulk].active'))) throw new Error('/app/cajas debía redirigir a /app/bulk con la sección Bulk activa');
-  await page.click('text=+ Nueva caja');
-  await page.fill('.sheet input.input', 'Caja 1');
-  await page.click('.sheet-foot >> text=Crear caja');
+  await page.click('text=+ Nuevo Bulk');
+  await page.fill('.sheet input.input', 'Bulk 1');
+  await page.click('.sheet-foot >> text=Crear Bulk');
   // Fase 2: al crear la caja se pregunta si se sube a la nube para vender
   await page.waitForSelector('[data-testid=pregunta-venta]');
   await page.click('[data-testid=pregunta-venta] button:has-text("Elegir cuáles")');
-  await page.waitForSelector('.box-card >> text=Caja 1');
-  await page.click('text=+ Nueva caja');
-  await page.fill('.sheet input.input', 'Caja 2');
-  await page.click('.sheet-foot >> text=Crear caja');
+  await page.waitForSelector('.box-card >> text=Bulk 1');
+  await page.click('text=+ Nuevo Bulk');
+  await page.fill('.sheet input.input', 'Bulk 2');
+  await page.click('.sheet-foot >> text=Crear Bulk');
   await page.waitForSelector('[data-testid=pregunta-venta]');
   await page.click('[data-testid=pregunta-venta] button:has-text("Elegir cuáles")');
-  await page.waitForSelector('.box-card >> text=Caja 2');
+  await page.waitForSelector('.box-card >> text=Bulk 2');
   await page.waitForSelector('.sheet', { state: 'detached' });
   await foto(page, 'cajas');
   if (sql("select count(*) from public.cajas where en_venta") !== '0') throw new Error('las cajas no debían quedar en venta');
@@ -159,7 +159,7 @@ try {
     await page.fill('.search-wrap input', q);
     await page.waitForSelector('.card-row');
     const fila = page.locator('.card-row', { hasText: idCarta.texto }).first();
-    await fila.locator('text=+ Guardar en una caja').click();
+    await fila.locator('text=+ Guardar en mi colección').click();
     await page.waitForSelector('.sheet');
     if (idCarta.caja) await page.click(`.sheet .chipbtn:has-text("${idCarta.caja}")`);
     if (idCarta.acabado) await page.selectOption('.sheet select >> nth=0', idCarta.acabado);
@@ -172,21 +172,21 @@ try {
     await page.click('.sheet-foot >> text=Listo');
     return { donde, titulo };
   }
-  let r = await guardar('pikachu 151', { texto: '025/165', caja: 'Caja 1' }, 'Caja 1 · posición 1 de 1');
+  let r = await guardar('pikachu 151', { texto: '025/165', caja: 'Bulk 1' }, 'Bulk 1 · posición 1 de 1');
   log('Pikachu 025 →', r.donde);
-  r = await guardar('charizard ex 151', { texto: '006/165', caja: 'Caja 1' }, 'Caja 1 · posición 1 de 2');
+  r = await guardar('charizard ex 151', { texto: '006/165', caja: 'Bulk 1' }, 'Bulk 1 · posición 1 de 2');
   log('Charizard ex 006 →', r.donde);
-  r = await guardar('pikachu 151', { texto: '025/165', caja: 'Caja 1' }, 'Caja 1 · posición 2 de 2');
+  r = await guardar('pikachu 151', { texto: '025/165', caja: 'Bulk 1' }, 'Bulk 1 · posición 2 de 2');
   if (!/Cantidad actualizada/.test(r.titulo)) throw new Error('no fusionó la copia repetida: ' + r.titulo);
   log('segunda copia fusionada →', r.titulo);
-  r = await guardar('base set charizard', { texto: '4/102', caja: 'Caja 2' }, 'Caja 2 · posición 1 de 1');
+  r = await guardar('base set charizard', { texto: '4/102', caja: 'Bulk 2' }, 'Bulk 2 · posición 1 de 1');
   log('Charizard Base Set en Caja 2 →', r.donde);
-  r = await guardar('pikachu 151', { texto: '025/165', caja: 'Caja 1', acabado: 'Reverse' }, 'Caja 1 · posición 3 de 3');
+  r = await guardar('pikachu 151', { texto: '025/165', caja: 'Bulk 1', acabado: 'Reverse' }, 'Bulk 1 · posición 3 de 3');
   log('Pikachu reverse (otra entrada) →', r.donde);
 
   // ---------- Mi colección con valor
   await page.goto(APP + '/app/buscar');
-  await page.waitForSelector('text=valor estimado');
+  await page.waitForSelector('text=precio estimado');
   await page.waitForFunction(() => /\(\d*[1-9]\d* con precio de mercado\)/.test(document.querySelector('.stat')?.textContent || ''), null, { timeout: 30000 });
   const stat = await page.textContent('.stat');
   if (!/5cartas \(4 distintas\)/.test(stat) || !/S\/ [1-9]/.test(stat)) throw new Error('resumen inesperado: ' + stat);
@@ -195,16 +195,16 @@ try {
 
   // ---------- detalle de la caja: orden físico
   await page.goto(APP + '/app/bulk');
-  await page.click('.box-card >> text=Caja 1');
+  await page.click('.box-card >> text=Bulk 1');
   await page.waitForSelector('.entry-row');
   const orden = await page.$$eval('.entry-row .num', els => els.map(e => e.textContent.trim()));
   if (orden.join(',') !== '006/165,025/165,025/165') throw new Error('orden físico inesperado: ' + orden.join(','));
   await foto(page, 'caja-1');
-  log('orden físico en Caja 1:', orden.join(' → '));
+  log('orden físico en Bulk 1:', orden.join(' → '));
   // editar entrada: mover a Caja 2
   await page.click('.entry-row >> nth=0');
   await page.waitForSelector('.sheet');
-  await page.selectOption('.sheet select >> nth=-1', { label: '📦 Caja 2' });
+  await page.selectOption('.sheet select >> nth=-1', { label: '📦 Bulk 2' });
   await page.click('text=Guardar cambios');
   await page.waitForSelector('.toast');
   await page.waitForFunction(() => document.querySelectorAll('.entry-row').length === 2);
@@ -215,21 +215,21 @@ try {
   // Con los precios del mock (Pikachu normal S/ 73.30, reverse S/ 183.30) superan S/ 50 → pausadas hasta tener foto.
   await page.click('[data-testid=switch-venta]');
   await page.click('.sheet-foot button:has-text("Poner en venta")');
-  await page.waitForSelector('.toast:has-text("Caja en venta")');
+  await page.waitForSelector('.toast:has-text("Bulk en venta")');
   await page.waitForFunction(() => document.querySelectorAll('.entry-row .pill.warn').length === 2, null, { timeout: 15000 });
   let pubs = sql("select p.estado || ':' || p.motivo_pausa || ':' || p.cantidad || ':' || p.precio_pen from public.publicaciones p join public.entradas e on e.id = p.entrada_id where e.carta_id = 'sv03.5-025' order by e.acabado");
   if (pubs.split('\n').sort().join(',') !== 'pausada:foto:1:183.30,pausada:foto:2:73.30') throw new Error('publicaciones inesperadas al poner la caja en venta: ' + pubs);
-  if (sql("select en_venta::text || '/' || preguntar_venta::text from public.cajas where nombre = 'Caja 1'") !== 'true/false') throw new Error('la caja no quedó en venta');
+  if (sql("select en_venta::text || '/' || preguntar_venta::text from public.cajas where nombre = 'Bulk 1'") !== 'true/false') throw new Error('la caja no quedó en venta');
   await foto(page, 'caja-en-venta');
-  log('Caja 1 en venta: 2 publicaciones con precio por defecto, pausadas por falta de foto (> S/ 50)');
+  log('Bulk 1 en venta: 2 publicaciones con precio por defecto, pausadas por falta de foto (> S/ 50)');
 
   // carta nueva en la caja en venta → se publica sola y queda activa (Bulbasaur S/ 15.06 < S/ 50)
   await page.goto(APP + '/app/buscar');
   await page.fill('.search-wrap input', 'bulbasaur 151');
   await page.waitForSelector('.card-row');
-  await page.locator('.card-row', { hasText: '001/165' }).first().locator('text=+ Guardar en una caja').click();
+  await page.locator('.card-row', { hasText: '001/165' }).first().locator('text=+ Guardar en mi colección').click();
   await page.waitForSelector('.sheet');
-  await page.click('.sheet .chipbtn:has-text("Caja 1")');
+  await page.click('.sheet .chipbtn:has-text("Bulk 1")');
   await page.click('.sheet-foot >> text=Guardar');
   await page.waitForSelector('[data-testid=publicada]', { timeout: 15000 });
   const txtPub = await page.textContent('[data-testid=publicada]');
@@ -243,9 +243,9 @@ try {
   await page.goto(APP + '/app/buscar');
   await page.fill('.search-wrap input', 'charmander 151');
   await page.waitForSelector('.card-row');
-  await page.locator('.card-row', { hasText: '004/165' }).first().locator('text=+ Guardar en una caja').click();
+  await page.locator('.card-row', { hasText: '004/165' }).first().locator('text=+ Guardar en mi colección').click();
   await page.waitForSelector('.sheet');
-  await page.click('.sheet .chipbtn:has-text("Caja 2")');
+  await page.click('.sheet .chipbtn:has-text("Bulk 2")');
   await page.click('.sheet-foot >> text=Guardar');
   await page.waitForSelector('[data-testid=pregunta-venta]');
   await foto(page, 'pregunta-venta');
@@ -258,7 +258,7 @@ try {
 
   // precio manual 80 sin foto → pausada; con foto → activa; volver al precio por defecto
   await page.goto(APP + '/app/bulk');
-  await page.click('.box-card >> text=Caja 2');
+  await page.click('.box-card >> text=Bulk 2');
   await page.waitForSelector('.entry-row');
   await page.click('.entry-row:has-text("004/165")');
   await page.waitForSelector('[data-testid=mercado-entrada]');
@@ -266,7 +266,7 @@ try {
   await page.waitForSelector('.sheet:has-text("Tu publicación")');
   await page.check('.sheet label.check:has-text("Precio manual") input');
   await page.fill('.sheet input[inputmode=decimal]', '80');
-  await page.waitForSelector('.sheet:has-text("por encima del valor de mercado")');
+  await page.waitForSelector('.sheet:has-text("por encima del precio de mercado")');
   const recibes = await page.textContent('.sheet:has-text("Tu publicación") >> text=/Recibirás/');
   if (!/S\/ 76\.00/.test(recibes)) throw new Error('neto del vendedor incorrecto (80 − 5 %): ' + recibes);
   await page.click('.sheet:has-text("Tu publicación") .sheet-foot >> text=Guardar cambios');
@@ -291,7 +291,7 @@ try {
 
   // cantidad de la entrada → la publicación se ajusta sola
   await page.goto(APP + '/app/bulk');
-  await page.click('.box-card >> text=Caja 1');
+  await page.click('.box-card >> text=Bulk 1');
   await page.waitForSelector('.entry-row');
   await page.click('.entry-row:has-text("025/165") >> nth=0');
   await page.waitForSelector('.sheet');
@@ -333,7 +333,7 @@ try {
 
   // borrar la entrada → la publicación desaparece
   await page.goto(APP + '/app/bulk');
-  await page.click('.box-card >> text=Caja 1');
+  await page.click('.box-card >> text=Bulk 1');
   await page.waitForSelector('.entry-row');
   await page.click('.entry-row:has-text("001/165")');
   await page.waitForSelector('.sheet');
@@ -347,7 +347,7 @@ try {
   // Otra coleccionista (creada directo en la base) pone una caja en venta: Bulbasaur ×3, Charmander reverse ×1, Caterpie ×2
   const LUCIA = '44444444-4444-4444-8444-444444444444', CAJA_LUCIA = '55555555-5555-4555-8555-555555555555';
   sql(`insert into auth.users (id, email, raw_user_meta_data) values ('${LUCIA}', 'vendedora@correo.pe', '{\"username\":\"vendedora_lima\",\"nombres\":\"Lucía\",\"apellidos\":\"Torres\",\"telefono\":\"912345678\",\"dni\":\"87654321\",\"acepto_terminos\":true}')`);
-  sql(`insert into public.cajas (id, usuario_id, nombre, orden) values ('${CAJA_LUCIA}', '${LUCIA}', 'Caja Lucía', 1)`);
+  sql(`insert into public.cajas (id, usuario_id, nombre, orden) values ('${CAJA_LUCIA}', '${LUCIA}', 'Bulk Lucía', 1)`);
   sql(`insert into public.entradas (usuario_id, caja_id, carta_id, cantidad, acabado, idioma, condicion) values ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-001', 3, 'Normal', 'ES', 'MP'), ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-004', 1, 'Reverse', 'EN', ''), ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-010', 2, '', 'ES', '')`);
   sql(`update public.cajas set en_venta = true where id = '${CAJA_LUCIA}'`);
   if (num(`select count(*) from public.publicaciones where usuario_id = '${LUCIA}' and estado = 'activa'`) !== 3) throw new Error('la caja de Lucía no se publicó');
@@ -412,7 +412,7 @@ try {
   log('carrito: total S/ 30.12, "Comprar" abre la elección de tienda, 3 copias → reservada (otro comprador rechazado), 2 → activa');
 
   // mis propias publicaciones no se pueden comprar: publico mi Charmander desde Caja 2 (elegir cuáles)
-  await page.goto(APP + `/app/bulk/${sql("select id from public.cajas where nombre = 'Caja 2'")}?elegir=1`);
+  await page.goto(APP + `/app/bulk/${sql("select id from public.cajas where nombre = 'Bulk 2'")}?elegir=1`);
   await page.waitForSelector('[data-testid=barra-seleccion]');
   await page.click('.entry-row:has-text("004/165")');
   await page.click('[data-testid=barra-seleccion] button:has-text("Publicar 1")');
@@ -567,7 +567,7 @@ try {
   if (num(`select count(*) from public.entradas where usuario_id = '${LUCIA}'`) !== 0) throw new Error('las copias vendidas siguen en la colección de la vendedora');
   if (num(`select count(*) from public.orden_items where orden_id = (select id from public.ordenes where pago_id = '${pagoId}') and descontado_en is not null and entrada_datos->>'caja_id' = '${CAJA_LUCIA}'`) !== 3) throw new Error('la orden no guardó de dónde salieron las copias');
   const avisoVenta = sql(`select cuerpo from public.notificaciones where usuario_id = '${LUCIA}' and tipo = 'venta_confirmada' order by id desc limit 1`);
-  if (!/Tienda E2E/.test(avisoVenta) || !/Caja Lucía/.test(avisoVenta)) throw new Error('el aviso a la vendedora no trae tienda y ubicación: ' + avisoVenta);
+  if (!/Tienda E2E/.test(avisoVenta) || !/Bulk Lucía/.test(avisoVenta)) throw new Error('el aviso a la vendedora no trae tienda y ubicación: ' + avisoVenta);
   if (!(await correos()).some(c => /Vendiste/.test(c.subject) && c.to?.includes?.('vendedora@correo.pe') || /Vendiste/.test(c.subject))) throw new Error('la vendedora no recibió el correo de venta');
   await page.click('[data-testid=admin-tabs] >> text=WhatsApp');
   await page.waitForSelector('[data-testid=admin-wsp]:has-text("@vendedora_lima")');
@@ -610,7 +610,7 @@ try {
   sql(`update auth.users set encrypted_password = 'clave-lucia', email_confirmed_at = now() where id = '${LUCIA}'`);
   const TIENDA_USR = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
   sql(`insert into auth.users (id, email, encrypted_password, email_confirmed_at, raw_user_meta_data) values ('${TIENDA_USR}', 'tienda@correo.pe', 'clave-tienda', now(), '{\"username\":\"tienda_lince\",\"nombres\":\"Tienda\",\"apellidos\":\"Lince\",\"telefono\":\"955555555\",\"dni\":\"55555555\",\"acepto_terminos\":true}')`);
-  const entrar = async (pg, usuario, clave) => { await pg.goto(APP + '/ingresar'); await pg.fill('input[autocomplete=username]', usuario); await pg.fill('input[type=password]', clave); await pg.click('button[type=submit]'); await pg.waitForURL(/\/app/, { timeout: 20000 }); await pg.waitForSelector('text=/Álbumes por colección|valor estimado|colección está vacía/', { timeout: 60000 }); };
+  const entrar = async (pg, usuario, clave) => { await pg.goto(APP + '/ingresar'); await pg.fill('input[autocomplete=username]', usuario); await pg.fill('input[type=password]', clave); await pg.click('button[type=submit]'); await pg.waitForURL(/\/app/, { timeout: 20000 }); await pg.waitForSelector('text=/Álbumes por colección|precio estimado|colección está vacía/', { timeout: 60000 }); };
   const ctxL = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE' });
   const pageL = await ctxL.newPage();
   await entrar(pageL, 'vendedora_lima', 'clave-lucia');
@@ -620,7 +620,7 @@ try {
   await pageL.waitForSelector('[data-testid=fila-orden-venta]');
   await pageL.click('[data-testid=fila-orden-venta] >> nth=0');
   await pageL.waitForSelector('[data-testid=entrega-vendedor]');
-  if (!/estaba en.*Caja Lucía.*#\d de 3/.test(await pageL.textContent('[data-testid=item-venta] >> nth=0'))) throw new Error('la orden no muestra dónde estaba la carta en la colección de la vendedora: ' + await pageL.textContent('[data-testid=item-venta] >> nth=0'));
+  if (!/estaba en.*Bulk Lucía.*#\d de 3/.test(await pageL.textContent('[data-testid=item-venta] >> nth=0'))) throw new Error('la orden no muestra dónde estaba la carta en la colección de la vendedora: ' + await pageL.textContent('[data-testid=item-venta] >> nth=0'));
   if (!(await pageL.$('[data-testid=btn-foto-entrega]'))) throw new Error('sin cuenta de tienda, la vendedora debía poder subir la foto de la entrega');
   const opciones = await pageL.$$eval('[data-testid=select-fecha] option', els => els.map(o => o.value));
   await pageL.selectOption('[data-testid=select-fecha]', opciones[opciones.length - 1]);
@@ -646,7 +646,7 @@ try {
   await pageL.waitForSelector('.toast:has-text("Datos de cobro guardados")');
   await pageL.waitForSelector('[data-testid=datos-cobro]:has-text("•••••5678")');
   if (/912345678/.test(sql(`select cifrado from public.datos_cobro where usuario_id = '${LUCIA}'`))) throw new Error('los datos de cobro no están cifrados');
-  log('vendedora: orden con ubicación (Caja Lucía), fecha de entrega = sábado límite, datos de cobro (Yape) cifrados');
+  log('vendedora: orden con ubicación (Bulk Lucía), fecha de entrega = sábado límite, datos de cobro (Yape) cifrados');
 
   // el administrador asigna la cuenta de tienda → la vendedora ya no sube foto; la tienda marca "recibido"
   await page.goto(APP + '/admin?tab=tiendas');
@@ -704,17 +704,44 @@ try {
   await page.goto(APP + '/app/compras/' + pagoId);
   await page.waitForSelector('[data-testid=orden-entregada]');
   if ((await page.$$('[data-testid=en-mi-coleccion]')).length !== 3) throw new Error('la compra no marca las cartas como "en tu colección"');
-  // Cajas → Por colocar (6 cartas): Bulbasaur ×3 a la Caja 2 con la posición indicada
+  // Mejoras 1 · C2/C3: Álbumes → "Recibidas: ¿dónde las guardas?" con sugerencia; Charmander (EN) va al álbum 151 EN con un toque
+  await page.goto(APP + '/app/album');
+  await page.waitForSelector('[data-testid=recibidas]:has-text("(6)")');
+  if ((await page.$$('[data-testid=carta-recibida]')).length !== 3) throw new Error('"Recibidas" debía listar las 3 cartas compradas');
+  const sugCharmander = await page.textContent('[data-testid=carta-recibida]:has-text("Charmander") [data-testid=sugerencia]');
+  if (!/Sugerencia: Álbum 151 EN · casilla 004/.test(sugCharmander) || !/Porque coleccionas 151 en inglés/.test(sugCharmander)) throw new Error('sugerencia inesperada para Charmander: ' + sugCharmander);
+  const sugBulbasaur = await page.textContent('[data-testid=carta-recibida]:has-text("Bulbasaur") [data-testid=sugerencia]');
+  if (!/Álbum 151 EN/.test(sugBulbasaur) || !/está en inglés y esta carta es en español/.test(sugBulbasaur)) throw new Error('la carta en español debía sugerir el álbum EN con aviso de idioma: ' + sugBulbasaur);
+  await foto(page, 'recibidas');
+  await page.click('[data-testid=carta-recibida]:has-text("Charmander") [data-testid=btn-guardar-sugerido]');
+  await page.waitForSelector('[data-testid=colocacion] .placement .where:has-text("Álbum 151 EN · casilla 004")');
+  await page.click('[data-testid=btn-guardada-listo]');
+  await page.waitForSelector('[data-testid=recibidas]:has-text("(5)")');
+  if (sql(`select album_coleccion || ':' || coalesce(caja_id::text, 'sin bulk') from public.entradas where usuario_id = '${CHRIS}' and carta_id = 'sv03.5-004' and compra_orden_id = '${ordenId}'`) !== 'sv03.5:sin bulk') throw new Error('Charmander no quedó en el álbum por colección');
+  // la ubicación en el álbum se ve en Buscar y en el álbum de la colección
+  await page.goto(APP + '/app/buscar');
+  await page.fill('.search-wrap input', 'charmander 151');
+  await page.waitForSelector('.card-row:has-text("004/165") .loc.album:has-text("MEW EN")');
+  // "Elegir otro álbum" → Bulk 2 a mano para Caterpie
+  await page.goto(APP + '/app/album');
+  await page.click('[data-testid=carta-recibida]:has-text("Caterpie") [data-testid=btn-elegir-album]');
+  await page.click('[data-testid=destino-bulk]:has-text("Bulk 2")');
+  await page.waitForSelector('[data-testid=colocacion] .placement .where:has-text("Bulk 2")');
+  await page.click('[data-testid=btn-guardada-listo]');
+  await page.waitForSelector('[data-testid=recibidas]:has-text("(3)")');
+  log('Álbumes → Recibidas: sugerencias con motivo (151 EN para Charmander; aviso de idioma para Bulbasaur ES); Charmander al álbum con un toque, Caterpie a Bulk 2 a mano');
+
+  // Bulk → Por colocar (3 copias de Bulbasaur): a Bulk 2 con la posición indicada
   await page.goto(APP + '/app/bulk');
-  await page.waitForSelector('[data-testid=por-colocar]:has-text("Por colocar (6)")');
-  if ((await page.$$('[data-testid=carta-por-colocar]')).length !== 3 || !/orden #\d+ a @vendedora_lima/.test(await page.textContent('[data-testid=por-colocar]'))) throw new Error('la sección "Por colocar" no muestra las 3 cartas compradas');
-  await page.selectOption('[data-testid=select-caja-colocar]', { label: '📦 Caja 2' });
+  await page.waitForSelector('[data-testid=por-colocar]:has-text("Por colocar (3)")');
+  if ((await page.$$('[data-testid=carta-por-colocar]')).length !== 1 || !/orden #\d+ a @vendedora_lima/.test(await page.textContent('[data-testid=por-colocar]'))) throw new Error('la sección "Por colocar" debía mostrar solo Bulbasaur');
+  await page.selectOption('[data-testid=select-caja-colocar]', { label: '📦 Bulk 2' });
   await page.click('[data-testid=carta-por-colocar]:has-text("Bulbasaur") [data-testid=btn-colocar]');
-  await page.waitForSelector('[data-testid=colocacion] .placement .where:has-text("Caja 2")');
+  await page.waitForSelector('[data-testid=colocacion] .placement .where:has-text("Bulk 2")');
   await foto(page, 'por-colocar');
   await page.click('[data-testid=btn-colocada-listo]');
-  await page.waitForSelector('[data-testid=por-colocar]:has-text("Por colocar (3)")');
-  if (sql(`select c.nombre || ':' || e.cantidad from public.entradas e join public.cajas c on c.id = e.caja_id where e.usuario_id = '${CHRIS}' and e.carta_id = 'sv03.5-001' and e.compra_orden_id = '${ordenId}'`) !== 'Caja 2:3') throw new Error('la carta comprada no quedó en la Caja 2');
+  await page.waitForSelector('[data-testid=por-colocar]', { state: 'detached' });
+  if (sql(`select c.nombre || ':' || e.cantidad from public.entradas e join public.cajas c on c.id = e.caja_id where e.usuario_id = '${CHRIS}' and e.carta_id = 'sv03.5-001' and e.compra_orden_id = '${ordenId}'`) !== 'Bulk 2:3') throw new Error('la carta comprada no quedó en el Bulk 2');
   await ctxL.close(); await ctxT.close();
   log('comprador: 3 cartas compradas (6 copias) entraron solas "por colocar"; Bulbasaur ×3 colocado en la Caja 2 con su posición');
 
@@ -1217,7 +1244,7 @@ try {
   await page.fill('input.input >> nth=0', 'Christian G.');
   await page.click('text=Guardar perfil');
   await page.waitForSelector('.toast:has-text("Perfil guardado")');
-  const respaldo = { app: 'pokeboveda', v: 1, state: { boxes: [{ id: 'b1', name: 'Caja 1', order: 1, mode: 'auto' }, { id: 'b2', name: 'Caja vieja', order: 2, mode: 'manual' }], entries: [
+  const respaldo = { app: 'pokeboveda', v: 1, state: { boxes: [{ id: 'b1', name: 'Bulk 1', order: 1, mode: 'auto' }, { id: 'b2', name: 'Caja vieja', order: 2, mode: 'manual' }], entries: [
     { id: 'e1', cardId: 'sv03.5-041', boxId: 'b1', qty: 3, variant: 'Normal', lang: 'ES', addedAt: 1700000000000 },
     { id: 'e2', cardId: 'sv10-001', boxId: 'b2', qty: 1, pos: 4, lang: 'EN' },
     { id: 'e3', cardId: null, custom: { name: 'Promo Lima', set: 'Evento', number: '001' }, boxId: 'b2', qty: 2 },
@@ -1286,7 +1313,7 @@ try {
   // ---------- escritorio
   await page.setViewportSize({ width: 1200, height: 800 });
   await page.goto(APP + '/app/buscar');
-  await page.waitForSelector('text=valor estimado', { timeout: 60000 });
+  await page.waitForSelector('text=precio estimado', { timeout: 60000 });
   await foto(page, 'escritorio');
 
   // ---------- Fase 2 · E: service worker registrado y página sin conexión
@@ -1294,7 +1321,7 @@ try {
   if (!sw.activo || !/\/$/.test(sw.scope)) throw new Error('service worker no activo: ' + JSON.stringify(sw));
   await page.waitForFunction(async () => (await caches.keys()).some(k => k.includes('poketcg')), null, { timeout: 15000 });
   await page.reload();
-  await page.waitForSelector('text=valor estimado', { timeout: 60000 });
+  await page.waitForSelector('text=precio estimado', { timeout: 60000 });
   // (Playwright no puede simular "sin conexión" para el service worker: se comprueba lo que quedó en caché)
   const cacheado = await page.evaluate(async () => { const out = []; for (const k of await caches.keys()) { const c = await caches.open(k); for (const r of await c.keys()) out.push(new URL(r.url).pathname); } return out; });
   if (!cacheado.includes('/sin-conexion.html') || !cacheado.some(p => p.startsWith('/_next/static/')) || !cacheado.includes('/data/catalogo.json')) throw new Error('la caché del service worker está incompleta: ' + cacheado.slice(0, 10).join(', '));

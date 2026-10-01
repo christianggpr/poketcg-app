@@ -52,6 +52,7 @@ export type Entrada = {
   nota: string;
   posicion: number | null;
   compra_orden_id?: string | null;   // Fase 3: entrada creada por una compra en el mercado (llega "por colocar")
+  album_coleccion?: string | null;   // Mejoras 1: guardada en el álbum por colección de esa colección (casilla = su número)
   creado_en: string;
   actualizado_en: string;
 };
@@ -143,6 +144,7 @@ export function posicionesCaja(cat: Catalogo, caja: Caja, entradas: Entrada[], i
 }
 
 export type Ubicacion = {
+  tipo: 'caja';
   caja: Caja;
   idx: number;
   total: number;
@@ -151,6 +153,19 @@ export type Ubicacion = {
   siguiente: Entrada | null;
   ordinalCaja: number;
 };
+/** Mejoras 1: la carta está en un álbum por colección (casilla = su número impreso). */
+export type UbicacionColeccion = { tipo: 'coleccion'; set: Coleccion | undefined; setId: string; idioma: string; numero: string };
+/** Mejoras 1: la carta está en el bolsillo de un álbum personalizado. */
+export type UbicacionAlbum = { tipo: 'album'; album: Album; indice: number; pagina: number; bolsillo: number; porPagina: number };
+export type Donde = Ubicacion | UbicacionColeccion | UbicacionAlbum;
+
+/** Texto corto de una ubicación ("Bulk 2 #37", "Álbum PRE EN · 123/131", "Álbum «Charmander» pág. 2 bolsillo 5"). */
+export function textoDonde(d: Donde | null, idioma: IdiomaNombres = 'es'): string {
+  if (!d) return 'Sin ubicación';
+  if (d.tipo === 'caja') return `${d.caja.nombre} #${d.idx}`;
+  if (d.tipo === 'coleccion') return `Álbum ${nombreColeccion(d.set, idioma, true)} ${d.idioma} · ${d.numero}`;
+  return `Álbum «${d.album.nombre}» pág. ${d.pagina} bolsillo ${d.bolsillo}`;
+}
 
 /** Calcula las posiciones de todas las cajas una sola vez (para listas grandes). */
 export class Ubicador {
@@ -160,9 +175,12 @@ export class Ubicador {
   private cajas: Caja[];
   private entradas: Entrada[];
   private idioma: IdiomaNombres;
-  constructor(cat: Catalogo, cajas: Caja[], entradas: Entrada[], idioma: IdiomaNombres) {
-    this.cat = cat; this.cajas = cajas; this.entradas = entradas; this.idioma = idioma;
+  private albumes: Album[];
+  private casillaPorEntrada: Map<string, Casilla>;
+  constructor(cat: Catalogo, cajas: Caja[], entradas: Entrada[], idioma: IdiomaNombres, albumes: Album[] = [], casillas: Casilla[] = []) {
+    this.cat = cat; this.cajas = cajas; this.entradas = entradas; this.idioma = idioma; this.albumes = albumes;
     this.ordenadas = cajasOrdenadas(cajas);
+    this.casillaPorEntrada = new Map(casillas.filter(c => c.entrada_id).map(c => [c.entrada_id as string, c]));
   }
   caja(id: string | null): Caja | undefined { return id ? this.cajas.find(b => b.id === id) : undefined; }
   posiciones(caja: Caja): PosicionesCaja {
@@ -171,6 +189,7 @@ export class Ubicador {
     return p;
   }
   ordinal(caja: Caja): number { return this.ordenadas.findIndex(b => b.id === caja.id) + 1; }
+  /** Ubicación en un Bulk (null si la carta no está en ninguno). */
   ubicacion(e: Entrada): Ubicacion | null {
     const caja = this.caja(e.caja_id);
     if (!caja) return null;
@@ -178,7 +197,22 @@ export class Ubicador {
     const me = pos.porId.get(e.id);
     if (!me) return null;
     const prev = pos.lista[me.idx - 2] || null, next = pos.lista[me.idx] || null;
-    return { caja, idx: me.idx, total: pos.total, seccion: me.seccion, anterior: prev && prev.entrada, siguiente: next && next.entrada, ordinalCaja: this.ordinal(caja) };
+    return { tipo: 'caja', caja, idx: me.idx, total: pos.total, seccion: me.seccion, anterior: prev && prev.entrada, siguiente: next && next.entrada, ordinalCaja: this.ordinal(caja) };
+  }
+  /** Ubicación completa: Bulk, álbum por colección o bolsillo de un álbum personalizado. */
+  donde(e: Entrada): Donde | null {
+    const enCaja = this.ubicacion(e);
+    if (enCaja) return enCaja;
+    if (e.album_coleccion) {
+      const c = this.cat.carta(e.carta_id);
+      return { tipo: 'coleccion', set: this.cat.coleccion(e.album_coleccion), setId: e.album_coleccion, idioma: e.idioma || (this.cat.coleccion(e.album_coleccion)?.rg === 'ja' ? 'JP' : 'EN'), numero: c ? c.l : e.personalizada?.numero || '' };
+    }
+    const cas = this.casillaPorEntrada.get(e.id);
+    if (cas) {
+      const album = this.albumes.find(a => a.id === cas.album_id);
+      if (album) { const porPagina = Math.max(1, album.columnas * album.filas); return { tipo: 'album', album, indice: cas.indice, pagina: Math.floor(cas.indice / porPagina) + 1, bolsillo: (cas.indice % porPagina) + 1, porPagina }; }
+    }
+    return null;
   }
 }
 

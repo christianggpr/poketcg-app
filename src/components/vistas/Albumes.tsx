@@ -23,6 +23,7 @@ import { resumenMercado, type ResumenCarta } from '@/lib/mercado';
 import { AddEntrySheet } from '../AddEntrySheet';
 import { Sheet } from '../Sheet';
 import { useToast } from '../Toast';
+import { PorLlegar, Recibidas } from './PorLlegar';
 import { Campo } from '../ui';
 
 /** Idioma de una entrada para agrupar álbumes: JP para colecciones japonesas, el registrado o "—". */
@@ -70,6 +71,8 @@ export function Albumes() {
   const idioma = perfil.idioma_nombres;
   return (
     <div>
+      <PorLlegar />
+      <Recibidas />
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ margin: 0 }}>Mis álbumes físicos</h2>
         <button className="btn primary sm" onClick={() => setNuevo(true)}>+ Nuevo álbum</button>
@@ -205,7 +208,7 @@ export function AlbumColeccion({ setId }: { setId: string }) {
       </div>
       <div className="stat" style={{ margin: '10px 0' }}>
         <div className="box"><b>{idsPropias.length} / {total}</b><span>cartas · {pct} % completo</span></div>
-        <div className="box"><b>{fmtPen(stats.valor)}</b><span>valor de lo que tienes</span></div>
+        <div className="box"><b>{fmtPen(stats.valor)}</b><span>precio de lo que tienes</span></div>
         <div className="box"><b>{consultarFaltan ? fmtPen(stats.faltaPen) : '—'}</b><span>{consultarFaltan ? `para completar (${stats.faltaConPrecio} con precio de mercado)` : <button className="link" onClick={() => setConsultarFaltan(true)}>Consultar el precio de las que faltan</button>}</span></div>
       </div>
       <div className="bar" style={{ marginBottom: 10 }}><div style={{ width: pct + '%' }} /></div>
@@ -233,13 +236,13 @@ export function AlbumColeccion({ setId }: { setId: string }) {
               <div className="album-img"><Thumb carta={c} set={set} className="album" />{qty ? <span className="album-qty">×{qty}</span> : null}{es.some(e => col.publicacionDe(e.id)?.estado === 'activa') ? <span className="album-venta" title="En venta en el mercado">🏷️</span> : null}</div>
               <div className="album-num">{c.l}{c.sd ? ' · sin datos' : ''}</div>
               <div className="album-name">{nombreCarta(c, idioma)}</div>
-              <div className="album-foot">{qty ? <span className="album-loc"><LocChip loc={ubicador.ubicacion(es[0])} corto /></span> : enRed.get(c.id) ? <Link href={`/app/carta/${encodeURIComponent(c.id)}#mercado`} className="album-miss album-red" onClick={e => e.stopPropagation()} title="En venta en la red">🛒 {fmtPen(enRed.get(c.id)!.precio_min)}</Link> : <span className="album-miss">falta</span>}{d ? <span className={`price ${d.origen === 'piso' ? 'piso' : ''}`}>{fmtPen(d.pen)}</span> : null}</div>
+              <div className="album-foot">{qty ? <span className="album-loc"><LocChip loc={ubicador.donde(es[0])} corto /></span> : enRed.get(c.id) ? <Link href={`/app/carta/${encodeURIComponent(c.id)}#mercado`} className="album-miss album-red" onClick={e => e.stopPropagation()} title="En venta en la red">🛒 {fmtPen(enRed.get(c.id)!.precio_min)}</Link> : <span className="album-miss">falta</span>}{d ? <span className={`price ${d.origen === 'piso' ? 'piso' : ''}`}>{fmtPen(d.pen)}</span> : null}</div>
             </div>
           );
         })}
       </div>
       {agregar ? <AddEntrySheet carta={agregar} idiomaInicial={idiomaAlb !== '—' ? idiomaAlb : ''} onClose={() => setAgregar(null)} /> : null}
-      {confirmarVenta ? <Confirmar titulo="Poner en venta" texto={`Se publicarán en el mercado ${sinPublicar.length} ${sinPublicar.length === 1 ? 'carta' : 'cartas'} de ${nombreColeccion(set, idioma, true)} con el precio por defecto (el mayor entre el piso y el valor de mercado). Podrás cambiar precios, pausar o retirar cuando quieras; las de más de S/ 50 quedan pausadas hasta que les agregues una foto.`} okLabel="Publicar" onOk={() => { setConfirmarVenta(false); ponerEnVenta(); }} onClose={() => setConfirmarVenta(false)} /> : null}
+      {confirmarVenta ? <Confirmar titulo="Poner en venta" texto={`Se publicarán en el mercado ${sinPublicar.length} ${sinPublicar.length === 1 ? 'carta' : 'cartas'} de ${nombreColeccion(set, idioma, true)} con el precio por defecto (el mayor entre el piso y el precio de mercado). Podrás cambiar precios, pausar o retirar cuando quieras; las de más de S/ 50 quedan pausadas hasta que les agregues una foto.`} okLabel="Publicar" onOk={() => { setConfirmarVenta(false); ponerEnVenta(); }} onClose={() => setConfirmarVenta(false)} /> : null}
     </div>
   );
 }
