@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import type { Carta } from '@/lib/catalogo';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
-import { ACABADOS, CONDICIONES, IDIOMAS_CARTA } from '@/lib/config';
+import { ACABADOS, CONDICIONES, ETIQUETA_CONDICION, IDIOMAS_CARTA, normalizarCondicion } from '@/lib/config';
 import { cajasOrdenadas, type Entrada, type Personalizada } from '@/lib/coleccion';
 import { useCatalogo } from './CatalogoProvider';
 import { useColeccion } from './ColeccionProvider';
@@ -33,7 +33,7 @@ export function AddEntrySheet({ carta, personalizada, idiomaInicial, cajaInicial
   const [cantidad, setCantidad] = useState(Math.max(1, cantidadInicial || 1));
   const [acabado, setAcabado] = useState(acabadoInicial && (ACABADOS as readonly string[]).includes(acabadoInicial) ? acabadoInicial : '');
   const [idioma, setIdioma] = useState(set?.rg === 'ja' ? 'JP' : idiomaInicial && (IDIOMAS_CARTA as readonly string[]).includes(idiomaInicial) ? idiomaInicial : '');
-  const [condicion, setCondicion] = useState(condicionInicial && (CONDICIONES as readonly string[]).includes(condicionInicial) ? condicionInicial : '');
+  const [condicion, setCondicion] = useState(condicionInicial && (CONDICIONES as readonly string[]).includes(condicionInicial) ? condicionInicial : normalizarCondicion(condicionInicial));
   const [nota, setNota] = useState('');
   const [nuevaCaja, setNuevaCaja] = useState('');
   const [guardando, setGuardando] = useState(false);
@@ -135,7 +135,7 @@ export function AddEntrySheet({ carta, personalizada, idiomaInicial, cajaInicial
         <Campo label="Idioma">{id => <select id={id} className="input" value={idioma} onChange={e => setIdioma(e.target.value)}><option value="">—</option>{IDIOMAS_CARTA.map(l => <option key={l} value={l}>{l}</option>)}</select>}</Campo>
       </div>
       <div className="row wrap">
-        <Campo label="Estado">{id => <select id={id} className="input" value={condicion} onChange={e => setCondicion(e.target.value)}>{CONDICIONES.map(c => <option key={c} value={c}>{c || '—'}</option>)}</select>}</Campo>
+        <Campo label="Estado">{id => <select id={id} className="input" value={condicion} onChange={e => setCondicion(e.target.value)}>{CONDICIONES.map(c => <option key={c} value={c}>{c ? ETIQUETA_CONDICION[c] || c : '—'}</option>)}</select>}</Campo>
         <div className="field grow"><label>Nota</label><input className="input" value={nota} onChange={e => setNota(e.target.value)} placeholder="opcional" /></div>
       </div>
     </Sheet>

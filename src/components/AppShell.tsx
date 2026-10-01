@@ -49,6 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
       <main id="main">
         <div className="view">
+          {perfil.estado === 'suspendido' ? <Aviso tipo="danger"><b>Tu cuenta está suspendida</b>{perfil.suspendido_motivo ? `: ${perfil.suspendido_motivo}` : ''}. Puedes seguir usando tu colección, pero no comprar ni vender hasta que el administrador la reactive. Si crees que es un error, escríbenos.</Aviso> : null}
           {error ? <Aviso tipo="danger">No se pudo cargar el catálogo de cartas: {error}. Revisa tu conexión y recarga la página.</Aviso> : null}
           {col.error ? <Aviso tipo="danger">Problema al guardar o leer tu colección: {col.error}</Aviso> : null}
           {!cat && !error ? <Cargando texto={estado || 'Cargando…'} /> : null}

@@ -6,11 +6,14 @@ import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
 import { cancelarPago, ETIQUETA_ORDEN, ETIQUETA_PAGO, fechaDia, fechaHora, misPagos, pagoDetalle, subirComprobante, urlVoucher, usernamesDe, type Orden, type OrdenItem, type Pago, type Tienda } from '@/lib/compras';
 import { fmtPen } from '@/lib/precios-core';
 import { supabaseBrowser } from '@/lib/supabase/client';
+import { calificarOrden, reputacionesDe, type VendedorPublico } from '@/lib/reputacion';
+import { supabaseBrowser as sbReputacion } from '@/lib/supabase/client';
+import { Estrellas, VendedorChip } from '../Vendedor';
 import { useCatalogo } from '../CatalogoProvider';
 import { useNotificaciones } from '../NotificacionesProvider';
 import { usePerfil } from '../PerfilProvider';
 import { usePrecios } from '../PreciosProvider';
-import { Confirmar } from '../Sheet';
+import { Confirmar, Sheet } from '../Sheet';
 import { Thumb } from '../Thumb';
 import { useToast } from '../Toast';
 import { Aviso } from '../ui';
@@ -61,12 +64,24 @@ export function CompraDetalle({ id }: { id: string }) {
   const [enviando, setEnviando] = useState(false);
   const [cancelar, setCancelar] = useState(false);
   const [confirmarEntrega, setConfirmarEntrega] = useState<Orden | null>(null);
+  const [reputaciones, setReputaciones] = useState<Map<string, VendedorPublico>>(new Map());
+  const [resenas, setResenas] = useState<Map<string, { puntaje: number; comentario: string; creada: string }>>(new Map());
+  const [calificar, setCalificar] = useState<Orden | null>(null);
   const [ahora, setAhora] = useState(Date.now());
   const input = useRef<HTMLInputElement>(null);
   const pagosAj = precios.ajustes.pagos;
 
   async function cargar() {
-    try { const d = await pagoDetalle(id); setDatos(d); if (d) { setVendedores(await usernamesDe(d.ordenes.map(o => o.vendedor_id))); setVoucher(await urlVoucher(d.pago.voucher_url)); } }
+    try {
+      const d = await pagoDetalle(id); setDatos(d);
+      if (d) {
+        setVendedores(await usernamesDe(d.ordenes.map(o => o.vendedor_id)));
+        setVoucher(await urlVoucher(d.pago.voucher_url));
+        reputacionesDe(d.ordenes.map(o => o.vendedor_id)).then(setReputaciones);
+        const { data: rs } = await sbReputacion().from('resenas').select('orden_id, puntaje, comentario, creada').in('orden_id', d.ordenes.map(o => o.id));
+        setResenas(new Map(((rs || []) as { orden_id: string; puntaje: number; comentario: string; creada: string }[]).map(r => [r.orden_id, { puntaje: Number(r.puntaje), comentario: r.comentario, creada: r.creada }])));
+      }
+    }
     catch (e) { toast((e as Error).message, 'danger'); setDatos(null); }
   }
   useEffect(() => { cargar(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
@@ -142,13 +157,18 @@ export function CompraDetalle({ id }: { id: string }) {
       {ordenes.map(o => (
         <div key={o.id} className="panel" style={{ marginBottom: 10 }} data-testid="orden">
           <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
-            <div><b>Orden #{o.numero}</b> · vende <b>@{vendedores.get(o.vendedor_id) || '…'}</b> · {fmtPen(o.subtotal)}</div>
+            <div><b>Orden #{o.numero}</b> · vende {vendedores.get(o.vendedor_id) ? <VendedorChip username={vendedores.get(o.vendedor_id)!} reputacion={reputaciones.get(o.vendedor_id)?.reputacion} corto /> : '…'} · {fmtPen(o.subtotal)}</div>
             <span className="pill primary">{ETIQUETA_ORDEN[o.estado]}</span>
           </div>
           {o.estado === 'pago_confirmado' ? <div className="small muted" style={{ marginTop: 4 }}>El vendedor debe dejarla en la tienda hasta el <b>{fechaDia(o.fecha_limite)}</b>{o.fecha_entrega ? <> (eligió el {fechaDia(o.fecha_entrega)})</> : null}.</div> : null}
           {o.estado === 'en_tienda' ? <div className="notice ok" style={{ marginTop: 6 }}>🏪 <b>Ya está en la tienda.</b> Muestra este código para recogerla: <b style={{ fontSize: 22, letterSpacing: 2 }} data-testid="codigo-retiro">{o.codigo_retiro}</b><div style={{ marginTop: 6 }}><button className="btn sm primary" onClick={() => setConfirmarEntrega(o)} data-testid="btn-entregado">✅ Ya la recogí (Entregado)</button></div></div> : null}
           {o.estado === 'pago_confirmado' ? <div className="small muted" style={{ marginTop: 4 }}>¿Ya tienes la carta en la mano? <button className="link" onClick={() => setConfirmarEntrega(o)}>Marcar como entregada</button></div> : null}
           {o.estado === 'entregada' || o.estado === 'saldo_liberado' ? <div className="small" style={{ marginTop: 4 }} data-testid="orden-entregada">✅ Entregada el {fechaHora(o.entregada_en)}. Las cartas ya están en tu colección: <Link href="/app/cajas">colócalas en una caja</Link> (Cajas → Por colocar).</div> : null}
+          {o.estado === 'entregada' || o.estado === 'saldo_liberado' ? (
+            resenas.get(o.id)
+              ? <div className="small" style={{ marginTop: 6 }} data-testid="mi-resena">Tu calificación: <Estrellas valor={resenas.get(o.id)!.puntaje} tam={18} />{resenas.get(o.id)!.comentario ? <> «{resenas.get(o.id)!.comentario}»</> : null}{Date.now() - Date.parse(resenas.get(o.id)!.creada) < 7 * 86400000 ? <> · <button className="link" onClick={() => setCalificar(o)}>cambiar</button></> : null}</div>
+              : <div className="row" style={{ gap: 8, alignItems: 'center', marginTop: 6 }}><span className="small">¿Qué tal el vendedor?</span><button className="btn sm primary" onClick={() => setCalificar(o)} data-testid="btn-calificar">★ Calificar</button></div>
+          ) : null}
           {o.motivo && ['cancelada', 'vencida', 'pago_rechazado', 'disputa'].includes(o.estado) ? <div className="small" style={{ marginTop: 4, color: 'var(--warn)' }}>{o.motivo}</div> : null}
           <div className="card-list" style={{ marginTop: 8 }}>
             {items.filter(i => i.orden_id === o.id).map(i => { const c = cat.carta(i.carta_id); const set = c ? cat.setOf(c) : undefined; return (
@@ -164,9 +184,36 @@ export function CompraDetalle({ id }: { id: string }) {
           </div>
         </div>
       ))}
+      {calificar ? <CalificarSheet orden={calificar} vendedor={vendedores.get(calificar.vendedor_id) || ''} inicial={resenas.get(calificar.id)} onClose={() => setCalificar(null)} onListo={() => { setCalificar(null); cargar(); }} /> : null}
       {confirmarEntrega ? <Confirmar titulo={`Confirmar entrega de la orden #${confirmarEntrega.numero}`} texto="Confirma solo si ya tienes las cartas en tu poder. Con tu confirmación se paga al vendedor." okLabel="Sí, ya las tengo" onOk={() => { const o = confirmarEntrega; setConfirmarEntrega(null); marcarEntregada(o); }} onClose={() => setConfirmarEntrega(null)} /> : null}
       {cancelar ? <Confirmar titulo="Cancelar la compra" texto="Las cartas volverán al mercado y tendrás que armar el carrito de nuevo si cambias de idea." okLabel="Cancelar compra" peligro onOk={() => { setCancelar(false); cancelarCompra(); }} onClose={() => setCancelar(false)} /> : null}
       {pago.estado !== 'pendiente' ? <p className="small" style={{ marginTop: 8 }}><button className="link" onClick={() => router.push('/app/mercado')}>Seguir comprando</button></p> : null}
     </div>
+  );
+}
+
+
+/** Calificación del vendedor (1–5 estrellas y comentario) tras una orden entregada. */
+function CalificarSheet({ orden, vendedor, inicial, onClose, onListo }: { orden: Orden; vendedor: string; inicial?: { puntaje: number; comentario: string }; onClose: () => void; onListo: () => void }) {
+  const toast = useToast();
+  const [puntaje, setPuntaje] = useState(inicial?.puntaje || 0);
+  const [comentario, setComentario] = useState(inicial?.comentario || '');
+  const [ocupado, setOcupado] = useState(false);
+  const textos = ['', 'Muy mala', 'Mala', 'Regular', 'Buena', 'Excelente'];
+  async function enviar() {
+    if (!puntaje) { toast('Elige de 1 a 5 estrellas', 'danger'); return; }
+    setOcupado(true);
+    const r = await calificarOrden(orden.id, puntaje, comentario.trim());
+    setOcupado(false);
+    if (!r.ok) { toast(r.error || 'No se pudo calificar', 'danger', 4000); return; }
+    toast('¡Gracias! Tu calificación ayuda a otros compradores.', 'ok', 3500);
+    onListo();
+  }
+  return (
+    <Sheet titulo={`Califica a @${vendedor} · orden #${orden.numero}`} onClose={onClose} pie={<><button className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" disabled={ocupado || !puntaje} onClick={enviar} data-testid="btn-enviar-calificacion">{ocupado ? 'Enviando…' : 'Enviar calificación'}</button></>}>
+      <p className="small muted">Califica la experiencia: ¿las cartas llegaron como se publicaron y a tiempo? Tu reseña es pública (con tu nombre de usuario) y puedes corregirla durante 7 días.</p>
+      <div className="row" style={{ gap: 10, alignItems: 'center' }}><Estrellas valor={puntaje} onChange={setPuntaje} tam={34} /><b>{textos[puntaje]}</b></div>
+      <textarea className="input" rows={3} maxLength={500} placeholder="Comentario (opcional): estado de las cartas, puntualidad, trato…" value={comentario} onChange={e => setComentario(e.target.value)} style={{ marginTop: 10 }} data-testid="input-comentario" />
+    </Sheet>
   );
 }

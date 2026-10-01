@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
-import { ACABADOS, CONDICIONES, IDIOMAS_CARTA } from '@/lib/config';
+import { ACABADOS, CONDICIONES, ETIQUETA_CONDICION, IDIOMAS_CARTA } from '@/lib/config';
 import { cajasOrdenadas, type Entrada } from '@/lib/coleccion';
 import { useCatalogo } from './CatalogoProvider';
 import { useColeccion } from './ColeccionProvider';
@@ -69,7 +69,7 @@ export function EntryDetailSheet({ entrada, onClose }: { entrada: Entrada; onClo
           <Campo label="Idioma">{id => <select id={id} className="input" value={d.idioma} onChange={e => setD(x => ({ ...x, idioma: e.target.value }))}><option value="">—</option>{IDIOMAS_CARTA.map(l => <option key={l} value={l}>{l}</option>)}</select>}</Campo>
         </div>
         <div className="row wrap">
-          <Campo label="Estado">{id => <select id={id} className="input" value={d.condicion} onChange={e => setD(x => ({ ...x, condicion: e.target.value }))}>{CONDICIONES.map(c => <option key={c} value={c}>{c || '—'}</option>)}</select>}</Campo>
+          <Campo label="Estado">{id => <select id={id} className="input" value={d.condicion} onChange={e => setD(x => ({ ...x, condicion: e.target.value }))}>{CONDICIONES.map(c => <option key={c} value={c}>{c ? ETIQUETA_CONDICION[c] || c : '—'}</option>)}</select>}</Campo>
           <div className="field grow"><label>Nota</label><input className="input" value={d.nota} onChange={e => setD(x => ({ ...x, nota: e.target.value }))} /></div>
         </div>
         <div className="row wrap">

@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { fechaHora, urlVoucher } from '@/lib/compras';
+import { resenasDe, responderResena, type ResenaPublica } from '@/lib/reputacion';
+import { Estrellas, Insignias } from '../Vendedor';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
 import type { Entrada, Publicacion } from '@/lib/coleccion';
@@ -72,6 +74,7 @@ export function Ventas() {
         <div className="row" style={{ gap: 6 }}><Link href="/app/ventas/ordenes" className="btn sm primary" data-testid="btn-ordenes-venta">📦 Órdenes de venta</Link><Link href="/app/cajas" className="btn sm ghost">Cajas</Link></div>
       </div>
       <p className="small muted">Lo que tienes publicado en el mercado. Los compradores solo ven tu nombre de usuario (@{perfil.username}); nunca tu DNI, teléfono ni nombre real. La comisión es del {Math.round(comision * 100)} % sobre el precio de venta.</p>
+      <MiReputacion />
       <MiSaldo />
       <div className="stat" style={{ margin: '10px 0' }}>
         <div className="box"><b>{resumen.activas}</b><span>activas</span></div>
@@ -158,6 +161,56 @@ function MiSaldo() {
         <div className="card-list" style={{ marginTop: 8 }}>
           {retiros.map(r => <div key={r.id} className="card-row" style={{ cursor: 'default' }} data-testid="retiro"><div className="card-main"><div className="card-name">Pago #{r.numero} · {fmtPen(r.monto)} <span className={`pill ${r.estado === 'pagado' ? 'ok' : r.estado === 'sin_datos' ? 'warn' : 'primary'}`}>{r.estado === 'pagado' ? 'pagado' : r.estado === 'sin_datos' ? 'faltan datos de cobro' : 'por pagar'}</span></div><div className="card-set">{r.ordenes.length} {r.ordenes.length === 1 ? 'orden' : 'órdenes'} · {fechaHora(r.creado)}{r.pagado_en ? ` · pagado ${fechaHora(r.pagado_en)}` : ''}{r.n_operacion ? ` · operación ${r.n_operacion}` : ''}</div></div>{r.comprobante_url ? <div className="card-side"><button className="btn sm ghost" onClick={() => verComprobante(r)} data-testid="btn-ver-comprobante">Comprobante</button></div> : null}</div>)}
           {!retiros.length ? <p className="small muted">Sin movimientos todavía.</p> : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+
+/** Reputación del vendedor (puntaje, ventas, insignias) y sus reseñas, con respuesta. */
+function MiReputacion() {
+  const { perfil } = usePerfil();
+  const toast = useToast();
+  const [resenas, setResenas] = useState<ResenaPublica[] | null>(null);
+  const [abrir, setAbrir] = useState(false);
+  const [respuesta, setRespuesta] = useState<{ id: string; texto: string } | null>(null);
+  const rep = perfil.reputacion || {};
+  useEffect(() => { if (abrir && resenas === null) resenasDe(perfil.id, 30).then(setResenas); }, [abrir, resenas, perfil.id]);
+  if (!(rep.ventas || 0) && !(rep.resenas || 0) && perfil.estado !== 'suspendido') return null;
+  async function responder() {
+    if (!respuesta) return;
+    const r = await responderResena(respuesta.id, respuesta.texto);
+    if (r.ok) { toast('Respuesta publicada', 'ok'); setRespuesta(null); setResenas(null); } else toast(r.error || 'No se pudo responder', 'danger');
+  }
+  return (
+    <div className="panel" data-testid="mi-reputacion">
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+        <h3 style={{ margin: 0 }}>⭐ Tu reputación</h3>
+        <div className="row" style={{ gap: 6 }}><Link href={`/u/${encodeURIComponent(perfil.username)}`} className="btn sm ghost" target="_blank">Ver mi perfil público</Link><button className="btn sm ghost" onClick={() => setAbrir(a => !a)}>{abrir ? 'Ocultar reseñas' : 'Ver reseñas'}</button></div>
+      </div>
+      {perfil.estado === 'suspendido' ? <div className="notice danger small" style={{ marginTop: 8 }}>Tu cuenta está suspendida{perfil.suspendido_motivo ? `: ${perfil.suspendido_motivo}` : ''}. No puedes vender ni comprar hasta que el administrador la reactive.</div> : null}
+      <div className="rep-grid" style={{ marginTop: 8 }}>
+        <div className="box"><b>{rep.puntaje != null ? Number(rep.puntaje).toFixed(1) : '—'}</b><span>{rep.resenas || 0} {rep.resenas === 1 ? 'reseña' : 'reseñas'}</span></div>
+        <div className="box"><b>{rep.ventas || 0}</b><span>ventas entregadas</span></div>
+        <div className="box"><b>{rep.cumple_pct != null ? `${rep.cumple_pct} %` : '—'}</b><span>entregas a tiempo</span></div>
+        <div className="box"><b>{rep.confirma_horas != null ? `${rep.confirma_horas} h` : '—'}</b><span>para elegir fecha</span></div>
+      </div>
+      <div style={{ marginTop: 8 }}><Insignias reputacion={rep} /></div>
+      <p className="small muted" style={{ marginTop: 6 }}>Las insignias se calculan solas: elige la fecha rápido, entrega en la fecha y no dejes vencer órdenes. Los compradores las ven en cada oferta.</p>
+      {abrir ? (
+        <div style={{ marginTop: 8 }}>
+          {resenas === null ? <p className="small muted"><span className="spinner" /> Cargando…</p> : null}
+          {resenas && !resenas.length ? <p className="small muted">Todavía no tienes reseñas.</p> : null}
+          {(resenas || []).map(r => (
+            <div key={r.id} className="resena" data-testid="resena">
+              <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}><Estrellas valor={r.puntaje} tam={16} /><b>@{r.comprador}</b><span className="small muted">orden #{r.orden_numero} · {fechaHora(r.creada)}</span></div>
+              {r.comentario ? <div style={{ marginTop: 4 }}>{r.comentario}</div> : null}
+              {r.respuesta ? <div className="resp">Tu respuesta: {r.respuesta}</div> : respuesta?.id === r.id ? (
+                <div className="row" style={{ gap: 6, marginTop: 6 }}><input className="input" maxLength={300} value={respuesta.texto} onChange={e => setRespuesta({ id: r.id, texto: e.target.value })} placeholder="Tu respuesta pública" data-testid="input-respuesta" /><button className="btn sm primary" onClick={responder} data-testid="btn-enviar-respuesta">Publicar</button><button className="btn sm" onClick={() => setRespuesta(null)}>Cancelar</button></div>
+              ) : <button className="link small" style={{ marginTop: 4 }} onClick={() => setRespuesta({ id: r.id, texto: '' })} data-testid="btn-responder">Responder</button>}
+            </div>
+          ))}
         </div>
       ) : null}
     </div>

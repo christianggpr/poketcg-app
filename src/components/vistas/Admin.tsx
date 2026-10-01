@@ -6,8 +6,9 @@ import { useSearchParams } from 'next/navigation';
 import { Aviso } from '../ui';
 import { AdminMercado } from './AdminMercado';
 import { AdminAjustesPagos, AdminOrdenes, AdminPagos, AdminRetiros, AdminTiendas, AdminVerificaciones, AdminWhatsApp } from './AdminFase3';
+import { AdminUsuarios } from './AdminFase4';
 
-const PESTANAS: [string, string][] = [['pagos', '🧾 Pagos'], ['ordenes', '📦 Órdenes'], ['retiros', '💰 Pagos a vendedores'], ['tiendas', '🏪 Tiendas'], ['verificaciones', '📱 Celulares'], ['whatsapp', '📲 WhatsApp'], ['cobros', '💳 Cobros y pagos'], ['mercado', '📈 Precios y tareas'], ['catalogo', '🗂️ Catálogo']];
+const PESTANAS: [string, string][] = [['pagos', '🧾 Pagos'], ['ordenes', '📦 Órdenes'], ['retiros', '💰 Pagos a vendedores'], ['tiendas', '🏪 Tiendas'], ['usuarios', '👥 Usuarios'], ['verificaciones', '📱 Celulares'], ['whatsapp', '📲 WhatsApp'], ['cobros', '💳 Cobros y pagos'], ['mercado', '📈 Precios y tareas'], ['catalogo', '🗂️ Catálogo']];
 
 type Resumen = { colecciones: number; cartas: number; usuarios: number };
 
@@ -76,6 +77,7 @@ export function AdminPanel() {
       {tab === 'ordenes' ? <AdminOrdenes /> : null}
       {tab === 'retiros' ? <AdminRetiros /> : null}
       {tab === 'tiendas' ? <AdminTiendas /> : null}
+      {tab === 'usuarios' ? <AdminUsuarios /> : null}
       {tab === 'verificaciones' ? <AdminVerificaciones /> : null}
       {tab === 'whatsapp' ? <AdminWhatsApp /> : null}
       {tab === 'cobros' ? <AdminAjustesPagos /> : null}

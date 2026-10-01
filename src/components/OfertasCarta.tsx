@@ -4,6 +4,8 @@ import Link from 'next/link';
 import type { Carta } from '@/lib/catalogo';
 import { ofertasDe, type Oferta } from '@/lib/mercado';
 import { fmtPen } from '@/lib/precios-core';
+import { reputacionesDe, type VendedorPublico } from '@/lib/reputacion';
+import { VendedorChip } from './Vendedor';
 import { useMercado } from './MercadoProvider';
 import { usePerfil } from './PerfilProvider';
 import { useToast } from './Toast';
@@ -17,10 +19,11 @@ export function OfertasCarta({ carta }: { carta: Carta }) {
   const [error, setError] = useState('');
   const [cantidades, setCantidades] = useState<Record<string, number>>({});
   const [ocupado, setOcupado] = useState<string | null>(null);
+  const [vendedores, setVendedores] = useState<Map<string, VendedorPublico>>(new Map());
 
   useEffect(() => {
     let vivo = true;
-    const cargar = () => ofertasDe(carta.id).then(o => { if (vivo) { setOfertas(o); setError(''); } }).catch(e => { if (vivo) setError((e as Error).message); });
+    const cargar = () => ofertasDe(carta.id).then(o => { if (vivo) { setOfertas(o); setError(''); reputacionesDe(o.map(x => x.vendedor_id)).then(m => { if (vivo) setVendedores(m); }); } }).catch(e => { if (vivo) setError((e as Error).message); });
     cargar();
     // tiempo real: cuando cambia una publicación de esta carta, se vuelve a consultar
     const baja = mercado.suscribir(id => { if (!id || id === carta.id) cargar(); });
@@ -56,7 +59,7 @@ export function OfertasCarta({ carta }: { carta: Carta }) {
             <div key={o.id} className="card-row" style={{ cursor: 'default' }} data-testid="oferta">
               <div className="card-main">
                 <div className="card-name"><b>{fmtPen(o.precio_pen)}</b> <span className="muted small">c/u</span> {o.acabado ? <span className="pill">{o.acabado}</span> : null} {o.idioma ? <span className="pill">{o.idioma}</span> : null} {o.condicion ? <span className="pill">{o.condicion}</span> : null}{mia ? <span className="pill primary" style={{ marginLeft: 4 }}>tu publicación</span> : null}</div>
-                <div className="card-set">Vende <b>@{o.vendedor}</b> · {o.disponibles} {o.disponibles === 1 ? 'copia disponible' : 'copias disponibles'}{o.tipo_precio === 'defecto' ? <span className="faint"> · precio por defecto</span> : null}</div>
+                <div className="card-set">Vende <VendedorChip username={o.vendedor} reputacion={vendedores.get(o.vendedor_id)?.reputacion} /> · {o.disponibles} {o.disponibles === 1 ? 'copia disponible' : 'copias disponibles'}{o.tipo_precio === 'defecto' ? <span className="faint"> · precio por defecto</span> : null}</div>
                 {(o.fotos || []).length ? <div className="row" style={{ gap: 6, marginTop: 6 }}>{o.fotos.map(u => <a key={u} href={u} target="_blank" rel="noreferrer">{/* eslint-disable-next-line @next/next/no-img-element */}<img src={u} alt="Foto real de la carta" className="foto-mini" /></a>)}</div> : null}
                 {mia ? <div className="small muted" style={{ marginTop: 4 }}>No puedes comprar tus propias cartas. <Link href="/app/ventas">Ver en Mis ventas</Link></div> : (
                   <div className="row" style={{ gap: 6, marginTop: 6, alignItems: 'center' }}>

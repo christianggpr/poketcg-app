@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { nombreAlt, nombreCarta, nombreColeccion, numLabel, rarezaLabel, type Carta } from '@/lib/catalogo';
 import { buscarCatalogo } from '@/lib/buscar';
-import { ACABADOS, CONDICIONES, IDIOMAS_CARTA } from '@/lib/config';
+import { ACABADOS, CONDICIONES, ETIQUETA_CONDICION, IDIOMAS_CARTA } from '@/lib/config';
 import { resumenMercado, type OrdenMercado, type ResumenCarta } from '@/lib/mercado';
 import { fmtPen } from '@/lib/precios-core';
 import { useCatalogo } from '../CatalogoProvider';
@@ -98,7 +98,7 @@ export function Mercado() {
           <div className="field"><label>Colección</label><select className="input" value={set} onChange={e => setSet(e.target.value)}><option value="">Todas</option>{sets.map(s => <option key={s.id} value={s.id}>{nombreColeccion(s, idiomaN, true)}{s.rg === 'ja' ? ' (JP)' : ''}</option>)}</select></div>
           <div className="field"><label>Idioma</label><select className="input" value={idioma} onChange={e => setIdioma(e.target.value)}><option value="">Todos</option>{IDIOMAS_CARTA.map(l => <option key={l} value={l}>{l}</option>)}</select></div>
           <div className="field"><label>Acabado</label><select className="input" value={acabado} onChange={e => setAcabado(e.target.value)}><option value="">Todos</option>{ACABADOS.filter(Boolean).map(a => <option key={a} value={a}>{a}</option>)}</select></div>
-          <div className="field"><label>Estado</label><select className="input" value={condicion} onChange={e => setCondicion(e.target.value)}><option value="">Todos</option>{CONDICIONES.filter(Boolean).map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+          <div className="field"><label>Estado</label><select className="input" value={condicion} onChange={e => setCondicion(e.target.value)}><option value="">Todos</option>{CONDICIONES.filter(Boolean).map(c => <option key={c} value={c}>{ETIQUETA_CONDICION[c] || c}</option>)}</select></div>
           <div className="field"><label>Precio desde (S/)</label><input className="input" inputMode="decimal" style={{ maxWidth: 110 }} value={min} onChange={e => setMin(e.target.value.replace(/[^\d.]/g, ''))} /></div>
           <div className="field"><label>hasta (S/)</label><input className="input" inputMode="decimal" style={{ maxWidth: 110 }} value={max} onChange={e => setMax(e.target.value.replace(/[^\d.]/g, ''))} /></div>
           {set || idioma || acabado || condicion || min || max ? <div className="field"><label>&nbsp;</label><button className="btn sm ghost" onClick={() => { setSet(''); setIdioma(''); setAcabado(''); setCondicion(''); setMin(''); setMax(''); }}>Limpiar filtros</button></div> : null}

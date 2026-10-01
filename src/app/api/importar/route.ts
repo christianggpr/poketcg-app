@@ -1,3 +1,4 @@
+import { normalizarCondicion } from '@/lib/config';
 import { supabaseServer } from '@/lib/supabase/server';
 import { json, leerJson } from '@/lib/auth-servidor';
 
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
       else continue;
       filas.push({
         carta_id, personalizada, caja_id: caja, cantidad: Math.max(1, Math.min(9999, parseInt(String(e.qty || 1), 10) || 1)),
-        acabado: String(e.variant || '').slice(0, 20), idioma: String(e.lang || '').slice(0, 10), condicion: String(e.cond || '').slice(0, 40), nota: String(e.note || '').slice(0, 500),
+        acabado: String(e.variant || '').slice(0, 20), idioma: String(e.lang || '').slice(0, 10), condicion: normalizarCondicion(String(e.cond || '')), nota: String(e.note || '').slice(0, 500),
         posicion: typeof e.pos === 'number' ? e.pos : null,
         creado_en: e.addedAt && e.addedAt > 0 ? new Date(e.addedAt).toISOString() : new Date().toISOString()
       });

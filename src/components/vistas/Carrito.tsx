@@ -6,6 +6,8 @@ import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
 import { crearPago, tiendasActivas, DIAS_CORTOS, type Tienda } from '@/lib/compras';
 import type { LineaCarrito } from '@/lib/mercado';
 import { fmtPen } from '@/lib/precios-core';
+import { reputacionesDe, type VendedorPublico } from '@/lib/reputacion';
+import { VendedorChip } from '../Vendedor';
 import { useCatalogo } from '../CatalogoProvider';
 import { useMercado } from '../MercadoProvider';
 import { usePerfil } from '../PerfilProvider';
@@ -25,8 +27,11 @@ export function Carrito() {
   const router = useRouter();
   const [comprar, setComprar] = useState(false);
   const [ocupado, setOcupado] = useState<string | null>(null);
+  const [reputaciones, setReputaciones] = useState<Map<string, VendedorPublico>>(new Map());
   const comision = precios.ajustes.comision;
   const lineas = mercado.carrito;
+  const idsVendedores = lineas.map(l => l.vendedor_id).sort().join(',');
+  useEffect(() => { if (idsVendedores) reputacionesDe(idsVendedores.split(',')).then(setReputaciones); }, [idsVendedores]);
   const total = mercado.total;
   const vendedores = [...new Set(lineas.map(l => l.vendedor))];
   const conProblema = lineas.filter(l => l.estado_publicacion !== 'activa' && l.estado_publicacion !== 'reservada');
@@ -65,7 +70,7 @@ export function Carrito() {
               <div className="card-main">
                 <div className="card-name">{carta ? nombreCarta(carta, perfil.idioma_nombres) : 'Carta'}</div>
                 <div className="card-set">{nombreColeccion(set, perfil.idioma_nombres)} {carta ? <span className="num">{numLabel(carta, set)}</span> : null}{l.acabado ? <span className="pill">{l.acabado}</span> : null}{l.idioma ? <span className="pill">{l.idioma}</span> : null}{l.condicion ? <span className="pill">{l.condicion}</span> : null}</div>
-                <div className="small">Vende <b>@{l.vendedor}</b> · {fmtPen(l.precio_pen)} c/u{cambioPrecio ? <span className="muted"> (ahora {fmtPen(l.precio_actual)})</span> : null} · reservada hasta {hora(l.expira)}</div>
+                <div className="small">Vende <VendedorChip username={l.vendedor} reputacion={reputaciones.get(l.vendedor_id)?.reputacion} corto /> · {fmtPen(l.precio_pen)} c/u{cambioPrecio ? <span className="muted"> (ahora {fmtPen(l.precio_actual)})</span> : null} · reservada hasta {hora(l.expira)}</div>
                 {mal ? <div className="small" style={{ color: 'var(--warn)' }}>Ya no está disponible.</div> : null}
                 <div className="row" style={{ gap: 6, marginTop: 6, alignItems: 'center' }}>
                   <div className="stepper"><button disabled={ocupado === l.id} onClick={() => cambiar(l, l.cantidad - 1)}>−</button><input type="number" readOnly value={l.cantidad} aria-label="Cantidad" /><button disabled={ocupado === l.id || l.cantidad >= l.disponibles} onClick={() => cambiar(l, l.cantidad + 1)}>+</button></div>

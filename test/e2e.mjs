@@ -336,7 +336,7 @@ try {
   const LUCIA = '44444444-4444-4444-8444-444444444444', CAJA_LUCIA = '55555555-5555-4555-8555-555555555555';
   sql(`insert into auth.users (id, email, raw_user_meta_data) values ('${LUCIA}', 'vendedora@correo.pe', '{\"username\":\"vendedora_lima\",\"nombres\":\"Lucía\",\"apellidos\":\"Torres\",\"telefono\":\"912345678\",\"dni\":\"87654321\",\"acepto_terminos\":true}')`);
   sql(`insert into public.cajas (id, usuario_id, nombre, orden) values ('${CAJA_LUCIA}', '${LUCIA}', 'Caja Lucía', 1)`);
-  sql(`insert into public.entradas (usuario_id, caja_id, carta_id, cantidad, acabado, idioma, condicion) values ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-001', 3, 'Normal', 'ES', 'Buena'), ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-004', 1, 'Reverse', 'EN', ''), ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-010', 2, '', 'ES', '')`);
+  sql(`insert into public.entradas (usuario_id, caja_id, carta_id, cantidad, acabado, idioma, condicion) values ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-001', 3, 'Normal', 'ES', 'MP'), ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-004', 1, 'Reverse', 'EN', ''), ('${LUCIA}', '${CAJA_LUCIA}', 'sv03.5-010', 2, '', 'ES', '')`);
   sql(`update public.cajas set en_venta = true where id = '${CAJA_LUCIA}'`);
   if (num(`select count(*) from public.publicaciones where usuario_id = '${LUCIA}' and estado = 'activa'`) !== 3) throw new Error('la caja de Lucía no se publicó');
   // pestaña Mercado: lista, búsqueda, filtros
@@ -654,7 +654,7 @@ try {
 
   // las cartas compradas entraron solas a la colección del comprador, sin caja ("por colocar"), con idioma, acabado y estado de la compra
   const CHRIS = sql(`select id from public.perfiles where username = 'chris_tcg'`);
-  if (sql(`select string_agg(carta_id || ':' || cantidad || ':' || idioma || ':' || acabado || ':' || condicion || ':' || coalesce(caja_id::text, 'sin caja'), ' | ' order by carta_id) from public.entradas where usuario_id = '${CHRIS}' and compra_orden_id = '${ordenId}'`) !== 'sv03.5-001:3:ES:Normal:Buena:sin caja | sv03.5-004:1:EN:Reverse::sin caja | sv03.5-010:2:ES:::sin caja') throw new Error('las cartas compradas no entraron a la colección del comprador como "por colocar": ' + sql(`select string_agg(carta_id || ':' || cantidad || ':' || coalesce(caja_id::text, 'sin caja'), ' | ') from public.entradas where usuario_id = '${CHRIS}' and compra_orden_id = '${ordenId}'`));
+  if (sql(`select string_agg(carta_id || ':' || cantidad || ':' || idioma || ':' || acabado || ':' || condicion || ':' || coalesce(caja_id::text, 'sin caja'), ' | ' order by carta_id) from public.entradas where usuario_id = '${CHRIS}' and compra_orden_id = '${ordenId}'`) !== 'sv03.5-001:3:ES:Normal:MP:sin caja | sv03.5-004:1:EN:Reverse::sin caja | sv03.5-010:2:ES:::sin caja') throw new Error('las cartas compradas no entraron a la colección del comprador como "por colocar": ' + sql(`select string_agg(carta_id || ':' || cantidad || ':' || coalesce(caja_id::text, 'sin caja'), ' | ') from public.entradas where usuario_id = '${CHRIS}' and compra_orden_id = '${ordenId}'`));
   await page.goto(APP + '/app/compras/' + pagoId);
   await page.waitForSelector('[data-testid=orden-entregada]');
   if ((await page.$$('[data-testid=en-mi-coleccion]')).length !== 3) throw new Error('la compra no marca las cartas como "en tu colección"');
@@ -671,6 +671,64 @@ try {
   if (sql(`select c.nombre || ':' || e.cantidad from public.entradas e join public.cajas c on c.id = e.caja_id where e.usuario_id = '${CHRIS}' and e.carta_id = 'sv03.5-001' and e.compra_orden_id = '${ordenId}'`) !== 'Caja 2:3') throw new Error('la carta comprada no quedó en la Caja 2');
   await ctxL.close(); await ctxT.close();
   log('comprador: 3 cartas compradas (6 copias) entraron solas "por colocar"; Bulbasaur ×3 colocado en la Caja 2 con su posición');
+
+  // ---------- Fase 4 · A: reputación (calificación, perfil público, respuesta del vendedor, suspensión)
+  await page.goto(APP + '/app/compras/' + pagoId);
+  await page.waitForSelector('[data-testid=btn-calificar]');
+  await page.click('[data-testid=btn-calificar]');
+  await page.waitForSelector('[data-testid=estrella-5]');
+  await page.click('[data-testid=estrella-5]');
+  await page.fill('[data-testid=input-comentario]', 'Cartas impecables y entrega puntual.');
+  await page.click('[data-testid=btn-enviar-calificacion]');
+  await page.waitForSelector('.toast:has-text("Gracias")');
+  await page.waitForSelector('[data-testid=mi-resena]:has-text("impecables")');
+  if (sql(`select puntaje || ':' || comentario from public.resenas where orden_id = '${ordenId}'`) !== '5:Cartas impecables y entrega puntual.') throw new Error('la reseña no se guardó');
+  if (sql(`select reputacion->>'puntaje' || ':' || (reputacion->>'ventas') || ':' || (reputacion->'insignias')::text from public.perfiles where id = '${LUCIA}'`) !== '5.00:1:["nuevo"]') throw new Error('la reputación de la vendedora no se calculó: ' + sql(`select reputacion::text from public.perfiles where id = '${LUCIA}'`));
+  if (!sql(`select titulo from public.notificaciones where usuario_id = '${LUCIA}' and tipo = 'resena' order by id desc limit 1`).includes('★★★★★')) throw new Error('la vendedora no recibió el aviso de la reseña');
+  await foto(page, 'calificacion');
+  // perfil público sin iniciar sesión
+  const ctxAnon = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE' });
+  const pageAnon = await ctxAnon.newPage();
+  await pageAnon.goto(APP + '/u/vendedora_lima');
+  await pageAnon.waitForSelector('[data-testid=perfil-publico]');
+  if ((await pageAnon.textContent('[data-testid=perfil-puntaje]')) !== '5.0' || (await pageAnon.textContent('[data-testid=perfil-ventas]')) !== '1' || !(await pageAnon.$('[data-testid=insignia-nuevo]'))) throw new Error('el perfil público no muestra puntaje, ventas e insignia');
+  if (!/@chris_tcg/.test(await pageAnon.textContent('[data-testid=resena-publica]')) || !/impecables/.test(await pageAnon.textContent('[data-testid=resena-publica]'))) throw new Error('la reseña no aparece en el perfil público');
+  if (/9\d{8}|Lucía Torres|vendedora@correo/.test(await pageAnon.textContent('body'))) throw new Error('el perfil público expone datos personales');
+  await foto(pageAnon, 'perfil-publico');
+  // la vendedora ve su reputación y responde la reseña
+  const ctxL3 = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE' });
+  const pageL3 = await ctxL3.newPage();
+  await entrar(pageL3, 'vendedora_lima', 'clave-lucia');
+  await pageL3.goto(APP + '/app/ventas');
+  await pageL3.waitForSelector('[data-testid=mi-reputacion]:has-text("5.0")');
+  await pageL3.click('[data-testid=mi-reputacion] >> text=Ver reseñas');
+  await pageL3.waitForSelector('[data-testid=resena] [data-testid=btn-responder]');
+  await pageL3.click('[data-testid=btn-responder]');
+  await pageL3.fill('[data-testid=input-respuesta]', '¡Gracias por tu compra!');
+  await pageL3.click('[data-testid=btn-enviar-respuesta]');
+  await pageL3.waitForSelector('.toast:has-text("Respuesta publicada")');
+  await pageAnon.reload();
+  await pageAnon.waitForSelector('[data-testid=resena-publica]:has-text("Gracias por tu compra")');
+  log('reputación: calificación ★5 con comentario, perfil público @vendedora_lima (5.0 · 1 venta · 🌱 nuevo, sin datos personales), respuesta de la vendedora');
+  // el administrador suspende y reactiva a la vendedora
+  await page.goto(APP + '/admin?tab=usuarios');
+  await page.fill('[data-testid=buscar-usuario]', 'vendedora');
+  await page.waitForSelector('[data-testid=admin-usuario]:has-text("@vendedora_lima")');
+  await page.click('[data-testid=admin-usuario]:has-text("@vendedora_lima") [data-testid=btn-suspender]');
+  await page.fill('[data-testid=input-motivo-suspension]', 'Prueba de suspensión');
+  await page.click('[data-testid=btn-confirmar-suspension]');
+  await page.waitForSelector('.toast:has-text("suspendido")');
+  await page.waitForSelector('[data-testid=admin-usuario]:has-text("@vendedora_lima") [data-testid=pill-suspendido]');
+  if (sql(`select estado || ':' || suspendido_motivo from public.perfiles where id = '${LUCIA}'`) !== 'suspendido:Prueba de suspensión') throw new Error('la suspensión no se guardó');
+  await pageL3.goto(APP + '/app');
+  await pageL3.waitForSelector('text=Tu cuenta está suspendida');
+  await pageAnon.reload();
+  await pageAnon.waitForSelector('[data-testid=pill-suspendido]');
+  await page.click('[data-testid=admin-usuario]:has-text("@vendedora_lima") [data-testid=btn-reactivar]');
+  await page.waitForSelector('.toast:has-text("reactivado")');
+  if (sql(`select estado from public.perfiles where id = '${LUCIA}'`) !== 'activo') throw new Error('la reactivación no se guardó');
+  await ctxAnon.close(); await ctxL3.close();
+  log('admin: usuaria suspendida (aviso en su app y en su perfil público) y reactivada');
 
   // ---------- Fase 3 · C: saldo del vendedor, Excel del día de pago y pago marcado
   if (sql(`select estado || ':' || monto from public.retiros where usuario_id = '${LUCIA}'`) !== 'pendiente:118.61') throw new Error('la entrega no generó el pago pendiente: ' + sql(`select estado || ':' || monto from public.retiros where usuario_id = '${LUCIA}'`));

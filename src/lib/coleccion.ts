@@ -70,6 +70,9 @@ export type Album = {
 
 export type Casilla = { album_id: string; indice: number; carta_id: string | null; entrada_id: string | null };
 
+/** Reputación cacheada de un vendedor (la calcula la base: actualizar_reputacion). */
+export type Reputacion = { ventas?: number; resenas?: number; puntaje?: number | null; faltas_90?: number; faltas?: number; confirma_horas?: number | null; cumple_pct?: number | null; insignias?: string[]; alerta?: string | null; actualizada?: string };
+
 export type Perfil = {
   id: string;
   username: string;
@@ -81,6 +84,9 @@ export type Perfil = {
   rol: 'usuario' | 'admin' | 'tienda';
   tienda_id?: string | null;
   celular_verificado_en?: string | null;
+  estado?: 'activo' | 'suspendido';
+  suspendido_motivo?: string | null;
+  reputacion?: Reputacion | null;
   acepto_terminos_en: string | null;
   idioma_nombres: IdiomaNombres;
   creado_en: string;
