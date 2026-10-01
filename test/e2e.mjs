@@ -752,6 +752,22 @@ try {
   for (const frase of ['Ley N.º 29733', 'cifrados', 'nombre de usuario', 'Las tiendas aliadas', 'São Paulo']) if (!privacidad.includes(frase)) throw new Error('la política de privacidad no menciona: ' + frase);
   log('términos y política de privacidad con comisión 5 %, plazos y días de pago vigentes');
 
+  // ---------- app Android (APK): la portada ofrece la descarga cuando existe public/descargas/android.json (test/reiniciar.sh deja uno de prueba)
+  const ctxP = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE' });
+  const pageP = await ctxP.newPage();
+  await pageP.goto(APP + '/');
+  await pageP.waitForSelector('[data-testid=instalar-app] [data-testid=btn-apk]');
+  if (!/v1\.0\.0/.test(await pageP.textContent('[data-testid=btn-apk]')) || !/1\.2 MB/.test(await pageP.textContent('[data-testid=btn-apk]'))) throw new Error('el botón del APK no muestra versión y tamaño: ' + await pageP.textContent('[data-testid=btn-apk]'));
+  const apk = await pageP.request.get(APP + '/descargas/poketcg.apk');
+  if (!apk.ok() || apk.headers()['content-type'] !== 'application/vnd.android.package-archive' || !/attachment/.test(apk.headers()['content-disposition'] || '')) throw new Error('el APK no se sirve como descarga: ' + apk.status() + ' ' + apk.headers()['content-type']);
+  const enlaces = await (await fetch(APP + '/.well-known/assetlinks.json')).json();
+  if (enlaces[0]?.target?.package_name !== 'pe.poketcg.app' || !/^[0-9A-F:]{95}$/.test(enlaces[0]?.target?.sha256_cert_fingerprints?.[0] || '')) throw new Error('assetlinks.json inválido');
+  await pageP.goto(APP + '/instalar');
+  await pageP.waitForSelector('[data-testid=instalar-app] [data-testid=btn-apk]');
+  await foto(pageP, 'portada-apk');
+  await ctxP.close();
+  log('portada e /instalar: descarga de la app Android (.apk v1.0.0, 1.2 MB) y assetlinks.json para la app');
+
   // ---------- álbum automático
   await page.goto(APP + '/app/album');
   await page.waitForSelector('.album-card');

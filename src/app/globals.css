@@ -547,3 +547,9 @@ textarea.input { min-height: 64px; resize: vertical; }
 .album-cell .album-venta { position: absolute; top: 4px; left: 4px; font-size: 10px; padding: 1px 5px; border-radius: 999px; background: var(--ok-soft); color: var(--ok); font-weight: 700; }
 @media (min-width: 760px) { .barra-seleccion { bottom: 12px; } }
 .album-red { color: var(--ok) !important; font-weight: 700; text-decoration: none; }
+
+/* Portada: instalar la app (APK / navegador) */
+.descarga-app { display: flex; gap: 14px; align-items: flex-start; background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+.descarga-app .ico { font-size: 30px; line-height: 1; }
+.descarga-app .btn-apk { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; white-space: normal; text-align: left; max-width: 100%; line-height: 1.25; }
+.descarga-app .btn-apk .small { color: inherit; }

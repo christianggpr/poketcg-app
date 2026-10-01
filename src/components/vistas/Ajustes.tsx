@@ -64,6 +64,12 @@ export function Ajustes() {
         <Link href="/app/ventas" className="btn sm">🏷️ Ir a Mis ventas{col.publicaciones.length ? ` (${col.publicaciones.length})` : ''}</Link>
       </div>
 
+      <div className="panel">
+        <h3>App en el celular</h3>
+        <p className="small muted">Instala PokéTCG como app (Android .apk o desde el navegador) para tenerla con icono y a pantalla completa.</p>
+        <Link href="/instalar" className="btn sm" target="_blank">📱 Instalar la app</Link>
+      </div>
+
       <Reconocimiento />
 
       <IdiomaCartas />

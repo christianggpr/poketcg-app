@@ -19,3 +19,23 @@ tools/fuente-v1-*.js
 Thumbs.db
 *.log
 .vercel
+
+# App Android: proyecto generado por Bubblewrap y clave de firma (nunca al repositorio)
+android/app/
+android/build/
+android/gradle/
+android/gradlew
+android/gradlew.bat
+android/settings.gradle
+android/build.gradle
+android/gradle.properties
+android/manifest-checksum.txt
+android/store_icon.png
+android/*.keystore
+android/*.apk
+android/*.aab
+android/*.idsig
+
+# APK publicado por GitHub Actions (se agrega con git add -f); en local, test/reiniciar.sh deja uno de prueba
+public/descargas/poketcg.apk
+public/descargas/android.json

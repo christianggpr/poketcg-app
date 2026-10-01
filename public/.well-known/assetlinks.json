@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "pe.poketcg.app",
+    "sha256_cert_fingerprints": ["19:96:AF:67:90:99:95:D7:FE:4A:74:AC:B4:E8:70:F7:B4:05:33:93:6A:64:14:74:FC:C0:A2:6D:70:1E:52:F2"]
+  }
+}]

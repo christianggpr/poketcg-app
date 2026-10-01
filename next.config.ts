@@ -17,6 +17,20 @@ const nextConfig: NextConfig = {
         // el service worker debe poder actualizarse en cada visita
         source: '/sw.js',
         headers: [{ key: 'Cache-Control', value: 'no-cache, max-age=0' }, { key: 'Service-Worker-Allowed', value: '/' }]
+      },
+      {
+        // app Android: que el navegador la descargue como archivo .apk
+        source: '/descargas/poketcg.apk',
+        headers: [
+          { key: 'Content-Type', value: 'application/vnd.android.package-archive' },
+          { key: 'Content-Disposition', value: 'attachment; filename="poketcg.apk"' },
+          { key: 'Cache-Control', value: 'public, max-age=600, must-revalidate' }
+        ]
+      },
+      {
+        // enlace web ↔ app Android (Digital Asset Links)
+        source: '/.well-known/assetlinks.json',
+        headers: [{ key: 'Content-Type', value: 'application/json' }, { key: 'Cache-Control', value: 'public, max-age=3600' }]
       }
     ];
   }
