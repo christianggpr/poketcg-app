@@ -1,10 +1,11 @@
-Imágenes del catálogo 2026-09-30.2 · comprobado el 2026-10-01 · 23,763 peticiones, 451 errores, 938 s
+Imágenes del catálogo 2026-10-01.1 · comprobado el 2026-10-01 · 19,860 peticiones, 94 errores, 1211 s
 Cartas comprobadas: 34,487 (sin contar 5 casillas "sin datos", que no tienen imagen posible)
-Con imagen: 31,471 (91,25 %) · sin imagen: 3,016
-  · Colecciones con fuente pública (TCGdex, pokemontcg.io, Limitless): 31,471 de 32,300 con imagen (97,43 %)
+Con imagen: 31,482 (91,29 %) · sin imagen: 3,005
+  · Colecciones con fuente pública (TCGdex, pokemontcg.io, Limitless): 31,482 de 32,300 con imagen (97,47 %)
   · Colecciones japonesas de 1996–2006 sin fuente pública (26 colecciones, 2,187 cartas): sin imagen
-Por fuente: TCGdex 26,983 · TCGdex en español (respaldo) 466 · pokemontcg.io 726 · Limitless 3,296 · ninguna 3,016
-Cartas completadas a mano que ya están en TCGdex (se les quita la marca sinTcgdex): 44
+Por fuente: TCGdex 27,199 · TCGdex en español (respaldo) 421 · pokemontcg.io 716 · Limitless 3,146 · ninguna 3,005
+Errores de red (esas cartas quedan como "sin comprobar", no como sin imagen): assets.tcgdex.net · red ×91 · assets.tcgdex.net · HTTP 503 ×3
+
 
 Por colección (id · nombre · con imagen/total · TCGdex por idioma · respaldos · sin imagen):
 miscp · Miscellaneous Promos · 0/1 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 001
@@ -96,16 +97,16 @@ dp7 · Stormfront · 106/106 (100,00 %) · TCGdex en 106, es 0
 pl1 · Platinum · 133/133 (100,00 %) · TCGdex en 133, es 0
 pop9 · POP Series 9 · 17/17 (100,00 %) · TCGdex en 17, es 0
 pl2 · Rising Rivals · 120/120 (100,00 %) · TCGdex en 119, es 0 · respaldo: pokemontcg 1
-pl3 · Supreme Victors · 153/162 (94,44 %) · TCGdex en 153, es 0 · sin imagen: AR1, AR2, AR3, AR4, AR5, AR6, AR7, AR8, AR9
+pl3 · Supreme Victors · 154/162 (95,06 %) · TCGdex en 153, es 0 · sin comprobar (error de red): 1 · sin imagen: AR1, AR2, AR3, AR4, AR5, AR7, AR8, AR9
 pl4 · Arceus · 111/111 (100,00 %) · TCGdex en 111, es 0
 ru1 · Pokémon Rumble · 16/16 (100,00 %) · TCGdex en 16, es 0
-hgss1 · HeartGold SoulSilver · 124/124 (100,00 %) · TCGdex en 124, es 121
+hgss1 · HeartGold SoulSilver · 124/124 (100,00 %) · TCGdex en 124, es 123
 hgssp · HGSS Black Star Promos · 24/25 (96,00 %) · TCGdex en 16, es 0 · respaldo: pokemontcg 8 · sin imagen: HGSS18
 tk-hs-g · HS trainer Kit (Gyarados) · 0/30 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30
 tk-hs-r · HS trainer Kit (Raichu) · 0/30 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30
-hgss2 · Unleashed · 96/96 (100,00 %) · TCGdex en 96, es 51
-hgss3 · Undaunted · 91/91 (100,00 %) · TCGdex en 91, es 21
-hgss4 · Triumphant · 103/103 (100,00 %) · TCGdex en 78, es 57 · respaldo: tcgdex-es 15, pokemontcg 10
+hgss2 · Unleashed · 96/96 (100,00 %) · TCGdex en 96, es 94
+hgss3 · Undaunted · 91/91 (100,00 %) · TCGdex en 91, es 90
+hgss4 · Triumphant · 103/103 (100,00 %) · TCGdex en 103, es 102
 col1 · Call of Legends · 106/106 (100,00 %) · TCGdex en 106, es 97
 bw1 · Black & White · 115/115 (100,00 %) · TCGdex en 115, es 115
 bwp · BW Black Star Promos · 101/101 (100,00 %) · TCGdex en 98, es 0 · respaldo: pokemontcg 3
@@ -177,25 +178,25 @@ sm3.5 · Shining Legends · 78/78 (100,00 %) · TCGdex en 2, es 78 · respaldo: 
 jp-SM4p · GXバトルブースト · 120/125 (96,00 %) · TCGdex ja 0 · respaldo: limitless 120 · sin imagen: 121, 122, 123, 124, 125
 sm4 · Crimson Invasion · 125/125 (100,00 %) · TCGdex en 125, es 125
 jp-SM5M · Ultra Moon · 72/78 (92,31 %) · TCGdex ja 72 · sin imagen: 073, 074, 075, 076, 077, 078
-jp-SM5S · Ultra Sun · 72/78 (92,31 %) · TCGdex ja 72 · sin imagen: 073, 074, 075, 076, 077, 078
-jp-SM5p · ウルトラフォース · 56/63 (88,89 %) · TCGdex ja 0 · respaldo: limitless 56 · sin imagen: 057, 058, 059, 060, 061, 062, 063
+jp-SM5S · Ultra Sun · 73/78 (93,59 %) · TCGdex ja 65 · sin comprobar (error de red): 8 · sin imagen: 073, 075, 076, 077, 078
+jp-SM5p · ウルトラフォース · 61/63 (96,83 %) · TCGdex ja 0 · respaldo: limitless 51 · sin comprobar (error de red): 10 · sin imagen: 058, 061
 sm5 · Ultra Prism · 173/173 (100,00 %) · TCGdex en 173, es 173
-jp-SM6 · Forbidden Light · 102/110 (92,73 %) · TCGdex ja 101 · respaldo: limitless 1 · sin imagen: 103, 104, 105, 106, 107, 108, 109, 110
+jp-SM6 · Forbidden Light · 102/110 (92,73 %) · TCGdex ja 102 · sin imagen: 103, 104, 105, 106, 107, 108, 109, 110
 jp-SM6a · Dragon Storm · 59/66 (89,39 %) · TCGdex ja 59 · sin imagen: 060, 061, 062, 063, 064, 065, 066
 sm6 · Forbidden Light · 146/146 (100,00 %) · TCGdex en 140, es 146 · respaldo: tcgdex-es 6
-jp-SM6b · Champion Road · 77/86 (89,53 %) · TCGdex ja 65 · respaldo: limitless 12 · sin imagen: 078, 079, 080, 081, 082, 083, 084, 085, 086
-jp-SM7 · Charisma of the Wrecked Sky · 104/112 (92,86 %) · TCGdex ja 100 · respaldo: limitless 4 · sin imagen: 105, 106, 107, 108, 109, 110, 111, 112
+jp-SM6b · Champion Road · 77/86 (89,53 %) · TCGdex ja 77 · sin imagen: 078, 079, 080, 081, 082, 083, 084, 085, 086
+jp-SM7 · Charisma of the Wrecked Sky · 104/112 (92,86 %) · TCGdex ja 104 · sin imagen: 105, 106, 107, 108, 109, 110, 111, 112
 2018sm-fr · Collection McDonald's 2018 · 0/40 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40
-jp-SM7a · Thunderclap Spark · 66/73 (90,41 %) · TCGdex ja 61 · respaldo: limitless 5 · sin imagen: 067, 068, 069, 070, 071, 072, 073
-jp-SM7b · Fairy Rise · 56/63 (88,89 %) · TCGdex ja 39 · respaldo: limitless 17 · sin imagen: 057, 058, 059, 060, 061, 062, 063
+jp-SM7a · Thunderclap Spark · 66/73 (90,41 %) · TCGdex ja 66 · sin imagen: 067, 068, 069, 070, 071, 072, 073
+jp-SM7b · Fairy Rise · 56/63 (88,89 %) · TCGdex ja 56 · sin imagen: 057, 058, 059, 060, 061, 062, 063
 sm7 · Celestial Storm · 183/183 (100,00 %) · TCGdex en 183, es 183
-jp-SM8 · Super-Burst Impact · 103/111 (92,79 %) · TCGdex ja 99 · respaldo: limitless 4 · sin imagen: 104, 105, 106, 107, 108, 109, 110, 111
+jp-SM8 · Super-Burst Impact · 103/111 (92,79 %) · TCGdex ja 103 · sin imagen: 104, 105, 106, 107, 108, 109, 110, 111
 sm7.5 · Dragon Majesty · 78/78 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 78
-jp-SM8a · Dark Order · 58/65 (89,23 %) · TCGdex ja 55 · respaldo: limitless 3 · sin imagen: 059, 060, 061, 062, 063, 064, 065
-jp-SM8b · GX Ultra Shiny · 243/250 (97,20 %) · TCGdex ja 210 · respaldo: limitless 33 · sin imagen: 244, 245, 246, 247, 248, 249, 250
+jp-SM8a · Dark Order · 58/65 (89,23 %) · TCGdex ja 58 · sin imagen: 059, 060, 061, 062, 063, 064, 065
+jp-SM8b · GX Ultra Shiny · 243/250 (97,20 %) · TCGdex ja 243 · sin imagen: 244, 245, 246, 247, 248, 249, 250
 2018sm · McDonald's Collection 2018 · 0/12 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
 sm8 · Lost Thunder · 236/236 (100,00 %) · TCGdex en 236, es 236
-jp-SM9 · Tag Bolt · 109/118 (92,37 %) · TCGdex ja 92 · respaldo: limitless 17 · sin imagen: 110, 111, 112, 113, 114, 115, 116, 117, 118
+jp-SM9 · Tag Bolt · 109/118 (92,37 %) · TCGdex ja 108 · respaldo: limitless 1 · sin imagen: 110, 111, 112, 113, 114, 115, 116, 117, 118
 jp-SM9a · Night Unison · 63/70 (90,00 %) · TCGdex ja 63 · sin imagen: 064, 065, 066, 067, 068, 069, 070
 sm9 · Team Up · 196/196 (100,00 %) · TCGdex en 196, es 196
 jp-SM9b · Full Metal Wall · 62/69 (89,86 %) · TCGdex ja 62 · sin imagen: 063, 064, 065, 066, 067, 068, 069
@@ -227,8 +228,8 @@ jp-S5I · Single Strike Master · 81/91 (89,01 %) · TCGdex ja 81 · sin imagen:
 swsh4.5 · Shining Fates · 73/73 (100,00 %) · TCGdex en 73, es 73
 swsh4.5sv · Shining Fates Shiny Vault · 122/122 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 122
 swsh5 · Battle Styles · 183/183 (100,00 %) · TCGdex en 183, es 183
-jp-S6H · Silver Lance · 83/95 (87,37 %) · TCGdex ja 83 · sin imagen: 084, 085, 086, 087, 088, 089, 090, 091, 092, 093, 094, 095
-jp-S6K · Jet-Black Spirit · 83/95 (87,37 %) · TCGdex ja 83 · sin imagen: 084, 085, 086, 087, 088, 089, 090, 091, 092, 093, 094, 095
+jp-S6H · Silver Lance · 85/95 (89,47 %) · TCGdex ja 82 · sin comprobar (error de red): 3 · sin imagen: 084, 085, 087, 088, 089, 090, 091, 093, 094, 095
+jp-S6K · Jet-Black Spirit · 85/95 (89,47 %) · TCGdex ja 63 · sin comprobar (error de red): 22 · sin imagen: 084, 087, 088, 089, 090, 091, 092, 093, 094, 095
 swsh6 · Chilling Reign · 233/233 (100,00 %) · TCGdex en 233, es 233
 jp-S7D · Skyscraping Perfection · 79/90 (87,78 %) · TCGdex ja 79 · sin imagen: 080, 081, 082, 083, 084, 085, 086, 087, 088, 089, 090
 swsh7 · Evolving Skies · 237/237 (100,00 %) · TCGdex en 237, es 237
@@ -236,7 +237,7 @@ jp-S8 · Fusion Arts · 115/129 (89,15 %) · TCGdex ja 115 · sin imagen: 116, 1
 cel25 · Celebrations · 25/25 (100,00 %) · TCGdex en 24, es 24 · respaldo: pokemontcg 1
 cel25cc · Celebrations Classic Collection · 0/25 (0,00 %) · TCGdex en 0, es 0 · sin imagen: CC001, CC002, CC003, CC004, CC005, CC006, CC007, CC008, CC009, CC010, CC011, CC012, CC013, CC014, CC015, CC016, CC017, CC018, CC019, CC020, CC021, CC022, CC023, CC024, CC025
 swsh8 · Fusion Strike · 284/284 (100,00 %) · TCGdex en 284, es 284
-jp-S8b · VMAX Climax · 277/285 (97,19 %) · TCGdex ja 265 · respaldo: limitless 12 · sin imagen: 278, 279, 280, 281, 282, 283, 284, 285
+jp-S8b · VMAX Climax · 277/285 (97,19 %) · TCGdex ja 269 · respaldo: limitless 8 · sin imagen: 278, 279, 280, 281, 282, 283, 284, 285
 jp-S9 · Star Birth · 127/127 (100,00 %) · TCGdex ja 127
 jp-S9a · Battle Region · 93/93 (100,00 %) · TCGdex ja 93
 swsh9 · Brilliant Stars · 186/186 (100,00 %) · TCGdex en 186, es 186
@@ -263,14 +264,14 @@ swsh12.5gg · Crown Zenith Galarian Gallery · 70/70 (100,00 %) · TCGdex en 0, 
 jp-SV1a · Triplet Beat · 103/103 (100,00 %) · TCGdex ja 103
 sv01 · Scarlet & Violet · 258/258 (100,00 %) · TCGdex en 258, es 258
 sve · Scarlet & Violet Energy · 24/24 (100,00 %) · TCGdex en 0, es 0 · respaldo: pokemontcg 16, limitless 8
-svp · SVP Black Star Promos · 225/226 (99,56 %) · TCGdex en 211, es 184 · respaldo: pokemontcg 1, limitless 13 · sin imagen: 190
+svp · SVP Black Star Promos · 225/226 (99,56 %) · TCGdex en 211, es 192 · respaldo: pokemontcg 1, limitless 13 · sin imagen: 190
 jp-SV2D · Clay Burst · 99/99 (100,00 %) · TCGdex ja 99
 jp-SV2P · Snow Hazard · 99/99 (100,00 %) · TCGdex ja 99
 sv02 · Paldea Evolved · 279/279 (100,00 %) · TCGdex en 279, es 279
 jp-SV2a · Pokémon Card 151 · 210/210 (100,00 %) · TCGdex ja 210
 jp-SV3 · Ruler of the Black Flame · 141/141 (100,00 %) · TCGdex ja 141
 2023sv · McDonald's Collection 2023 · 0/15 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
-sv03 · Obsidian Flames · 230/230 (100,00 %) · TCGdex en 200, es 230 · respaldo: tcgdex-es 30
+sv03 · Obsidian Flames · 230/230 (100,00 %) · TCGdex en 230, es 230
 jp-SV3a · Raging Surf · 92/92 (100,00 %) · TCGdex ja 92
 sv03.5 · 151 · 207/207 (100,00 %) · TCGdex en 207, es 207
 mfb · My First Battle · 0/34 (0,00 %) · TCGdex en 0, es 0 · sin imagen: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34
@@ -316,10 +317,10 @@ me01 · Mega Evolution · 188/188 (100,00 %) · TCGdex en 188, es 188
 mep · MEP Black Star Promos · 100/119 (84,03 %) · TCGdex en 40, es 0 · respaldo: limitless 60 · sin imagen: 093, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 120, Museum
 me02 · Phantasmal Flames · 130/130 (100,00 %) · TCGdex en 130, es 130
 jp-M2a · Mega Dream ex · 250/250 (100,00 %) · TCGdex ja 0 · respaldo: limitless 250
-jp-MC · スタートデッキ100 バトルコレクション · 766/774 (98,97 %) · TCGdex ja 0 · respaldo: limitless 766 · sin imagen: DAR, FIG, FIR, GRA, LIG, MET, PSY, WAT
+jp-MC · スタートデッキ100 バトルコレクション · 766/774 (98,97 %) · TCGdex ja 0 · respaldo: limitless 725 · sin comprobar (error de red): 41 · sin imagen: DAR, FIG, FIR, GRA, LIG, MET, PSY, WAT
 jp-M3 · ムニキスゼロ · 117/117 (100,00 %) · TCGdex ja 0 · respaldo: limitless 117
 me02.5 · Ascended Heroes · 295/295 (100,00 %) · TCGdex en 295, es 295
-jp-M4 · ニンジャスピナー · 120/120 (100,00 %) · TCGdex ja 115 · respaldo: limitless 5
+jp-M4 · ニンジャスピナー · 120/120 (100,00 %) · TCGdex ja 120
 me03 · Perfect Order · 124/124 (100,00 %) · TCGdex en 124, es 124
 jp-M5 · アビスアイ · 118/118 (100,00 %) · TCGdex ja 0 · respaldo: limitless 118
 me04 · Chaos Rising · 122/122 (100,00 %) · TCGdex en 122, es 122
@@ -330,7 +331,7 @@ jp-M6 · ストームエメラルダ · 113/113 (100,00 %) · TCGdex ja 0 · res
 jp-M6a · 30th CELEBRATION · 133/176 (75,57 %) · TCGdex ja 0 · respaldo: limitless 133 · sin imagen: 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, B, DAR, FIG, FIR, G, GRA, LIG, MET, PSY, R, WAT
 jp-MF · 30th CELEBRATION プレミアムデッキセット エーフィ・ブラッキー · 44/49 (89,80 %) · TCGdex ja 0 · respaldo: limitless 44 · sin imagen: DAR, FIR, GRA, LIG, PSY
 
-Cartas sin imagen en colecciones con fuente pública (829):
+Cartas sin imagen en colecciones con fuente pública (818):
 miscp-001 · 001 · Ancient Mew · ミュウ · Miscellaneous Promos
 ecard2-50a · 50a · Golduck · ゴルダック · Aquapolis
 ecard2-50b · 50b · Golduck · ゴルダック · Aquapolis
@@ -401,7 +402,6 @@ pl3-AR2 · AR2 · Arceus · アルセウス · Supreme Victors
 pl3-AR3 · AR3 · Arceus · アルセウス · Supreme Victors
 pl3-AR4 · AR4 · Arceus · アルセウス · Supreme Victors
 pl3-AR5 · AR5 · Arceus · アルセウス · Supreme Victors
-pl3-AR6 · AR6 · Arceus · アルセウス · Supreme Victors
 pl3-AR7 · AR7 · Arceus · アルセウス · Supreme Victors
 pl3-AR8 · AR8 · Arceus · アルセウス · Supreme Victors
 pl3-AR9 · AR9 · Arceus · アルセウス · Supreme Victors
@@ -620,18 +620,12 @@ jp-SM5M-076 · 076 · クラッシュハンマー · クラッシュハンマー
 jp-SM5M-077 · 077 · エスケープボード · エスケープボード · Ultra Moon
 jp-SM5M-078 · 078 · ユニットエネルギー雷超鋼 · ユニットエネルギー雷超鋼 · Ultra Moon
 jp-SM5S-073 · 073 · Leafeon-GX · リーフィアGX · Ultra Sun
-jp-SM5S-074 · 074 · Necrozma-GX · ネクロズマ たそがれのたてがみGX · Ultra Sun
 jp-SM5S-075 · 075 · Dialga-GX · ディアルガGX · Ultra Sun
 jp-SM5S-076 · 076 · のぞきみレッドカード · のぞきみレッドカード · Ultra Sun
 jp-SM5S-077 · 077 · ミッシングクローバー · ミッシングクローバー · Ultra Sun
 jp-SM5S-078 · 078 · ユニットエネルギー草炎水 · ユニットエネルギー草炎水 · Ultra Sun
-jp-SM5p-057 · 057 · Palkia-GX · パルキアGX · ウルトラフォース
 jp-SM5p-058 · 058 · Naganadel-GX · アーゴヨンGX · ウルトラフォース
-jp-SM5p-059 · 059 · Lucario-GX · ルカリオGX · ウルトラフォース
-jp-SM5p-060 · 060 · Dialga-GX · ディアルガGX · ウルトラフォース
 jp-SM5p-061 · 061 · エネルギーリサイクル · エネルギーリサイクル · ウルトラフォース
-jp-SM5p-062 · 062 · ビーストリング · ビーストリング · ウルトラフォース
-jp-SM5p-063 · 063 · 鋼鉄のフライパン · 鋼鉄のフライパン · ウルトラフォース
 jp-SM6-103 · 103 · Greninja-GX · ゲッコウガGX · Forbidden Light
 jp-SM6-104 · 104 · Zygarde-GX · ジガルデGX · Forbidden Light
 jp-SM6-105 · 105 · Yveltal-GX · イベルタルGX · Forbidden Light
@@ -893,19 +887,15 @@ jp-S5I-090 · 090 · 学習装置 · 学習装置 · Single Strike Master
 jp-S5I-091 · 091 · いちげきエネルギー · いちげきエネルギー · Single Strike Master
 jp-S6H-084 · 084 · Calyrex VMAX · はくばバドレックスVMAX · Silver Lance
 jp-S6H-085 · 085 · Calyrex VMAX · はくばバドレックスVMAX · Silver Lance
-jp-S6H-086 · 086 · Sandaconda VMAX · サダイジャVMAX · Silver Lance
 jp-S6H-087 · 087 · Tornadus VMAX · トルネロスVMAX · Silver Lance
 jp-S6H-088 · 088 · アスナ · アスナ · Silver Lance
 jp-S6H-089 · 089 · ドクター · ドクター · Silver Lance
 jp-S6H-090 · 090 · ピオニー · ピオニー · Silver Lance
 jp-S6H-091 · 091 · メロン · メロン · Silver Lance
-jp-S6H-092 · 092 · Bronzong · ドータクン · Silver Lance
 jp-S6H-093 · 093 · おむかえちょうちん · おむかえちょうちん · Silver Lance
 jp-S6H-094 · 094 · いかついメット · いかついメット · Silver Lance
 jp-S6H-095 · 095 · 基本水エネルギー · 基本水エネルギー · Silver Lance
 jp-S6K-084 · 084 · Celebi VMAX · セレビィVMAX · Jet-Black Spirit
-jp-S6K-085 · 085 · Calyrex VMAX · こくばバドレックスVMAX · Jet-Black Spirit
-jp-S6K-086 · 086 · Calyrex VMAX · こくばバドレックスVMAX · Jet-Black Spirit
 jp-S6K-087 · 087 · Metagross VMAX · メタグロスVMAX · Jet-Black Spirit
 jp-S6K-088 · 088 · カトレア · カトレア · Jet-Black Spirit
 jp-S6K-089 · 089 · キクコ · キクコ · Jet-Black Spirit
