@@ -561,8 +561,23 @@ try {
   // Mejoras 2 · D: Mazos vive en Mi Colección (chip activo y pestaña inferior marcada), ya no en el Mercado
   if (!(await page.$('[data-testid=tabbar-coleccion].active')) || !(await page.$('[data-testid=sec-mazos].active'))) throw new Error('Mazos debía aparecer marcado dentro de Mi Colección');
   await page.goto(APP + '/app/mercado');
-  await page.waitForSelector('[data-testid=sec-carrito]');
+  await page.waitForSelector('[data-testid=sec-ventas]');
   if (await page.$('[data-testid=sec-mazos]')) throw new Error('el Mercado ya no debía tener el chip de Mazos');
+  // Ajustes de layout 2 · 2: Mercado = Inicio · Mis compras · Mis ventas; Mi Colección = Álbumes · Bulk · Mazos; Mis ventas marca la pestaña Mercado
+  const chips = async () => (await page.$$eval('[data-testid=subtabs] a', els => els.map(e => e.textContent.trim().replace(/\s*\d+$/, '')))).join(' · ');
+  if ((await chips()) !== 'Inicio · Mis compras · Mis ventas' || (await page.$('[data-testid=sec-carrito]'))) throw new Error('chips del Mercado inesperados: ' + await chips());
+  // Ajustes de layout 2 · 3: el carrito es solo el botón amarillo (arriba a la derecha); /app/carrito es una pantalla interior
+  if (!(await page.$('[data-testid=chip-carrito]'))) throw new Error('faltaba el botón amarillo del carrito');
+  await page.goto(APP + '/app/carrito');
+  await page.waitForSelector('[data-testid=volver-celular]');
+  if (await page.$('[data-testid=subtabs]')) throw new Error('el carrito no debía mostrar chips');
+  await page.goto(APP + '/app/ventas');
+  await page.waitForSelector('[data-testid=sec-ventas].active');
+  if (!(await page.$('[data-testid=tabbar-mercado].active')) || (await page.$('[data-testid=tabbar-coleccion].active'))) throw new Error('Mis ventas debía marcar la pestaña Mercado');
+  await page.goto(APP + '/app/album');
+  await page.waitForSelector('[data-testid=sec-album].active');
+  if ((await chips()) !== 'Álbumes · Bulk · Mazos') throw new Error('chips de Mi Colección inesperados: ' + await chips());
+  log('secciones: Mi Colección = Álbumes · Bulk · Mazos; Mercado = Inicio · Mis compras · Mis ventas (Mis ventas marca Mercado); carrito solo como botón amarillo');
   await page.goto(APP + '/app/mazos');
   await page.waitForSelector('[data-testid=fila-mazo]');
   const filaDrag = await page.textContent('[data-testid=fila-mazo] >> nth=0');
@@ -1346,13 +1361,18 @@ try {
   await pagePc.goto(APP + '/app/album');
   await pagePc.waitForSelector('[data-testid=menu-lateral] .lateral-menu a');
   const menuLateral = await pagePc.$$eval('[data-testid=menu-lateral] .lateral-menu a', els => els.map(e => e.textContent.trim()));
-  if (menuLateral.some(t => /Buscar/.test(t)) || !(await pagePc.$('[data-testid=buscador-pc] [data-testid=btn-camara]'))) throw new Error('PC: menú lateral sin Buscar y buscador con cámara esperados: ' + menuLateral.join(' | '));
+  if (menuLateral.map(t => t.replace(/\s*\d+$/, '')).join(' · ') !== 'Álbumes · Bulk · Mazos' || !(await pagePc.$('[data-testid=buscador-pc] [data-testid=btn-camara]'))) throw new Error('PC: menú lateral Álbumes · Bulk · Mazos y buscador con cámara esperados: ' + menuLateral.join(' | '));
   await pagePc.fill('[data-testid=buscador-pc] input', 'pikachu 151');
   await pagePc.press('[data-testid=buscador-pc] input', 'Enter');
   await pagePc.waitForURL(/\/app\/buscar\?q=pikachu/);
   await pagePc.waitForSelector('[data-testid=resultados-buscar] .card-row [data-testid=btn-ver-mercado]');
   if (!(await pagePc.$('[data-testid=menu-lateral]'))) throw new Error('PC: los resultados de búsqueda debían conservar el menú lateral de Mi Colección');
   await foto(pagePc, 'pc-buscar');
+  // Ajustes de layout 2 · 2 (PC): Mis ventas es una sección del Mercado con chips arriba del contenido (sin menú lateral)
+  await pagePc.goto(APP + '/app/ventas');
+  await pagePc.waitForSelector('[data-testid=sec-ventas].active');
+  if ((await pagePc.$('[data-testid=menu-lateral]')) || !(await pagePc.$('[data-testid=tab-mercado].active')) || !(await pagePc.isVisible('[data-testid=subtabs]'))) throw new Error('PC: Mis ventas debía mostrarse en el Mercado con chips y sin menú lateral');
+  await foto(pagePc, 'pc-ventas');
   await ctxPc.close();
   const ctxCel = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'es-PE' });
   const pageCel = await ctxCel.newPage();

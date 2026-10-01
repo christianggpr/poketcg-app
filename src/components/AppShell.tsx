@@ -17,31 +17,33 @@ import { PorLlegar } from './vistas/PorLlegar';
 
 /** Las dos pestañas principales y qué rutas pertenecen a cada una. */
 const PRINCIPALES: PestanaPrincipal[] = [
-  { id: 'coleccion', href: '/app/album', label: 'Mi Colección', ico: 'albumes', rutas: ['/app/album', '/app/bulk', '/app/cajas', '/app/mazos', '/app/buscar', '/app/escanear', '/app/carta', '/app/ventas'] },
-  { id: 'mercado', href: '/app/mercado', label: 'Mercado', ico: 'tienda', rutas: ['/app/mercado', '/app/carrito', '/app/compras'] }
+  { id: 'coleccion', href: '/app/album', label: 'Mi Colección', ico: 'albumes', rutas: ['/app/album', '/app/bulk', '/app/cajas', '/app/mazos', '/app/buscar', '/app/escanear', '/app/carta'] },
+  // Ajustes de layout 2 · 2: Mis ventas vive en el Mercado (al abrirla se marca la pestaña Mercado)
+  { id: 'mercado', href: '/app/mercado', label: 'Mercado', ico: 'tienda', rutas: ['/app/mercado', '/app/carrito', '/app/compras', '/app/ventas'] }
 ];
-/** Secciones de cada pestaña: chips en el celular; en PC, menú lateral (Mi Colección) o chips (Mercado). */
+/** Secciones de cada pestaña: chips en el celular; en PC, menú lateral (Mi Colección) o chips arriba del contenido (Mercado). */
 const SECCIONES: Record<'coleccion' | 'mercado', Seccion[]> = {
   coleccion: [
     { href: '/app/album', label: 'Álbumes', ico: 'album', rutas: ['/app/album'], testid: 'sec-album' },
     { href: '/app/bulk', label: 'Bulk', ico: 'bulk', rutas: ['/app/bulk', '/app/cajas'], testid: 'sec-bulk' },
     // Mejoras 2 · D: Mazos pasa de Mercado a Mi Colección (mismas direcciones /app/mazos y /app/mazos/<id>)
-    { href: '/app/mazos', label: 'Mazos', ico: 'mazos', rutas: ['/app/mazos'], testid: 'sec-mazos' },
+    { href: '/app/mazos', label: 'Mazos', ico: 'mazos', rutas: ['/app/mazos'], testid: 'sec-mazos' }
     // Ajustes de layout 2 · 1: ya no hay sección "Buscar / Escanear": el buscador (con cámara) de la barra superior en PC y
     // el de arriba de Mi Colección en el celular llevan a /app/buscar y /app/escanear, que siguen existiendo como pantallas.
-    { href: '/app/ventas', label: 'Mis ventas', ico: 'ventas', rutas: ['/app/ventas'], testid: 'sec-ventas' }
   ],
   mercado: [
     { href: '/app/mercado', label: 'Inicio', ico: 'inicio', rutas: ['/app/mercado'], testid: 'sec-inicio' },
-    { href: '/app/carrito', label: 'Carrito', ico: 'carrito', rutas: ['/app/carrito'], testid: 'sec-carrito' },
-    { href: '/app/compras', label: 'Mis compras', ico: 'compras', rutas: ['/app/compras'], testid: 'sec-compras' }
+    // Ajustes de layout 2 · 3: el carrito ya no es un chip; solo el botón amarillo con el número (arriba a la derecha). /app/carrito sigue igual.
+    { href: '/app/compras', label: 'Mis compras', ico: 'compras', rutas: ['/app/compras'], testid: 'sec-compras' },
+    // Ajustes de layout 2 · 2: Mis ventas (con la insignia de órdenes por entregar) pasa de Mi Colección al Mercado
+    { href: '/app/ventas', label: 'Mis ventas', ico: 'ventas', rutas: ['/app/ventas'], testid: 'sec-ventas', insignia: <PorEntregar /> }
   ]
 };
 const pertenece = (ruta: string, prefijo: string) => ruta === prefijo || ruta.startsWith(prefijo + '/');
-/** Pantallas interiores (detalle de carta, álbum, Bulk, compra, mazo, orden, pago, resultados de búsqueda, escáner…): sin chips y con «volver» en el celular. */
-const esInterior = (ruta: string) => /^\/app\/(carta|album|compras|mazos|ventas\/ordenes)\/.+/.test(ruta) || ['/app/notificaciones', '/app/ajustes', '/app/tienda', '/app/buscar', '/app/escanear'].includes(ruta);
-/** En PC, Mi Colección lleva menú lateral en Álbumes, Bulk (ajustes de layout · 6), Mazos, Buscar/Escanear y Mis ventas (no en los detalles de carta/álbum). */
-const conLateral = (ruta: string) => ['/app/album', '/app/bulk', '/app/cajas', '/app/mazos', '/app/buscar', '/app/escanear', '/app/ventas', '/app/ventas/ordenes'].includes(ruta) || ruta.startsWith('/app/bulk/');
+/** Pantallas interiores (detalle de carta, álbum, Bulk, compra, mazo, orden, pago, resultados de búsqueda, escáner, carrito…): sin chips y con «volver» en el celular. */
+const esInterior = (ruta: string) => /^\/app\/(carta|album|compras|mazos|ventas\/ordenes)\/.+/.test(ruta) || ['/app/notificaciones', '/app/ajustes', '/app/tienda', '/app/buscar', '/app/escanear', '/app/carrito'].includes(ruta);
+/** En PC, Mi Colección lleva menú lateral en Álbumes, Bulk (ajustes de layout · 6), Mazos y en Buscar/Escanear (no en los detalles de carta/álbum). */
+const conLateral = (ruta: string) => ['/app/album', '/app/bulk', '/app/cajas', '/app/mazos', '/app/buscar', '/app/escanear'].includes(ruta) || ruta.startsWith('/app/bulk/');
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const ruta = usePathname();
@@ -81,7 +83,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <aside className="lateral" data-testid="menu-lateral">
               <ResumenColeccion />
               <nav className="lateral-menu" aria-label="Mi Colección">
-                {secciones.map(s => <Link key={s.href} href={s.href} className={seccionActiva?.href === s.href ? 'active' : ''} aria-current={seccionActiva?.href === s.href ? 'page' : undefined} data-testid={`lateral-${s.testid}`}>{s.label}{s.href === '/app/ventas' ? <PorEntregar /> : null}</Link>)}
+                {secciones.map(s => <Link key={s.href} href={s.href} className={seccionActiva?.href === s.href ? 'active' : ''} aria-current={seccionActiva?.href === s.href ? 'page' : undefined} data-testid={`lateral-${s.testid}`}>{s.label}{s.insignia}</Link>)}
               </nav>
               <PorLlegar compacto />
             </aside>
@@ -102,7 +104,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Contador de órdenes de venta por entregar (insignia del menú lateral «Mis ventas»). */
+/** Contador de órdenes de venta por entregar (insignia del chip «Mis ventas» del Mercado). */
 function PorEntregar() {
   const { perfil } = usePerfil();
   const mercado = useMercado();

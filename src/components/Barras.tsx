@@ -10,7 +10,7 @@ import { usePerfil } from './PerfilProvider';
 
 export type Principal = 'coleccion' | 'mercado';
 export type PestanaPrincipal = { id: Principal; href: string; label: string; ico: NombreIcono; rutas: string[] };
-export type Seccion = { href: string; label: string; labelCorto?: string; ico: NombreIcono; rutas: string[]; testid: string };
+export type Seccion = { href: string; label: string; labelCorto?: string; ico: NombreIcono; rutas: string[]; testid: string; /** insignia (p. ej. órdenes por entregar en «Mis ventas») */ insignia?: React.ReactNode };
 
 /** Iniciales del usuario para el avatar ("CP"). */
 export function iniciales(nombres: string, apellidos: string, username: string): string {
@@ -103,11 +103,11 @@ export function BarraInferiorCelular({ principales, principal }: { principales: 
   );
 }
 
-/** Chips de secciones (Álbumes · Bulk · Mazos · Mis ventas / Inicio · Carrito · Mis compras). */
+/** Chips de secciones (Álbumes · Bulk · Mazos / Inicio · Mis compras · Mis ventas). */
 export function ChipsSecciones({ secciones, activa, label, className = '' }: { secciones: Seccion[]; activa: Seccion | null; label?: string; className?: string }) {
   return (
     <nav className={`subtabs ${className}`} aria-label={label} data-testid="subtabs">
-      {secciones.map(s => <Link key={s.href} href={s.href} className={activa?.href === s.href ? 'active' : ''} aria-current={activa?.href === s.href ? 'page' : undefined} data-testid={s.testid}><Icono n={s.ico} tam={16} /> {s.labelCorto || s.label}</Link>)}
+      {secciones.map(s => <Link key={s.href} href={s.href} className={activa?.href === s.href ? 'active' : ''} aria-current={activa?.href === s.href ? 'page' : undefined} data-testid={s.testid}><Icono n={s.ico} tam={16} /> {s.labelCorto || s.label}{s.insignia}</Link>)}
     </nav>
   );
 }
