@@ -83,6 +83,7 @@ export function Mercado() {
       <p className="small muted">Cartas que otros coleccionistas tienen en venta. El precio que ves es el que pagas por copia (la comisión la paga el vendedor): pagas por Yape/Plin o con tu saldo y recoges en una tienda aliada con tu código de retiro. Las copias del carrito quedan reservadas 24 h.</p>
       <ListaDeseos />
       <div className="search-wrap" style={{ marginTop: 8 }}>
+        <span className="ico"><Icono n="buscar" tam={20} /></span>
         <input className="input" placeholder="Buscar por nombre (ES/EN/JP), número o colección…" value={q} onChange={e => setQ(e.target.value)} />
       </div>
       <div className="row wrap" style={{ gap: 6, marginTop: 8, alignItems: 'center' }}>
