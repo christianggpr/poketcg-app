@@ -304,15 +304,6 @@ create trigger pagos_bloquear_suspendidos before insert on public.pagos for each
 drop trigger if exists publicaciones_bloquear_suspendidos on public.publicaciones;
 create trigger publicaciones_bloquear_suspendidos before insert or update of estado on public.publicaciones for each row execute function public.bloquear_suspendidos();
 
--- Reputación inicial de quienes ya vendieron
-do $$
-declare u record;
-begin
-  for u in select distinct vendedor_id from public.ordenes where vendedor_id is not null loop
-    perform public.actualizar_reputacion(u.vendedor_id);
-  end loop;
-end;
-$$;
 
 
 -- ----------------------------------------------------------------------------
@@ -911,3 +902,107 @@ begin
 end;
 $$;
 revoke all on function public.mantenimiento_ordenes(int) from public, anon, authenticated;
+
+-- ----------------------------------------------------------------------------
+-- C. Reportes del administrador: ventas y comisiones por día / semana / mes, top vendedores y cartas,
+--    órdenes por estado, devoluciones y usuarios nuevos (exportable a Excel desde el servidor)
+-- ----------------------------------------------------------------------------
+create or replace function public.reporte_ventas(p_desde date, p_hasta date, p_grupo text default 'dia')
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+stable
+as $$
+declare
+  grupo text := case when p_grupo in ('dia', 'semana', 'mes') then p_grupo else 'dia' end;
+  d1 timestamptz := (p_desde::text || ' 00:00')::timestamp at time zone 'America/Lima';
+  d2 timestamptz := ((p_hasta + 1)::text || ' 00:00')::timestamp at time zone 'America/Lima';
+  res jsonb;
+begin
+  if not public.es_admin() then raise exception 'Solo el administrador'; end if;
+  with entregadas as (
+    select o.*, (o.entregada_en at time zone 'America/Lima')::date as dia
+      from public.ordenes o
+     where o.estado in ('entregada', 'saldo_liberado') and o.entregada_en >= d1 and o.entregada_en < d2
+  ), devueltas as (
+    select o.*, (o.actualizada at time zone 'America/Lima')::date as dia
+      from public.ordenes o
+     where (o.estado = 'vencida' or (o.estado = 'cancelada' and o.anulada_por = 'reclamo')) and o.actualizada >= d1 and o.actualizada < d2
+  ), periodos as (
+    select case grupo when 'mes' then to_char(date_trunc('month', dia), 'YYYY-MM') when 'semana' then to_char(date_trunc('week', dia), 'YYYY-MM-DD') else to_char(dia, 'YYYY-MM-DD') end as periodo,
+           count(*) as ordenes, sum(subtotal) as ventas, sum(comision) as comisiones, sum(neto_vendedor) as neto, count(distinct comprador_id) as compradores, count(distinct vendedor_id) as vendedores
+      from entregadas group by 1
+  ), devueltas_p as (
+    select case grupo when 'mes' then to_char(date_trunc('month', dia), 'YYYY-MM') when 'semana' then to_char(date_trunc('week', dia), 'YYYY-MM-DD') else to_char(dia, 'YYYY-MM-DD') end as periodo,
+           count(*) as devoluciones, sum(subtotal) as monto_devuelto
+      from devueltas group by 1
+  )
+  select jsonb_build_object(
+    'desde', p_desde, 'hasta', p_hasta, 'grupo', grupo,
+    'serie', coalesce((select jsonb_agg(jsonb_build_object('periodo', coalesce(p.periodo, d.periodo), 'ordenes', coalesce(p.ordenes, 0), 'ventas', coalesce(p.ventas, 0), 'comisiones', coalesce(p.comisiones, 0), 'neto', coalesce(p.neto, 0), 'compradores', coalesce(p.compradores, 0), 'vendedores', coalesce(p.vendedores, 0), 'devoluciones', coalesce(d.devoluciones, 0), 'monto_devuelto', coalesce(d.monto_devuelto, 0)) order by coalesce(p.periodo, d.periodo))
+                             from periodos p full join devueltas_p d on d.periodo = p.periodo), '[]'::jsonb),
+    'totales', jsonb_build_object(
+      'ordenes', (select count(*) from entregadas), 'ventas', (select coalesce(sum(subtotal), 0) from entregadas), 'comisiones', (select coalesce(sum(comision), 0) from entregadas), 'neto', (select coalesce(sum(neto_vendedor), 0) from entregadas),
+      'unidades', (select coalesce(sum(i.cantidad), 0) from entregadas e join public.orden_items i on i.orden_id = e.id),
+      'compradores', (select count(distinct comprador_id) from entregadas), 'vendedores', (select count(distinct vendedor_id) from entregadas),
+      'devoluciones', (select count(*) from devueltas), 'monto_devuelto', (select coalesce(sum(subtotal), 0) from devueltas),
+      'ticket', (select coalesce(round(avg(subtotal), 2), 0) from entregadas),
+      'usuarios_nuevos', (select count(*) from public.perfiles where creado_en >= d1 and creado_en < d2),
+      'usuarios_total', (select count(*) from public.perfiles),
+      'publicaciones_activas', (select count(*) from public.publicaciones where estado = 'activa'),
+      'pagado_vendedores', (select coalesce(sum(monto), 0) from public.retiros where estado = 'pagado' and pagado_en >= d1 and pagado_en < d2)),
+    'vendedores', coalesce((select jsonb_agg(x order by (x->>'monto')::numeric desc) from (
+                     select jsonb_build_object('id', e.vendedor_id, 'username', u.username, 'ordenes', count(*), 'monto', sum(e.subtotal), 'comision', sum(e.comision), 'puntaje', u.reputacion->>'puntaje', 'faltas', u.reputacion->>'faltas_90') as x
+                       from entregadas e join public.perfiles u on u.id = e.vendedor_id group by e.vendedor_id, u.username, u.reputacion limit 20) t), '[]'::jsonb),
+    'compradores', coalesce((select jsonb_agg(x order by (x->>'monto')::numeric desc) from (
+                     select jsonb_build_object('id', e.comprador_id, 'username', u.username, 'ordenes', count(*), 'monto', sum(e.subtotal)) as x
+                       from entregadas e join public.perfiles u on u.id = e.comprador_id group by e.comprador_id, u.username limit 20) t), '[]'::jsonb),
+    'cartas', coalesce((select jsonb_agg(x order by (x->>'monto')::numeric desc) from (
+                     select jsonb_build_object('carta_id', i.carta_id, 'nombre', coalesce(public.nombre_carta_texto(i.carta_id), i.carta_id), 'unidades', sum(i.cantidad), 'monto', sum(i.cantidad * i.precio_pen)) as x
+                       from entregadas e join public.orden_items i on i.orden_id = e.id group by i.carta_id limit 20) t), '[]'::jsonb),
+    'estados', coalesce((select jsonb_object_agg(estado, n) from (select estado, count(*) as n from public.ordenes group by estado) s), '{}'::jsonb),
+    'reclamos', jsonb_build_object('abiertos', (select count(*) from public.reclamos where estado = 'abierto'), 'periodo', (select count(*) from public.reclamos where creado >= d1 and creado < d2))
+  ) into res;
+  return res;
+end;
+$$;
+grant execute on function public.reporte_ventas(date, date, text) to authenticated;   -- exige es_admin()
+
+-- Detalle de órdenes entregadas en un rango (para la hoja "Órdenes" del Excel)
+create or replace function public.reporte_ordenes(p_desde date, p_hasta date)
+returns table (numero bigint, entregada_en timestamptz, comprador text, vendedor text, tienda text, cartas text, unidades bigint, subtotal numeric, comision numeric, neto_vendedor numeric, entregada_por text, estado text)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select o.numero, o.entregada_en, c.username, v.username, t.nombre,
+         (select string_agg(i.cantidad || '× ' || coalesce(public.nombre_carta_texto(i.carta_id), i.carta_id) || case when i.idioma <> '' then ' ' || i.idioma else '' end, '; ') from public.orden_items i where i.orden_id = o.id),
+         (select coalesce(sum(i.cantidad), 0) from public.orden_items i where i.orden_id = o.id),
+         o.subtotal, o.comision, o.neto_vendedor, o.entregada_por, o.estado
+    from public.ordenes o
+    join public.perfiles c on c.id = o.comprador_id
+    join public.perfiles v on v.id = o.vendedor_id
+    left join public.tiendas t on t.id = o.tienda_id
+   where public.es_admin()
+     and o.estado in ('entregada', 'saldo_liberado')
+     and o.entregada_en >= (p_desde::text || ' 00:00')::timestamp at time zone 'America/Lima'
+     and o.entregada_en < ((p_hasta + 1)::text || ' 00:00')::timestamp at time zone 'America/Lima'
+   order by o.entregada_en desc;
+$$;
+grant execute on function public.reporte_ordenes(date, date) to authenticated;
+
+-- ----------------------------------------------------------------------------
+-- Final: recalcular la reputación cacheada con la versión más nueva de actualizar_reputacion
+-- (debe quedar al final del archivo)
+-- ----------------------------------------------------------------------------
+-- Reputación inicial de quienes ya vendieron
+do $$
+declare u record;
+begin
+  for u in select distinct vendedor_id from public.ordenes where vendedor_id is not null loop
+    perform public.actualizar_reputacion(u.vendedor_id);
+  end loop;
+end;
+$$;

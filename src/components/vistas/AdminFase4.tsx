@@ -125,3 +125,107 @@ export function AdminReclamos() {
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------------------------
+// C · Reportes: ventas y comisiones por día / semana / mes, top vendedores y cartas, estados; Excel
+// ---------------------------------------------------------------------------------------------
+type Reporte = {
+  desde: string; hasta: string; grupo: 'dia' | 'semana' | 'mes';
+  serie: { periodo: string; ordenes: number; ventas: number; comisiones: number; neto: number; compradores: number; vendedores: number; devoluciones: number; monto_devuelto: number }[];
+  totales: { ordenes: number; ventas: number; comisiones: number; neto: number; unidades: number; compradores: number; vendedores: number; devoluciones: number; monto_devuelto: number; ticket: number; usuarios_nuevos: number; usuarios_total: number; publicaciones_activas: number; pagado_vendedores: number };
+  vendedores: { id: string; username: string; ordenes: number; monto: number; comision: number; puntaje: string | null; faltas: string | null }[];
+  compradores: { id: string; username: string; ordenes: number; monto: number }[];
+  cartas: { carta_id: string; nombre: string; unidades: number; monto: number }[];
+  estados: Record<string, number>;
+  reclamos: { abiertos: number; periodo: number };
+};
+const ESTADO_TXT: Record<string, string> = { reservada: 'reservadas', revision: 'pago en revisión', pago_confirmado: 'pago confirmado', en_tienda: 'en tienda', entregada: 'entregadas', saldo_liberado: 'entregadas (saldo liberado)', pago_rechazado: 'pago rechazado', cancelada: 'canceladas', vencida: 'vencidas', disputa: 'en disputa' };
+const hoyLima = () => new Date(Date.now() - 5 * 3600 * 1000).toISOString().slice(0, 10);
+const diasAtras = (n: number) => new Date(Date.now() - 5 * 3600 * 1000 - n * 86400 * 1000).toISOString().slice(0, 10);
+const etiquetaPeriodo = (p: string, grupo: string) => (grupo === 'mes' ? new Date(p + '-01T12:00:00Z').toLocaleDateString('es-PE', { month: 'short', year: '2-digit', timeZone: 'UTC' }) : new Date(p + 'T12:00:00Z').toLocaleDateString('es-PE', { day: 'numeric', month: 'short', timeZone: 'UTC' }));
+
+export function AdminReportes() {
+  const [desde, setDesde] = useState(diasAtras(29));
+  const [hasta, setHasta] = useState(hoyLima());
+  const [grupo, setGrupo] = useState<'dia' | 'semana' | 'mes'>('dia');
+  const [rep, setRep] = useState<Reporte | null>(null);
+  const [error, setError] = useState('');
+  const consulta = `desde=${desde}&hasta=${hasta}&grupo=${grupo}`;
+  useEffect(() => {
+    let vivo = true;
+    setRep(null); setError('');
+    fetch('/api/admin/reportes?' + consulta).then(r => r.json()).then(j => { if (!vivo) return; if (j.ok) setRep(j.reporte); else setError(j.error || 'No se pudo cargar'); }).catch(() => { if (vivo) setError('Sin conexión'); });
+    return () => { vivo = false; };
+  }, [consulta]);
+  const preset = (d: string, h: string, g: 'dia' | 'semana' | 'mes') => { setDesde(d); setHasta(h); setGrupo(g); };
+  const inicioMes = hoyLima().slice(0, 8) + '01';
+  const mesPasado = (() => { const d = new Date(inicioMes + 'T12:00:00Z'); d.setUTCMonth(d.getUTCMonth() - 1); const ini = d.toISOString().slice(0, 10); const fin = new Date(inicioMes + 'T12:00:00Z'); fin.setUTCDate(0); return [ini, fin.toISOString().slice(0, 10)]; })();
+  const max = rep ? Math.max(1, ...rep.serie.map(f => f.ventas)) : 1;
+  return (
+    <div className="panel" data-testid="admin-reportes">
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+        <h3 style={{ margin: 0 }}>Reportes de ventas</h3>
+        <a className="btn sm" href={'/api/admin/reportes/excel?' + consulta} data-testid="btn-excel-reporte">⬇️ Excel</a>
+      </div>
+      <div className="row wrap" style={{ gap: 6, marginTop: 8, alignItems: 'center' }}>
+        <div className="seg">
+          <button className={desde === diasAtras(6) && hasta === hoyLima() ? 'active' : ''} onClick={() => preset(diasAtras(6), hoyLima(), 'dia')}>7 días</button>
+          <button className={desde === diasAtras(29) && hasta === hoyLima() ? 'active' : ''} onClick={() => preset(diasAtras(29), hoyLima(), 'dia')}>30 días</button>
+          <button className={desde === inicioMes && hasta === hoyLima() ? 'active' : ''} onClick={() => preset(inicioMes, hoyLima(), 'dia')}>Este mes</button>
+          <button className={desde === mesPasado[0] && hasta === mesPasado[1] ? 'active' : ''} onClick={() => preset(mesPasado[0], mesPasado[1], 'dia')}>Mes pasado</button>
+          <button className={desde === diasAtras(364) ? 'active' : ''} onClick={() => preset(diasAtras(364), hoyLima(), 'mes')}>12 meses</button>
+        </div>
+        <label className="small">Del <input type="date" className="input" style={{ width: 'auto', minHeight: 32, padding: '4px 8px' }} value={desde} max={hasta} onChange={e => setDesde(e.target.value)} data-testid="reporte-desde" /></label>
+        <label className="small">al <input type="date" className="input" style={{ width: 'auto', minHeight: 32, padding: '4px 8px' }} value={hasta} min={desde} onChange={e => setHasta(e.target.value)} /></label>
+        <div className="seg">{(['dia', 'semana', 'mes'] as const).map(g => <button key={g} className={grupo === g ? 'active' : ''} onClick={() => setGrupo(g)}>{g === 'dia' ? 'Por día' : g === 'semana' ? 'Por semana' : 'Por mes'}</button>)}</div>
+      </div>
+      {error ? <p className="notice danger small" style={{ marginTop: 8 }}>{error}</p> : null}
+      {!rep && !error ? <p className="small muted" style={{ marginTop: 8 }}><span className="spinner" /> Calculando…</p> : null}
+      {rep ? (
+        <>
+          <div className="stat" style={{ marginTop: 10 }} data-testid="reporte-totales">
+            <div className="box"><b data-testid="reporte-ventas">{fmtPen(rep.totales.ventas)}</b><span>ventas entregadas · {rep.totales.ordenes} {rep.totales.ordenes === 1 ? 'orden' : 'órdenes'} · {rep.totales.unidades} cartas</span></div>
+            <div className="box"><b data-testid="reporte-comisiones">{fmtPen(rep.totales.comisiones)}</b><span>comisiones PokéTCG · neto a vendedores {fmtPen(rep.totales.neto)}</span></div>
+            <div className="box"><b>{fmtPen(rep.totales.ticket)}</b><span>ticket promedio · {rep.totales.compradores} compradores · {rep.totales.vendedores} vendedores</span></div>
+            <div className="box"><b>{rep.totales.devoluciones}</b><span>devoluciones ({fmtPen(rep.totales.monto_devuelto)}) · {rep.reclamos.periodo} reclamos ({rep.reclamos.abiertos} abiertos)</span></div>
+            <div className="box"><b>{rep.totales.usuarios_nuevos}</b><span>usuarios nuevos · {rep.totales.usuarios_total} en total · {rep.totales.publicaciones_activas} publicaciones activas</span></div>
+            <div className="box"><b>{fmtPen(rep.totales.pagado_vendedores)}</b><span>pagado a vendedores en el período</span></div>
+          </div>
+          {rep.serie.length ? (
+            <div className="grafico" style={{ marginTop: 12 }} data-testid="reporte-grafico" aria-label="Ventas por período">
+              {rep.serie.map(f => (
+                <div key={f.periodo} className="barra" title={`${f.periodo}: ${fmtPen(f.ventas)} en ${f.ordenes} órdenes · comisión ${fmtPen(f.comisiones)}`}>
+                  <div className="valor small">{f.ventas ? fmtPen(f.ventas) : ''}</div>
+                  <div className="relleno" style={{ height: `${Math.max(2, Math.round((f.ventas / max) * 100))}%` }}><div className="comision" style={{ height: `${f.ventas ? Math.round((f.comisiones / f.ventas) * 100) : 0}%` }} /></div>
+                  <div className="eje small muted">{etiquetaPeriodo(f.periodo, rep.grupo)}</div>
+                </div>
+              ))}
+            </div>
+          ) : <p className="small muted" style={{ marginTop: 10 }}>Sin ventas entregadas en este período.</p>}
+          <div className="row wrap" style={{ gap: 6, marginTop: 10 }}>{Object.entries(rep.estados).map(([k, v]) => <span key={k} className="chip">{v} {ESTADO_TXT[k] || k}</span>)}</div>
+          <div className="dos-columnas" style={{ marginTop: 12 }}>
+            <div>
+              <h4 style={{ margin: '0 0 6px' }}>Vendedores con más ventas</h4>
+              {!rep.vendedores.length ? <p className="small muted">—</p> : null}
+              <table className="tabla small"><tbody>{rep.vendedores.slice(0, 10).map(v => <tr key={v.id} data-testid="reporte-vendedor"><td><Link href={'/u/' + v.username} target="_blank">@{v.username}</Link>{v.faltas && Number(v.faltas) > 0 ? <span className="pill warn" style={{ marginLeft: 4 }}>{v.faltas} faltas</span> : null}</td><td className="num">{v.ordenes}</td><td className="num">{fmtPen(v.monto)}</td><td className="num muted">{v.puntaje ? '★ ' + Number(v.puntaje).toFixed(1) : '—'}</td></tr>)}</tbody></table>
+            </div>
+            <div>
+              <h4 style={{ margin: '0 0 6px' }}>Cartas más vendidas</h4>
+              {!rep.cartas.length ? <p className="small muted">—</p> : null}
+              <table className="tabla small"><tbody>{rep.cartas.slice(0, 10).map(c => <tr key={c.carta_id}><td><Link href={'/app/carta/' + encodeURIComponent(c.carta_id)} target="_blank">{c.nombre}</Link></td><td className="num">{c.unidades}</td><td className="num">{fmtPen(c.monto)}</td></tr>)}</tbody></table>
+            </div>
+            <div>
+              <h4 style={{ margin: '0 0 6px' }}>Compradores con más compras</h4>
+              {!rep.compradores.length ? <p className="small muted">—</p> : null}
+              <table className="tabla small"><tbody>{rep.compradores.slice(0, 10).map(v => <tr key={v.id}><td>@{v.username}</td><td className="num">{v.ordenes}</td><td className="num">{fmtPen(v.monto)}</td></tr>)}</tbody></table>
+            </div>
+            <div>
+              <h4 style={{ margin: '0 0 6px' }}>Por {rep.grupo === 'dia' ? 'día' : rep.grupo}</h4>
+              <table className="tabla small"><thead><tr><th>Período</th><th className="num">Órdenes</th><th className="num">Ventas</th><th className="num">Comisión</th><th className="num">Devol.</th></tr></thead><tbody>{rep.serie.map(f => <tr key={f.periodo}><td>{f.periodo}</td><td className="num">{f.ordenes}</td><td className="num">{fmtPen(f.ventas)}</td><td className="num">{fmtPen(f.comisiones)}</td><td className="num">{f.devoluciones || ''}</td></tr>)}</tbody></table>
+            </div>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}

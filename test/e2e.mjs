@@ -916,6 +916,45 @@ try {
   if ((await page.inputValue('[data-testid=select-modo-limite]')) !== 'dias' || (await page.inputValue('[data-testid=input-entrega-dias]')) !== '7') throw new Error('los ajustes de plazo no muestran 7 días');
   log('retiro del saldo (S/ 10.00, sin datos de cobro → pendiente de datos) y ajustes de plazo: 7 días y 48 h');
 
+  // ---------- Fase 4 · C: reportes del administrador (ventas, comisiones, devoluciones, top vendedores) + Excel
+  const pen = n => 'S/ ' + Number(n).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const [ventasEsp, comisionesEsp, ordenesEsp] = sql(`select coalesce(sum(subtotal), 0) || '|' || coalesce(sum(comision), 0) || '|' || count(*) from public.ordenes where estado in ('entregada', 'saldo_liberado') and entregada_en >= (current_date - 29)::timestamp at time zone 'America/Lima'`).split('|');
+  const devolucionesEsp = num(`select count(*) from public.ordenes where (estado = 'vencida' or (estado = 'cancelada' and anulada_por = 'reclamo')) and actualizada >= (current_date - 29)::timestamp at time zone 'America/Lima'`);
+  if (Number(ventasEsp) < 100 || Number(ordenesEsp) < 1 || devolucionesEsp < 2) throw new Error('datos de prueba insuficientes para el reporte: ' + JSON.stringify({ ventasEsp, ordenesEsp, devolucionesEsp }));
+  await page.goto(APP + '/admin?tab=reportes');
+  await page.waitForSelector('[data-testid=reporte-totales]');
+  const ventasUI = await page.textContent('[data-testid=reporte-ventas]');
+  const comisionesUI = await page.textContent('[data-testid=reporte-comisiones]');
+  if (ventasUI !== pen(ventasEsp) || comisionesUI !== pen(comisionesEsp)) throw new Error(`el reporte no cuadra con la base: UI ${ventasUI} / ${comisionesUI}, base ${pen(ventasEsp)} / ${pen(comisionesEsp)}`);
+  const totalesTxt = await page.textContent('[data-testid=reporte-totales]');
+  if (!new RegExp(`${ordenesEsp} (orden|órdenes)`).test(totalesTxt) || !totalesTxt.includes(`${devolucionesEsp}devoluciones`)) throw new Error('órdenes o devoluciones no coinciden en el reporte: ' + totalesTxt);
+  await page.waitForSelector('[data-testid=reporte-vendedor]:has-text("@vendedora_lima")');
+  if (!/faltas/.test(await page.textContent('[data-testid=reporte-vendedor]:has-text("@vendedora_lima")'))) throw new Error('el top de vendedores no muestra las faltas de la vendedora');
+  if ((await page.$$('[data-testid=reporte-grafico] .barra')).length < 1) throw new Error('el gráfico no tiene barras');
+  // agrupar por mes y comprobar que la serie cambia de formato
+  await page.click('[data-testid=admin-reportes] .seg >> text=12 meses');
+  await page.waitForSelector('[data-testid=reporte-totales]');
+  await page.waitForSelector('[data-testid=admin-reportes] td:text-matches("^[0-9]{4}-[0-9]{2}$")');
+  await foto(page, 'admin-reportes');
+  // sin sesión de administrador el reporte no se entrega
+  const ctxSinSesion = await browser.newContext({ locale: 'es-PE' });
+  const repAnon = await ctxSinSesion.request.get(APP + '/api/admin/reportes');
+  if (repAnon.ok() || (await repAnon.json()).ok) throw new Error('el reporte se entregó sin sesión de administrador');
+  await ctxSinSesion.close();
+  // Excel con hojas Resumen / Por período / Vendedores / Compradores / Cartas / Órdenes
+  const xlsxRep = await page.request.get(APP + '/api/admin/reportes/excel?desde=' + sql(`select (current_date - 29)::text`) + '&hasta=' + sql(`select current_date::text`) + '&grupo=dia');
+  if (!xlsxRep.ok() || !/spreadsheetml/.test(xlsxRep.headers()['content-type'] || '') || !/reporte-poketcg-/.test(xlsxRep.headers()['content-disposition'] || '')) throw new Error('no se pudo descargar el Excel del reporte: ' + xlsxRep.status());
+  const wbRep = new ExcelJS.Workbook();
+  await wbRep.xlsx.load(await xlsxRep.body());
+  for (const hoja of ['Resumen', 'Por período', 'Vendedores', 'Compradores', 'Cartas', 'Órdenes']) if (!wbRep.getWorksheet(hoja)) throw new Error('falta la hoja ' + hoja + ' en el Excel del reporte');
+  const filasOrd = [];
+  wbRep.getWorksheet('Órdenes').eachRow((r, i) => { if (i > 1) filasOrd.push(r.values); });
+  if (filasOrd.length !== Number(ordenesEsp) || !filasOrd.some(f => f[4] === '@vendedora_lima' && /Tienda E2E/.test(String(f[5])) && Number(f[8]) > 0)) throw new Error('la hoja Órdenes no coincide: ' + JSON.stringify(filasOrd.map(f => [f[1], f[4], f[5], f[8]])));
+  const filasVen = [];
+  wbRep.getWorksheet('Vendedores').eachRow((r, i) => { if (i > 1) filasVen.push(r.values); });
+  if (!filasVen.some(f => f[1] === '@vendedora_lima' && Number(f[6]) >= 1)) throw new Error('la hoja Vendedores no muestra a la vendedora con sus faltas: ' + JSON.stringify(filasVen));
+  log('reportes en /admin: ventas', ventasUI, '· comisiones', comisionesUI, '·', ordenesEsp, 'órdenes ·', devolucionesEsp, 'devoluciones · gráfico por día y por mes · Excel con 6 hojas');
+
   // ---------- app Android (APK): la portada ofrece la descarga cuando existe public/descargas/android.json (test/reiniciar.sh deja uno de prueba)
   const ctxP = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE' });
   const pageP = await ctxP.newPage();

@@ -67,9 +67,10 @@ async function publicar(carta: string, cantidad: number, precio: number, vendedo
 async function venderYEntregar(carta: string, copias: number, precio: number, cantidad: number, comprador = ids.comprador, opts: { fechaHoras?: number; entregaTarde?: boolean } = {}) {
   const { pub } = await publicar(carta, copias, precio);
   assert.equal((await rpc(comprador, 'reservar_copia', [pub, cantidad])).ok, true);
-  const pago = await rpc(comprador, 'crear_pago', [tienda]);
+  const pago = await rpc(comprador, 'crear_pago', [tienda, false]);   // sin usar el saldo: siempre con comprobante
   assert.equal(pago.ok, true, JSON.stringify(pago));
-  assert.equal((await rpc(comprador, 'subir_comprobante', [pago.pago_id, 'https://x/v.jpg', 'OP' + Date.now() + Math.random()])).ok, true);
+  const comp = await rpc(comprador, 'subir_comprobante', [pago.pago_id, 'https://x/v.jpg', 'OP' + Date.now() + Math.random()]);
+  assert.equal(comp.ok, true, JSON.stringify(comp));
   assert.equal((await rpc(ids.admin, 'revisar_pago', [pago.pago_id, 'confirmar', null])).ok, true);
   const orden = (await q<{ id: string; fecha_limite: string; codigo_retiro: string }>(`select id, fecha_limite::text, codigo_retiro from public.ordenes where pago_id = $1`, [pago.pago_id]))[0];
   assert.equal((await rpc(ids.vendedor, 'elegir_fecha_entrega', [orden.id, orden.fecha_limite])).ok, true);
@@ -328,4 +329,37 @@ test('reclamos: solo en tienda, por el comprador o la tienda; el saldo del vende
     assert.equal((await q<{ estado: string }>(`select estado from public.ordenes where id = $1`, [c.id]))[0].estado, 'saldo_liberado');
     assert.equal(await saldoDe(ids.comprador), s2);
   } finally { await q(`update public.perfiles set rol = 'usuario', tienda_id = null where id = $1`, [ids.otro]); }
+});
+
+// ---------------------------------------------------------------------------------------------
+// C · reportes del administrador
+// ---------------------------------------------------------------------------------------------
+test('reportes: ventas, comisiones y devoluciones del período por día/semana/mes; top vendedores y cartas; solo el administrador', async t => {
+  if (!conBase(t)) return;
+  await venderYEntregar('tst4-1', 1, 15, 1);   // al menos una venta entregada en el período
+  // ... y una orden vencida (el vendedor no eligió fecha en 48 h → el comprador la anula)
+  const { pub } = await publicar('tst4-2', 1, 7);
+  assert.equal((await rpc(ids.comprador, 'reservar_copia', [pub, 1])).ok, true);
+  const pagoV = await rpc(ids.comprador, 'crear_pago', [tienda, false]);
+  assert.equal((await rpc(ids.comprador, 'subir_comprobante', [pagoV.pago_id, 'https://x/v.jpg', 'REP' + Date.now()])).ok, true);
+  assert.equal((await rpc(ids.admin, 'revisar_pago', [pagoV.pago_id, 'confirmar', null])).ok, true);
+  const ordenV = (await q<{ id: string }>(`select id from public.ordenes where pago_id = $1`, [pagoV.pago_id]))[0];
+  await q(`update public.ordenes set pago_confirmado_en = now() - interval '49 hours' where id = $1`, [ordenV.id]);
+  assert.equal((await rpc(ids.comprador, 'anular_orden_comprador', [ordenV.id])).ok, true);
+  await assert.rejects(como(ids.comprador, c => c.query(`select public.reporte_ventas(current_date - 30, current_date, 'dia')`)), /administrador/);
+  const rep = await como(ids.admin, async c => (await c.query(`select public.reporte_ventas(current_date - 30, current_date, 'dia') as r`)).rows[0].r) as { serie: { ventas: number }[]; totales: Record<string, number>; vendedores: { username: string; ordenes: number }[]; cartas: { nombre: string }[]; estados: Record<string, number> };
+  const esperado = (await q<{ n: number; v: number; c: number }>(`select count(*)::int as n, coalesce(sum(subtotal), 0) as v, coalesce(sum(comision), 0) as c from public.ordenes where vendedor_id = $1 and estado in ('entregada', 'saldo_liberado')`, [ids.vendedor]))[0];
+  assert.ok(Number(rep.totales.ordenes) >= esperado.n);
+  const vend = rep.vendedores.find(v => v.username === 'f4_vendedor');
+  assert.ok(vend && Number(vend.ordenes) === Number(esperado.n), 'el vendedor aparece con sus órdenes entregadas: ' + JSON.stringify({ vend, esperado }));
+  assert.ok(rep.cartas.some(c => /Snorlax|Munchlax/.test(c.nombre)));
+  const devEsperadas = (await q<{ n: number }>(`select count(*)::int as n from public.ordenes where (estado = 'vencida' or (estado = 'cancelada' and anulada_por = 'reclamo')) and actualizada >= current_date - 30`))[0].n;
+  assert.ok(devEsperadas >= 1 && Number(rep.totales.devoluciones) === devEsperadas, 'cuenta vencidas y anuladas por reclamo: ' + JSON.stringify({ rep: rep.totales.devoluciones, devEsperadas }));
+  assert.ok(Number(rep.totales.monto_devuelto) >= 7, 'suma lo devuelto');
+  assert.ok(Number(rep.estados.entregada ?? 0) + Number(rep.estados.saldo_liberado ?? 0) >= 1 && Number(rep.estados.vencida) >= 1, 'órdenes por estado: ' + JSON.stringify(rep.estados));
+  const serieMes = await como(ids.admin, async c => (await c.query(`select public.reporte_ventas(current_date - 30, current_date, 'mes') as r`)).rows[0].r) as { grupo: string; serie: { periodo: string }[] };
+  assert.equal(serieMes.grupo, 'mes'); assert.ok(serieMes.serie.every(f => /^\d{4}-\d{2}$/.test(f.periodo)));
+  const ordenes = await como(ids.admin, async c => (await c.query(`select * from public.reporte_ordenes(current_date - 30, current_date)`)).rows) as { vendedor: string; cartas: string; tienda: string }[];
+  assert.ok(ordenes.some(o => o.vendedor === 'f4_vendedor' && /Snorlax/.test(o.cartas) && o.tienda === 'Tienda F4'));
+  assert.equal((await como(ids.comprador, async c => (await c.query(`select * from public.reporte_ordenes(current_date - 30, current_date)`)).rows)).length, 0, 'un usuario común no ve el detalle');
 });

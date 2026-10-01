@@ -574,3 +574,15 @@ button.estrella:hover { transform: scale(1.1); }
 .rep-grid .box span { font-size: 12px; color: var(--fg-muted); }
 .resena { border-top: 1px solid var(--line); padding: 10px 0; }
 .resena .resp { margin: 6px 0 0 12px; padding-left: 10px; border-left: 3px solid var(--line); color: var(--fg-muted); font-size: 13.5px; }
+
+/* Admin: reportes */
+.grafico { display: flex; align-items: flex-end; gap: 4px; height: 160px; padding: 6px 0 0; overflow-x: auto; }
+.grafico .barra { flex: 1 0 28px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; min-width: 28px; }
+.grafico .valor { font-size: 10px; color: var(--fg-muted); white-space: nowrap; margin-bottom: 2px; }
+.grafico .relleno { width: 100%; background: var(--primary-soft); border-radius: 6px 6px 0 0; position: relative; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
+.grafico .relleno .comision { width: 100%; background: var(--primary); }
+.grafico .eje { font-size: 10px; margin-top: 4px; white-space: nowrap; }
+.dos-columnas { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.tabla { width: 100%; border-collapse: collapse; }
+.tabla td, .tabla th { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.tabla .num { text-align: right; white-space: nowrap; }
