@@ -28,6 +28,7 @@ import { PonerEnVentaSheet } from './VentaAlbum';
 import { useEsPC } from '../ui';
 import { EditorAlbumPropio } from '../EditorAlbumPropio';
 import { PortadaColeccion, PortadaPropia } from '../Portadas';
+import { AgregarRapidoSheet } from '../AgregarRapidoSheet';
 import { useCuadricula } from '../useCuadricula';
 
 /** Idioma de una entrada para agrupar álbumes: JP para colecciones japonesas, el registrado o "—". */
@@ -149,6 +150,8 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   const [modo, setModo] = useState<'todas' | 'tengo' | 'faltan'>('todas');
   const [pagina, setPagina] = useState(1);
   const [agregar, setAgregar] = useState<Carta | null>(null);
+  // Mejoras 3 · C: casilla abierta en "agregar rápido" (el botón + de una casilla gris)
+  const [rapido, setRapido] = useState<Carta | null>(null);
   const [consultarFaltan, setConsultarFaltan] = useState(false);
   const [idiomaNuevo, setIdiomaNuevo] = useState('ES');
   const [asignando, setAsignando] = useState(false);
@@ -204,6 +207,16 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   useEffect(() => { if (dosPaginas && pagina % 2 === 0) setPagina(pagina - 1); }, [dosPaginas, pagina]);
   const paso = dosPaginas ? 2 : 1;
   const mover = (n: number) => { const m = Math.max(1, Math.min(totalPaginas, n)); setPagina(dosPaginas && m % 2 === 0 ? m - 1 : m); };
+  // Mejoras 3 · C: al pasar a la siguiente casilla vacía, la hoja cambia de página si hace falta (sin salir del álbum)
+  useEffect(() => {
+    if (!rapido) return;
+    const idx = lista.indexOf(rapido);
+    if (idx < 0) return;
+    const p = Math.floor(idx / porPagina) + 1;
+    const visibles = dosPaginas ? [pagina, pagina + 1] : [pagina];
+    if (!visibles.includes(p)) mover(p);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [rapido, lista, porPagina, dosPaginas]);
   // Ajustes de layout 2 · 5 (PC): flechas del teclado ← → pasan de página (salvo escribiendo en un campo o con una hoja abierta)
   useEffect(() => {
     if (!esPC) return;
@@ -293,6 +306,13 @@ export function AlbumColeccion({ setId }: { setId: string }) {
       <button className={cuad.paginas === 2 ? 'active' : ''} onClick={() => setCuad({ paginas: 2 })} aria-pressed={cuad.paginas === 2} title="Dos páginas lado a lado (hasta 4×4)" data-testid="paginas-2">2 páginas</button>
     </div>
   ) : null;
+  // Mejoras 3 · C: la siguiente casilla vacía del álbum después de `c` (si no hay, la primera vacía anterior)
+  const siguienteVacia = (c: Carta): Carta | null => {
+    const vacias = cartas.filter(x => !propias.has(x.id) && !x.sd && x.id !== c.id);
+    if (!vacias.length) return null;
+    const i = cartas.indexOf(c);
+    return vacias.find(x => cartas.indexOf(x) > i) || vacias[0];
+  };
   const Celda = ({ c }: { c: Carta }) => {
     const es = propias.get(c.id) || [];
     const qty = es.reduce((n, e) => n + e.cantidad, 0);
@@ -316,12 +336,16 @@ export function AlbumColeccion({ setId }: { setId: string }) {
         </Link>
       );
     }
+    // Mejoras 3 · C: la casilla gris lleva un botón + (agregar rápido); tocar fuera del + sigue abriendo la carta / mercado
     return (
-      <Link href={`/app/carta/${encodeURIComponent(c.id)}#mercado`} className="pocket missing album-cell" title={titulo} data-testid="casilla-falta" onClick={e => { if (c.sd) { e.preventDefault(); setAgregar(c); } }}>
-        <Thumb carta={c} set={set} alt={nombreCarta(c, idioma)} idioma={idiomaAlb} />
-        <span className="pocket-n">{c.l}</span>
-        <span className="casilla-falta">{red ? <span className="casilla-mercado album-red">En mercado · {fmtPen(red.precio_min)}</span> : <span className="casilla-sin">Sin stock</span>}</span>
-      </Link>
+      <span className="celda-falta">
+        <Link href={`/app/carta/${encodeURIComponent(c.id)}#mercado`} className="pocket missing album-cell" title={titulo} data-testid="casilla-falta" onClick={e => { if (c.sd) { e.preventDefault(); setAgregar(c); } }}>
+          <Thumb carta={c} set={set} alt={nombreCarta(c, idioma)} idioma={idiomaAlb} />
+          <span className="pocket-n">{c.l}</span>
+          <span className="casilla-falta">{red ? <span className="casilla-mercado album-red">En mercado · {fmtPen(red.precio_min)}</span> : <span className="casilla-sin">Sin stock</span>}</span>
+        </Link>
+        {!c.sd ? <button type="button" className="mas-rapido" aria-label={`Agregar ${c.l} ${nombreCarta(c, idioma)} rápido`} title="Agregar rápido" onClick={() => setRapido(c)} data-testid="btn-mas-rapido"><Icono n="mas" tam={24} grosor={3} /></button> : null}
+      </span>
     );
   };
 
@@ -409,6 +433,7 @@ export function AlbumColeccion({ setId }: { setId: string }) {
         </aside>
       </div>
       {agregar ? <AddEntrySheet carta={agregar} idiomaInicial={idiomaAlb !== '—' ? idiomaAlb : ''} onClose={() => setAgregar(null)} /> : null}
+      {rapido ? <AgregarRapidoSheet key={rapido.id} carta={rapido} set={set} idiomaAlbum={idiomaAlb !== '—' ? idiomaAlb : ''} siguiente={siguienteVacia(rapido)} onClose={() => setRapido(null)} onGuardada={(c, continuar) => setRapido(continuar ? siguienteVacia(c) : null)} /> : null}
       {asistente === 'repetidas' ? <OrdenarRepetidasSheet repetidas={ordenar.repetidas} onClose={() => setAsistente(null)} /> : null}
       {asistente === 'llenar' ? <LlenarAlbumesSheet candidatas={ordenar.candidatas} onClose={() => setAsistente(null)} /> : null}
       {confirmarVenta ? <PonerEnVentaSheet set={set} idioma={idiomaAlb || (set.rg === 'ja' ? 'JP' : '')} entradas={sinPublicar} onClose={() => setConfirmarVenta(false)} /> : null}

@@ -1215,3 +1215,36 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
 .fondo-opcion .rotulo-fondo { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 8px 12px; font-weight: 800; min-height: 44px; }
 .fondo-opcion .elegido { color: var(--primario); font-size: 13px; }
 .rango { width: 100%; accent-color: var(--primario); min-height: 44px; }
+
+/* =====================================================================
+   Mejoras 3 · C: agregar rápido desde el álbum (botón + en las casillas grises; hoja/ventana completada)
+   ===================================================================== */
+.celda-falta { position: relative; display: block; min-width: 0; }
+.celda-falta .pocket { width: 100%; }
+.mas-rapido { position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--primario); color: var(--primario-texto); box-shadow: 0 4px 12px rgba(0, 0, 0, .35); display: grid; place-items: center; padding: 0; cursor: pointer; z-index: 1; }
+.mas-rapido:hover { filter: brightness(1.08); }
+.hoja-carpeta.compacta .mas-rapido { width: 40px; height: 40px; }
+.hoja-rapida .rapido-cabecera { display: grid; grid-template-columns: 76px minmax(0, 1fr) 44px; grid-template-areas: "thumb datos cerrar" "acabado acabado acabado"; gap: 12px 14px; align-items: start; }
+.hoja-rapida .rapido-thumb { grid-area: thumb; }
+.hoja-rapida .rapido-datos { grid-area: datos; min-width: 0; }
+.hoja-rapida .rapido-cerrar { grid-area: cerrar; justify-self: end; }
+.hoja-rapida .rapido-acabado { grid-area: acabado; min-width: 0; }
+.hoja-rapida .rapido-thumb .thumb { width: 76px; height: 106px; border-radius: 8px; box-shadow: 0 3px 10px rgba(28, 35, 64, .25); }
+.hoja-rapida .rapido-nombre { margin: 2px 0 6px; font-size: 22px; }
+.hoja-rapida .pregunta-rapido { font-family: var(--fuente-titulos); font-weight: 600; font-size: 18px; margin-bottom: 8px; }
+.hoja-rapida .acabados-rapido { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.sheet.hoja-rapida .acabados-rapido .btn.acabado-rapido:not(.primary) { min-height: 52px; border-radius: 14px; border: 2px solid transparent; background: var(--tarjeta); box-shadow: var(--sombra); position: relative; color: var(--texto); }
+.sheet.hoja-rapida .acabados-rapido .btn.acabado-rapido.active:not(.primary) { border-color: var(--primario); background: var(--info-fondo); color: var(--texto); }
+.hoja-rapida .acabado-rapido .tecla { position: absolute; right: 8px; top: 6px; font-size: 11px; color: var(--texto-3); font-weight: 800; }
+.hoja-rapida .cambiar-rapido { display: inline-block; margin-top: 10px; min-height: 44px; font-weight: 800; color: var(--enlace); background: none; border: 0; padding: 0; text-align: left; }
+.hoja-rapida .botones-rapido { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; }
+.hoja-rapida .botones-rapido .btn { min-height: 56px; }
+.sheet.hoja-rapida .sheet-foot .botones-rapido .btn:not(.primary) { background: var(--tarjeta); box-shadow: var(--sombra); }
+@media (min-width: 860px) {
+  .sheet.hoja-rapida { width: 580px; }
+  .hoja-rapida .rapido-cabecera { grid-template-columns: 130px minmax(0, 1fr) 44px; grid-template-areas: "thumb datos cerrar" "thumb acabado acabado"; gap: 8px 18px; }
+  .hoja-rapida .rapido-thumb .thumb { width: 130px; height: 182px; border-radius: 10px; }
+  .hoja-rapida .acabados-rapido { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .hoja-rapida .acabado-rapido { min-height: 48px; font-size: 13px; }
+  .hoja-rapida .pregunta-rapido { font-size: 17px; margin-top: 4px; }
+}

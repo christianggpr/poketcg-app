@@ -530,6 +530,68 @@ try {
   await page.waitForSelector('[data-testid=pagina-texto]:has-text("de 23")');
   log('cuadrícula del álbum en el celular: 3×3 → 3×4 (12 casillas, 18 páginas, recordada al recargar) → 4×5 (20 casillas, 11 páginas) → 3×3');
 
+  // ---------- Mejoras 3 · C: agregar rápido desde el álbum (botón + en las casillas grises)
+  {
+    const CHRIS_ID = sql(`select id from public.perfiles where username = 'chris_tcg'`);
+    const BULK1 = sql(`select id from public.cajas where usuario_id = '${CHRIS_ID}' and nombre = 'Bulk 1'`);
+    // en la página 1 (3×3) faltan 001 (la comprada ya salió), 002, 003, 005, 007, 008, 009 → 7 botones +, de 48 px, centrados en su casilla
+    await page.waitForSelector('[data-testid=btn-mas-rapido]');
+    const masBotones = await page.$$eval('[data-testid=btn-mas-rapido]', els => els.map(b => { const r = b.getBoundingClientRect(); const c = b.parentElement.querySelector('.pocket').getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), centrado: Math.abs((r.left + r.width / 2) - (c.left + c.width / 2)) < 2 }; }));
+    if (masBotones.length !== 7 || masBotones.some(b => b.w !== 48 || b.h !== 48 || !b.centrado)) throw new Error('botones + inesperados: ' + JSON.stringify(masBotones));
+    // tocar la casilla fuera del + sigue abriendo la carta
+    await page.click('[data-testid=casilla-falta]:has-text("002")', { position: { x: 10, y: 10 } });
+    await page.waitForURL(/\/app\/carta\/sv03\.5-002/);
+    await page.goto(APP + '/app/album/sv03.5?idioma=EN');
+    await page.waitForSelector('[data-testid=btn-mas-rapido]');
+    // el + de 002 abre la ventana completada: carta, casilla, Inglés · del álbum, NM; solo pide el acabado
+    await page.click('.celda-falta:has([data-testid=casilla-falta]:has-text("002")) [data-testid=btn-mas-rapido]');
+    await page.waitForSelector('.sheet.hoja-rapida');
+    if ((await page.textContent('[data-testid=rapido-nombre]')) !== 'Ivysaur' || (await page.textContent('[data-testid=rapido-idioma]')) !== 'Inglés · del álbum' || (await page.textContent('[data-testid=rapido-estado]')) !== 'NM') throw new Error('la ventana rápida no vino completada: ' + await page.textContent('.sheet.hoja-rapida'));
+    if (!/Casilla 002 · 151/.test(await page.textContent('[data-testid=rapido-cabecera]'))) throw new Error('faltaba "Casilla 002 · 151"');
+    if ((await page.$$eval('[data-testid=acabados-rapido] button', els => els.map(e => e.textContent.trim()))).join(' · ') !== 'Normal · Holo · Reverse Holo · Otro…') throw new Error('botones de acabado inesperados');
+    if (!(await page.$('[data-testid=acabados-rapido] button[aria-checked=true]'))) throw new Error('debía venir un acabado preseleccionado');
+    if (!/Guardar y siguiente \(003\)/.test(await page.textContent('[data-testid=rapido-siguiente]'))) throw new Error('el botón debía decir "Guardar y siguiente (003)"');
+    await foto(page, 'agregar-rapido');
+    await page.click('[data-testid=acabado-reverse]');
+    await page.click('[data-testid=rapido-siguiente]');
+    // la casilla 002 pasa a color en el acto y la ventana sigue con la 003 (Venusaur ex), con Reverse preseleccionado (último acabado)
+    await page.waitForSelector('[data-testid=casilla-tengo]:has-text("002")');
+    await page.waitForSelector('[data-testid=rapido-nombre]:has-text("Venusaur")');
+    if (!(await page.$('[data-testid=acabado-reverse][aria-checked=true]'))) throw new Error('debía recordar el último acabado (Reverse)');
+    if (sql(`select acabado || '|' || idioma || '|' || condicion || '|' || coalesce(album_coleccion, '-') || '|' || cantidad from public.entradas where usuario_id = '${CHRIS_ID}' and carta_id = 'sv03.5-002'`) !== 'Reverse|EN|NM|sv03.5|1') throw new Error('la carta 002 no se guardó como Reverse · EN · NM en la casilla');
+    // cantidad 2: una va al álbum y la otra al Bulk 1 (reglas de Mejoras 2); "Guardar" cierra la ventana
+    await page.click('[data-testid=rapido-cantidad] button:has-text("+")');
+    await page.waitForSelector('[data-testid=rapido-aviso-bulk]:has-text("Más de 1: una va al álbum y el resto a Bulk 1")');
+    await page.click('[data-testid=rapido-guardar]');
+    await page.waitForSelector('.sheet.hoja-rapida', { state: 'detached' });
+    await page.waitForSelector('[data-testid=casilla-tengo]:has-text("003") .casilla-cant.bulk:has-text("+1")');
+    if (sql(`select count(*) || ':' || sum(cantidad) || ':' || count(*) filter (where album_coleccion = 'sv03.5') || ':' || count(*) filter (where caja_id = '${BULK1}') from public.entradas where usuario_id = '${CHRIS_ID}' and carta_id = 'sv03.5-003'`) !== '2:2:1:1') throw new Error('con cantidad 2 debía quedar 1 en la casilla y 1 en Bulk 1');
+    if (!/Página 1 de 23/.test(await page.textContent('[data-testid=pagina-texto]'))) throw new Error('al cerrar debía seguir en la misma página');
+    // "Guardar y siguiente" desde la última casilla vacía de la página (009) pasa a la 010 cambiando de página; cerrar deja esa página
+    await page.click('.celda-falta:has([data-testid=casilla-falta]:has-text("009")) [data-testid=btn-mas-rapido]');
+    await page.waitForSelector('[data-testid=rapido-nombre]:has-text("Blastoise")');
+    await page.click('[data-testid=rapido-siguiente]');
+    await page.waitForSelector('[data-testid=rapido-nombre]:has-text("Caterpie")');
+    await page.waitForSelector('[data-testid=pagina-texto]:has-text("Página 2 de 23")');
+    await page.click('.rapido-cerrar');
+    await page.waitForSelector('.sheet.hoja-rapida', { state: 'detached' });
+    if (!/Página 2 de 23/.test(await page.textContent('[data-testid=pagina-texto]'))) throw new Error('tras cerrar debía quedar en la página 2');
+    if (sql(`select count(*) from public.entradas where usuario_id = '${CHRIS_ID}' and carta_id = 'sv03.5-009' and album_coleccion = 'sv03.5'`) !== '1') throw new Error('la 009 debía quedar guardada en su casilla');
+    // la casilla se llenó desde "otro dispositivo" (directo en la base): la ventana avisa y manda la copia a Bulk
+    sql(`insert into public.entradas (usuario_id, caja_id, carta_id, cantidad, acabado, idioma, condicion, album_coleccion) values ('${CHRIS_ID}', null, 'sv03.5-011', 1, 'Normal', 'EN', 'NM', 'sv03.5')`);
+    await page.click('.celda-falta:has([data-testid=casilla-falta]:has-text("011")) [data-testid=btn-mas-rapido]');
+    await page.waitForSelector('[data-testid=rapido-ocupada]:has-text("ya tiene una copia")');
+    await page.click('[data-testid=rapido-guardar]');
+    await page.waitForSelector('.sheet.hoja-rapida', { state: 'detached' });
+    if (sql(`select count(*) filter (where album_coleccion = 'sv03.5') || ':' || count(*) filter (where caja_id is not null) from public.entradas where usuario_id = '${CHRIS_ID}' and carta_id = 'sv03.5-011'`) !== '1:1') throw new Error('la copia de la casilla ocupada debía ir al Bulk');
+    await foto(page, 'agregar-rapido-ocupada');
+    // se deja todo como estaba para los pasos siguientes
+    sql(`delete from public.entradas where usuario_id = '${CHRIS_ID}' and carta_id in ('sv03.5-002', 'sv03.5-003', 'sv03.5-009', 'sv03.5-010', 'sv03.5-011')`);
+    // la ventana rápida pidió precios de esas cartas (quedan en caché): se quitan para que los pasos siguientes vean el mismo estado de antes
+    sql(`delete from public.precios where carta_id in ('sv03.5-002', 'sv03.5-003', 'sv03.5-009', 'sv03.5-010', 'sv03.5-011')`);
+    log('agregar rápido: + en las casillas grises (48 px); ventana con Inglés · del álbum y NM; Reverse recordado; cantidad 2 → casilla + Bulk 1; siguiente cambia de página y cerrar la conserva; casilla ocupada → Bulk');
+  }
+
   // ---------- Fase 2 · D: mazos meta (Limitless simulado en el mock) y "Comprar lo que me falta"
   let tarea = await correrTarea();
   if (tarea.tarea?.estado !== 'ok' || !/mazos actualizados/.test(tarea.hecho.join(' | '))) throw new Error('la tarea diaria no actualizó los mazos: ' + JSON.stringify(tarea).slice(0, 400));
@@ -1355,6 +1417,7 @@ try {
   await page.waitForFunction(() => document.querySelector('[data-testid=selector-fondo]').textContent.indexOf('Guardando') < 0);
   await page.reload();
   await page.waitForSelector('[data-testid=fondo-app][data-patron=olas][data-intensidad="100"]');
+  await page.waitForSelector('[data-testid=selector-fondo]');
   if (!(await page.$('[data-testid=fondo-olas].active'))) throw new Error('tras recargar debía seguir Olas al 100 %');
   await foto(page, 'fondo-olas');
   // Aleatorio: hoy toca uno de los cinco patrones; Liso: sin patrón
@@ -1513,6 +1576,27 @@ try {
   if (!(await pagePc.$('[data-testid=pagina-siguiente][disabled]'))) throw new Error('PC: en la última página la flecha derecha debía estar desactivada');
   await foto(pagePc, 'pc-album-flechas');
   log('flechas a los costados en PC (56 px, centradas, desactivadas en los extremos) y teclado ← → (no desde un campo de texto)');
+  // Mejoras 3 · C (PC): ventana centrada; teclas 1–4 eligen el acabado, Enter = guardar y siguiente, Esc = cerrar
+  await pagePc.goto(APP + '/app/album/sv03.5?idioma=EN');
+  await pagePc.waitForSelector('[data-testid=btn-mas-rapido]');
+  await pagePc.click('.celda-falta:has([data-testid=casilla-falta]:has-text("002")) [data-testid=btn-mas-rapido]');
+  await pagePc.waitForSelector('.sheet.hoja-rapida [data-testid=rapido-nombre]:has-text("Ivysaur")');
+  const ventana = await pagePc.$eval('.sheet.hoja-rapida', e => { const r = e.getBoundingClientRect(); return { w: Math.round(r.width), centrada: Math.abs((r.left + r.width / 2) - innerWidth / 2) < 4 }; });
+  if (ventana.w !== 580 || !ventana.centrada) throw new Error('PC: la ventana de agregar rápido debía ir centrada y de 580 px: ' + JSON.stringify(ventana));
+  await pagePc.keyboard.press('3');
+  await pagePc.waitForSelector('[data-testid=acabado-reverse][aria-checked=true]');
+  await pagePc.keyboard.press('2');
+  await pagePc.waitForSelector('[data-testid=acabado-holo][aria-checked=true]');
+  await foto(pagePc, 'pc-agregar-rapido');
+  await pagePc.keyboard.press('Enter');
+  await pagePc.waitForSelector('[data-testid=rapido-nombre]:has-text("Venusaur")');
+  await pagePc.waitForSelector('[data-testid=casilla-tengo]:has-text("002")');
+  if (sql(`select acabado from public.entradas where usuario_id = '${CHRIS}' and carta_id = 'sv03.5-002' and album_coleccion = 'sv03.5'`) !== 'Holo') throw new Error('PC: Enter debía guardar la 002 como Holo y pasar a la 003');
+  await pagePc.keyboard.press('Escape');
+  await pagePc.waitForSelector('.sheet.hoja-rapida', { state: 'detached' });
+  if (!/Página 1 de 11/.test(await pagePc.textContent('[data-testid=pagina-texto]'))) throw new Error('PC: al cerrar con Esc debía seguir en la página 1');
+  sql(`delete from public.entradas where usuario_id = '${CHRIS}' and carta_id = 'sv03.5-002'; delete from public.precios where carta_id in ('sv03.5-002', 'sv03.5-003')`);
+  log('agregar rápido en PC: ventana centrada de 580 px; teclas 1–4, Enter (guardar y siguiente) y Esc (cerrar)');
   await ctxPc.close();
   const ctxCel = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'es-PE' });
   const pageCel = await ctxCel.newPage();
