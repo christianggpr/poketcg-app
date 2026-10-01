@@ -68,15 +68,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const inicioColeccion = ruta === '/app/album';
   const inicioMercado = ruta === '/app/mercado';
   const listo = !!cat && col.cargado;
+  // Mejoras 4 · A: en el detalle de un álbum (libro) la vista es más ancha y con menos relleno vertical para que la hoja sea lo más grande posible
+  const esLibro = /^\/app\/album\/.+/.test(ruta);
   // Mejoras 1 · A1: al cambiar de página, si no quedó ninguna hoja abierta, el desplazamiento se libera siempre
   useEffect(() => { const t = setTimeout(liberarScrollSiNoHayHojas, 50); return () => clearTimeout(t); }, [ruta]);
   return (
-    <div id="app" className={lateral ? 'con-lateral' : ''} data-pestana={principal?.id || ''}>
+    <div id="app" className={`${lateral ? 'con-lateral' : ''} ${esLibro ? 'ruta-libro' : ''}`} data-pestana={principal?.id || ''}>
       <AplicarTemaUsuario />
       <FondoApp />
       <BarraSuperior principales={PRINCIPALES} principal={principal} interior={interior} />
       <main id="main">
-        <div className={`view ${lateral ? 'view-lateral' : ''}`}>
+        <div className={`view ${lateral ? 'view-lateral' : ''} ${esLibro ? 'view-ancha' : ''}`}>
           <Suspense><AvisosDeEntrada /></Suspense>
           {perfil.estado === 'suspendido' ? <Aviso tipo="danger"><b>Tu cuenta está suspendida</b>{perfil.suspendido_motivo ? `: ${perfil.suspendido_motivo}` : ''}. Puedes seguir usando tu colección, pero no comprar ni vender hasta que el administrador la reactive. Si crees que es un error, escríbenos.</Aviso> : null}
           {error ? <Aviso tipo="danger">No se pudo cargar el catálogo de cartas: {error}. Revisa tu conexión y recarga la página.</Aviso> : null}

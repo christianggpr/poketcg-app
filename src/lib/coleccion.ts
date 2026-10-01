@@ -96,6 +96,8 @@ export type Perfil = {
   /** Mejoras 3 · B: fondo de la app (liso | llamas | olas | hojas | rayos | estrellas | aleatorio) e intensidad 0–100. Faltan si la base aún no tiene 0008. */
   fondo?: string | null;
   fondo_intensidad?: number | null;
+  /** Mejoras 4 · C: la Pokédex oculta en la lista de álbumes. Falta si la base aún no tiene 0009. */
+  pokedex_oculto?: boolean | null;
   creado_en: string;
   actualizado_en: string;
 };

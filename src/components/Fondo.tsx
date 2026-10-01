@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FONDOS, FONDO_POR_DEFECTO, INTENSIDAD_POR_DEFECTO, esFondo, opacidadDeIntensidad, patronDeFondo, type IdFondo } from '@/lib/patrones';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { usePerfil } from './PerfilProvider';
@@ -49,16 +49,27 @@ export function SelectorFondo() {
   const toast = useToast();
   const [eleccion, setEleccion] = useState<Eleccion>(() => eleccionDe(perfil));
   const [guardando, setGuardando] = useState(false);
+  const cola = useRef<Promise<void>>(Promise.resolve());
+  const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => { setEleccion(eleccionDe(perfil)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [perfil.id]);
   const hoy = patronDeFondo('aleatorio');
-  async function guardar(nueva: Eleccion) {
+  /** Guarda en el perfil; las escrituras van en fila (una tras otra) para que la última elección sea la que queda. */
+  function guardar(nueva: Eleccion) {
     setEleccion(nueva);
     guardarLocal(perfil.id, nueva);
     setPerfil({ ...perfil, fondo: nueva.fondo, fondo_intensidad: nueva.intensidad });   // se aplica al instante
     setGuardando(true);
-    const { error } = await supabaseBrowser().from('perfiles').update({ fondo: nueva.fondo, fondo_intensidad: nueva.intensidad }).eq('id', perfil.id);
-    setGuardando(false);
-    if (error && !(error.code === 'PGRST204' || error.code === '42703' || /column|columna/i.test(error.message || ''))) toast('No se pudo guardar el fondo: ' + error.message, 'danger');
+    cola.current = cola.current.then(async () => {
+      const { error } = await supabaseBrowser().from('perfiles').update({ fondo: nueva.fondo, fondo_intensidad: nueva.intensidad }).eq('id', perfil.id);
+      if (error && !(error.code === 'PGRST204' || error.code === '42703' || /column|columna/i.test(error.message || ''))) toast('No se pudo guardar el fondo: ' + error.message, 'danger');
+    }).catch(() => {}).then(() => setGuardando(false));
+  }
+  /** La intensidad se guarda poco después de soltar el control (sin una escritura por cada paso). */
+  function cambiarIntensidad(valor: number) {
+    setEleccion(x => ({ ...x, intensidad: valor }));
+    setPerfil({ ...perfil, fondo: eleccion.fondo, fondo_intensidad: valor });
+    if (temporizador.current) clearTimeout(temporizador.current);
+    temporizador.current = setTimeout(() => guardar({ fondo: eleccion.fondo, intensidad: valor }), 350);
   }
   return (
     <div data-testid="selector-fondo">
@@ -78,7 +89,7 @@ export function SelectorFondo() {
       </div>
       <div className="field" style={{ marginTop: 14 }}>
         <label htmlFor="intensidad-fondo">Intensidad · {eleccion.intensidad} %</label>
-        <input id="intensidad-fondo" type="range" min={0} max={100} step={5} value={eleccion.intensidad} onChange={e => setEleccion(x => ({ ...x, intensidad: Number(e.target.value) }))} onMouseUp={e => guardar({ ...eleccion, intensidad: Number((e.target as HTMLInputElement).value) })} onTouchEnd={e => guardar({ ...eleccion, intensidad: Number((e.target as HTMLInputElement).value) })} onKeyUp={e => guardar({ ...eleccion, intensidad: Number((e.target as HTMLInputElement).value) })} aria-label="Intensidad de la marca de agua" data-testid="intensidad-fondo" className="rango" />
+        <input id="intensidad-fondo" type="range" min={0} max={100} step={5} value={eleccion.intensidad} onChange={e => cambiarIntensidad(Number(e.target.value))} aria-label="Intensidad de la marca de agua" data-testid="intensidad-fondo" className="rango" />
         <div className="small muted">0 % lo apaga; 40 % es el punto suave recomendado.{guardando ? ' Guardando…' : ''}</div>
       </div>
     </div>

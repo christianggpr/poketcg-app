@@ -591,9 +591,7 @@ textarea.input { min-height: 72px; resize: vertical; }
 .feature b { display: block; margin: 8px 0 4px; font-family: var(--fuente-titulos); font-size: 17px; }
 .feature span { color: var(--texto-2); font-size: 14px; font-weight: 600; }
 
-/* álbum físico (páginas con bolsillos) y hoja de carpeta */
-.binder-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-.binder-page { background: var(--carpeta); border-radius: var(--radio); padding: 12px; display: grid; gap: 10px; }
+/* bolsillos de la hoja de carpeta (álbumes por colección, personalizados —Mejoras 4 · B: ya en el mismo libro— y Pokédex) */
 .pocket { position: relative; aspect-ratio: 63 / 88; border-radius: 8px; border: 2px dashed var(--carpeta-linea); background: var(--carpeta-casilla); display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; min-height: 44px; }
 .pocket.filled { border-style: solid; border-color: transparent; background: var(--carpeta-casilla); }
 .pocket.missing { border-style: dashed; border-color: var(--carpeta-linea); background: var(--carpeta-casilla); }
@@ -602,10 +600,6 @@ textarea.input { min-height: 72px; resize: vertical; }
 .pocket.drop { outline: 3px solid var(--primario); outline-offset: -1px; }
 .pocket img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pocket .pocket-n { position: absolute; top: 4px; left: 4px; font-size: 10px; font-weight: 800; background: #fff; color: var(--carpeta); padding: 1px 6px; border-radius: 6px; }
-.pocket .pocket-name { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10.5px; font-weight: 700; padding: 3px 5px; background: rgba(0, 0, 0, .6); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pocket .pocket-plus { font-size: 26px; color: var(--carpeta-texto); display: flex; }
-.pocket .pocket-have { position: absolute; top: 4px; right: 4px; font-size: 10px; font-weight: 800; background: var(--ok-numero); color: #fff; padding: 1px 5px; border-radius: 6px; }
-.pocket.missing .pocket-have { background: var(--peligro-texto); }
 
 /* administración y progreso */
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
@@ -627,8 +621,6 @@ textarea.input { min-height: 72px; resize: vertical; }
 .bloque { margin: 18px 0 8px; }
 .bloque > h3 { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 0 0 8px; }
 .bloque > h3 .count { color: var(--texto-2); font-size: 13px; font-weight: 700; white-space: nowrap; font-family: var(--fuente-texto); }
-.binder-toolbar select.input { flex: 0 1 160px; min-width: 120px; }
-.binder-toolbar .btn, .binder-toolbar .input { min-height: 44px; }
 .tabla { width: 100%; border-collapse: collapse; font-size: 14px; background: var(--tarjeta); border-radius: var(--radio); box-shadow: var(--sombra); overflow: hidden; }
 .tabla th, .tabla td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--linea-2); vertical-align: middle; }
 .tabla th { color: var(--texto-2); font-weight: 800; font-size: 13px; background: var(--suave); }
@@ -910,7 +902,6 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
 .migas .miga:hover { color: var(--enlace); }
 .album-detalle .titulo-album { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
 .album-cuerpo { display: block; }
-.album-lateral { display: none; }   /* solo PC (ajustes de layout 2 · 4: en rejilla debajo de la hoja entre 1024 y 1279 px, columna fija desde 1280 px) */
 .progreso-album .fila-dato { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; padding: 4px 0; font-size: 14.5px; }
 .progreso-album .fila-dato b { text-align: right; }
 .filtro-album { margin-bottom: 10px; }
@@ -942,11 +933,7 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
   .solo-pc-block { display: block !important; }
   .solo-pc-grid { display: grid !important; }
   .solo-pc-flex { display: flex !important; }
-  /* Ajustes de layout 2 · 4: la hoja usa el alto disponible (una página completa sin bajar) y el panel derecho es más angosto
-     (280 px); entre 1024 y 1279 px el panel va debajo de la hoja */
-  .album-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
-  .album-lateral { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; align-items: start; }
-  .album-principal { min-width: 0; }
+  /* Ajustes de layout 2 · 4 y Mejoras 4 · A: la hoja usa el alto y el ancho disponibles (una página completa sin bajar) */
   .hoja-carpeta { --celda: 80px; padding: 18px; border-radius: 22px; width: fit-content; max-width: 100%; margin: 0 auto; }
   .hoja-carpeta.doble { display: grid; grid-template-columns: auto auto; gap: 0; }
   .hoja-carpeta.doble .pagina-carpeta { padding: 0 18px; }
@@ -955,12 +942,6 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
   .pagina-carpeta { gap: 12px; }
   .nav-pagina.solo-pc-flex { justify-content: center; gap: 14px; }
   .nav-pagina.solo-pc-flex .texto { flex: 0 1 auto; min-width: 200px; }
-  .cabecera-album { margin-bottom: 8px; }
-  .controles-album { margin-left: auto; }
-  /* PC: la hoja centrada entre las dos flechas (56 px + 12 px de separación a cada lado) */
-  .zona-hoja { display: flex; align-items: center; justify-content: center; gap: 12px; }
-  .zona-hoja .flecha-pagina { position: static; transform: none; flex: none; }
-  .zona-hoja .hoja-carpeta { margin: 0; flex: none; max-width: calc(100% - 136px); }
   .texto-pagina { margin-bottom: 6px; }
 }
 /* Ajustes de layout 2 · 4: filtros + selector de cuadrícula (+ 1 o 2 páginas en PC) */
@@ -970,6 +951,9 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
    En el celular van montadas sobre los bordes de la hoja (para no quitarle ancho); en PC, al lado de la hoja. */
 .texto-pagina { text-align: center; font-size: 14px; margin: 0 0 8px; min-height: 20px; }
 .zona-hoja { position: relative; }
+.zona-hoja.flechas-fuera { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.zona-hoja.flechas-fuera .flecha-pagina { position: static; transform: none; flex: none; }
+.zona-hoja.flechas-fuera .hoja-carpeta { margin: 0; flex: none; max-width: calc(100% - 136px); }
 .flecha-pagina { position: absolute; top: 50%; transform: translateY(-50%); width: 56px; height: 56px; min-width: 56px; min-height: 56px; border-radius: 50%; z-index: 2; background: var(--tarjeta); box-shadow: var(--sombra-2); padding: 0; }
 .flecha-pagina.izquierda { left: -14px; }
 .flecha-pagina.derecha { right: -14px; }
@@ -1011,9 +995,13 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
 .bulk-tabla tr.fila-bulk.sel td { background: var(--info-fondo); }
 .bulk-tabla td .num { font-variant-numeric: tabular-nums; }
 .entry-row .posnum { color: var(--primario); background: transparent; font-size: 15px; min-width: 44px; padding: 0; justify-content: flex-start; }
+/* Mejoras 4 · E: fila de filtros y orden del Bulk (botón Filtros · N + orden), chips debajo de la tarjeta */
+.filtros-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.filtros-bulk .selector-orden { width: auto; min-height: 44px; font-weight: 800; }
+.bulk-vista .chips-filtros { margin: 0 0 8px; }
 @media (min-width: 1024px) {
   .tarjeta-bulk { grid-template-columns: minmax(0, 1fr) auto minmax(220px, 320px); }
-  .tarjeta-bulk .acciones-bulk { grid-column: 1 / -1; }
+  .tarjeta-bulk .acciones-bulk, .tarjeta-bulk .filtros-bulk { grid-column: 1 / -1; }
   .acciones-bulk .btn.primary { flex: none; margin-right: auto; }
 }
 
@@ -1219,11 +1207,13 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
 /* =====================================================================
    Mejoras 3 · C: agregar rápido desde el álbum (botón + en las casillas grises; hoja/ventana completada)
    ===================================================================== */
-.celda-falta { position: relative; display: block; min-width: 0; }
-.celda-falta .pocket { width: 100%; }
-.mas-rapido { position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--primario); color: var(--primario-texto); box-shadow: 0 4px 12px rgba(0, 0, 0, .35); display: grid; place-items: center; padding: 0; cursor: pointer; z-index: 1; }
-.mas-rapido:hover { filter: brightness(1.08); }
-.hoja-carpeta.compacta .mas-rapido { width: 40px; height: 40px; }
+/* Mejoras 4 · A6: el + de las casillas que faltan es discreto (40 px, azul al 35 % con borde fino y fondo desenfocado) y se
+   vuelve sólido al pasar el mouse o con foco de teclado; la imagen gris de la carta sigue siendo lo principal */
+.celda-libro { position: relative; display: block; min-width: 0; }
+.celda-libro > .pocket { width: 100%; }
+.mas-rapido { position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .6); background: rgba(31, 95, 204, .35); color: #fff; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); box-shadow: 0 2px 8px rgba(0, 0, 0, .25); display: grid; place-items: center; padding: 0; cursor: pointer; z-index: 1; transition: background .12s, border-color .12s; }
+.mas-rapido:hover, .mas-rapido:focus-visible { background: var(--primario); border-color: var(--primario); box-shadow: 0 4px 12px rgba(0, 0, 0, .35); }
+.hoja-carpeta.compacta .mas-rapido { width: 36px; height: 36px; }
 .hoja-rapida .rapido-cabecera { display: grid; grid-template-columns: 76px minmax(0, 1fr) 44px; grid-template-areas: "thumb datos cerrar" "acabado acabado acabado"; gap: 12px 14px; align-items: start; }
 .hoja-rapida .rapido-thumb { grid-area: thumb; }
 .hoja-rapida .rapido-datos { grid-area: datos; min-width: 0; }
@@ -1247,4 +1237,121 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
   .hoja-rapida .acabados-rapido { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
   .hoja-rapida .acabado-rapido { min-height: 48px; font-size: 13px; }
   .hoja-rapida .pregunta-rapido { font-size: 17px; margin-top: 4px; }
+}
+
+/* =====================================================================
+   Mejoras 4 · A: libro (carpeta a casi toda la pantalla): una fila de herramientas, resumen compacto, menú Acciones,
+   "Ir a" junto al texto de página, pantalla completa
+   ===================================================================== */
+.libro-herramientas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 8px; }
+.libro-titulo { margin: 0; font-size: 22px; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.libro-resumen { font-size: 14px; color: var(--texto-2); white-space: nowrap; font-weight: 700; }
+.libro-resumen b { color: var(--texto); }
+.libro-controles { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-left: auto; }
+.libro-controles .seg { margin: 0; }
+.libro-controles .seg button, .libro-controles .btn.sm { min-height: 44px; }
+.libro-controles .btn-completo { width: 44px; min-width: 44px; height: 44px; border-radius: 12px; padding: 0; }
+.libro-controles .input.sm { width: auto; min-height: 44px; padding: 4px 10px; font-weight: 800; display: inline-block; }
+.menu-acciones { position: relative; }
+.menu-acciones .btn.active { box-shadow: 0 0 0 2px var(--primario); }
+.menu-acciones .menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 250px; background: var(--tarjeta); border-radius: 16px; box-shadow: var(--sombra-2); padding: 6px; z-index: 30; display: flex; flex-direction: column; }
+.menu-acciones .menu a, .menu-acciones .menu button { display: flex; align-items: center; gap: 10px; padding: 10px; min-height: 44px; border-radius: 10px; text-decoration: none; color: var(--texto); font-weight: 700; font-size: 14.5px; background: transparent; border: 0; width: 100%; text-align: left; white-space: nowrap; }
+.menu-acciones .menu a:hover, .menu-acciones .menu button:hover { background: var(--suave); }
+.menu-acciones .menu .primaria { color: var(--primario); }
+.menu-acciones .menu button:disabled { opacity: .5; }
+.texto-pagina .ir-a { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; }
+.texto-pagina .ir-a .input { width: auto; min-height: 44px; padding: 2px 8px; font-size: 14px; display: inline-block; }
+.libro:fullscreen { background: var(--fondo); padding: 10px 16px; overflow: auto; }
+.libro-completo .miga { display: none !important; }
+.view.view-ancha { max-width: 1800px; }
+@media (min-width: 1024px) {
+  /* en el libro, menos relleno arriba y abajo: cada píxel de alto agranda la hoja */
+  #app.ruta-libro #main { padding-top: 12px; padding-bottom: 12px !important; }
+  .ruta-libro .libro-herramientas { margin-bottom: 4px; }
+  .ruta-libro .texto-pagina { margin-bottom: 4px; }
+}
+@media (max-width: 1023px) {
+  .libro-herramientas { gap: 8px 10px; }
+  .libro-titulo { font-size: 20px; flex: 1 1 100%; }
+  .libro-resumen { flex: 1 1 100%; white-space: normal; }
+  .libro-controles { margin-left: 0; width: 100%; }
+  .libro-controles .seg button, .libro-controles .btn.sm { min-height: 44px; }
+  .libro-controles .btn-completo { width: 44px; min-width: 44px; height: 44px; }
+  .libro-controles .input.sm { min-height: 44px; }
+  .texto-pagina .ir-a .input { min-height: 44px; }
+}
+
+/* Mejoras 4 · B: álbumes personalizados en el libro: bolsillo vacío (punteado), asignado sin tener (gris) y con la carta */
+.hoja-carpeta .pocket.vacio { border: 2px dashed var(--carpeta-linea); background: var(--carpeta-casilla); cursor: pointer; }
+.hoja-carpeta .pocket.vacio .pocket-n { background: rgba(255, 255, 255, .55); }
+.hoja-carpeta .pocket.selected { outline: 3px solid var(--acento); outline-offset: 2px; }
+.hoja-carpeta .pocket.drop { outline: 3px dashed var(--primario); outline-offset: 2px; }
+
+/* Mejoras 4 · C: Pokédex (una casilla por especie) */
+.pokedex .pocket { border: 0; padding: 0; font: inherit; width: 100%; }
+.pokedex .pocket .dex-sin-carta { color: var(--carpeta-texto); font-size: 11px; font-weight: 800; text-align: center; padding: 6px; }
+.pokedex .libro-controles .input.sm { max-width: 150px; }
+.card-row.activa { box-shadow: var(--sombra), 0 0 0 2px var(--primario); }
+button.card-row { width: 100%; text-align: left; font: inherit; color: inherit; border: 0; }
+
+/* =====================================================================
+   Mejoras 4 · D y E: buscador con sugerencias, "¿Quisiste decir…?", panel/hoja de filtros, chips quitables
+   ===================================================================== */
+.buscador { position: relative; }
+.buscador .input { padding-left: 46px; font-size: 16px; min-height: 52px; }
+.buscador > .ico { position: absolute; left: 14px; top: 26px; transform: translateY(-50%); color: var(--texto-2); display: flex; }
+.buscador > .ico > svg { position: static; transform: none; }
+.buscador .clear { position: absolute; right: 6px; top: 26px; transform: translateY(-50%); }
+.buscador-vista { margin-top: 8px; }
+.buscador-vista .input { padding-right: 52px; }
+.buscador .input::-webkit-search-cancel-button { display: none; }
+.sugerencias { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 40; margin: 0; padding: 6px; list-style: none; background: var(--tarjeta); border-radius: 16px; box-shadow: var(--sombra-2); max-height: 60vh; overflow: auto; }
+.sugerencias li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; min-height: 44px; border-radius: 10px; cursor: pointer; font-weight: 700; font-size: 15px; color: var(--texto); }
+.sugerencias li .texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sugerencias li .detalle { font-size: 12.5px; color: var(--texto-3); font-weight: 700; white-space: nowrap; }
+.sugerencias li:hover, .sugerencias li.activa { background: var(--suave); }
+.sugerencias li > svg { color: var(--texto-3); flex: none; }
+.quisiste-decir { margin: 8px 0 0; font-size: 15px; font-weight: 700; color: var(--texto-2); }
+.quisiste-decir .link { font-size: 15px; }
+/* zona con filtros: en PC, panel a la izquierda + contenido; en el celular, solo el contenido (los filtros van en una hoja) */
+.con-filtros { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 10px; }
+.con-filtros.con-panel { grid-template-columns: 272px minmax(0, 1fr); gap: 22px; }
+.contenido-filtrado { min-width: 0; }
+.barra-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.barra-filtros .selector-orden { width: auto; min-height: 44px; font-weight: 800; }
+.barra-filtros .faltan-check { min-height: 44px; }
+.btn-filtros { min-height: 44px; }
+.panel-filtros { background: var(--tarjeta); border-radius: var(--radio); box-shadow: var(--sombra); padding: 12px 14px 14px; position: sticky; top: 96px; max-height: calc(100vh - 110px); overflow: auto; }
+.panel-filtros-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.panel-filtros-cabecera b { display: inline-flex; align-items: center; gap: 6px; font-family: var(--fuente-titulos); font-size: 18px; }
+.formulario-filtros { display: flex; flex-direction: column; gap: 10px; }
+.formulario-filtros .input { min-height: 44px; }
+.panel-filtros .formulario-filtros .input, .panel-filtros .formulario-filtros select.input { background: var(--suave); box-shadow: none; }
+.formulario-filtros .fila-campos { display: flex; gap: 8px; align-items: center; }
+.formulario-filtros .fila-campos .field { flex: 1; min-width: 0; }
+.formulario-filtros .fila-campos .input { min-width: 0; }
+.selector-coleccion { position: relative; }
+.selector-coleccion .elegida { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 44px; padding: 4px 4px 4px 12px; border-radius: 12px; background: var(--info-fondo); color: var(--info-texto); font-weight: 800; font-size: 14px; }
+.selector-coleccion .elegida span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.lista-opciones { position: absolute; left: 0; right: 0; top: 100%; z-index: 35; margin-top: 4px; padding: 6px; background: var(--tarjeta); border-radius: 14px; box-shadow: var(--sombra-2); max-height: 280px; overflow: auto; display: flex; flex-direction: column; }
+.lista-opciones button { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; text-align: left; border: 0; background: transparent; padding: 8px 10px; min-height: 44px; border-radius: 10px; font-weight: 800; font-size: 14px; color: var(--texto); }
+.lista-opciones button small { font-weight: 700; color: var(--texto-3); font-size: 12px; }
+.lista-opciones button:hover { background: var(--suave); }
+.rango-precio .fila-campos .input { width: 100%; text-align: center; }
+.rango-doble { position: relative; height: 44px; }
+.rango-doble::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 6px; transform: translateY(-50%); border-radius: 999px; background: var(--suave-2); }
+.rango-doble::after { content: ''; position: absolute; left: var(--a); right: calc(100% - var(--b)); top: 50%; height: 6px; transform: translateY(-50%); border-radius: 999px; background: var(--primario); }
+.rango-doble input[type=range] { position: absolute; left: 0; right: 0; top: 0; width: 100%; height: 44px; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; pointer-events: none; z-index: 2; }
+.rango-doble input[type=range]::-webkit-slider-runnable-track { background: transparent; height: 6px; }
+.rango-doble input[type=range]::-moz-range-track { background: transparent; height: 6px; }
+.rango-doble input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 26px; height: 26px; border-radius: 50%; background: var(--tarjeta); border: 3px solid var(--primario); box-shadow: var(--sombra); pointer-events: auto; cursor: pointer; margin-top: -10px; }
+.rango-doble input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--tarjeta); border: 3px solid var(--primario); box-shadow: var(--sombra); pointer-events: auto; cursor: pointer; }
+.chips-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.chip-filtro { border: 0; background: var(--info-fondo); color: var(--info-texto); font-weight: 800; font-size: 13.5px; padding: 6px 10px 6px 12px; min-height: 36px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.chip-filtro:hover { background: var(--primario); color: var(--primario-texto); }
+.chips-filtros .link { min-height: 36px; font-size: 13.5px; }
+.hoja-filtros .formulario-filtros { padding-bottom: 6px; }
+.sheet.hoja-filtros .btn.grow { flex: 1; }
+@media (max-width: 1023px) {
+  .sugerencias { max-height: 50vh; }
 }

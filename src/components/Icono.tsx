@@ -5,7 +5,7 @@ import {
   Image as ImageIcon, Images, Inbox, Info, Keyboard, Layers, LayoutGrid, Link as LinkIcon, Lock, LogOut, Mail, Map as MapIcon, MapPin, Megaphone,
   MessageCircle, Moon, Package, PackageCheck, PartyPopper, Pause, Pencil, Phone, Plus, Printer, QrCode, Receipt, RefreshCw, ScanLine, Search, Send, Settings,
   Share2, ShoppingCart, Smartphone, Sparkles, Sprout, Star, Store, Sun, SunMoon, Tag, Timer, Trash2, TrendingUp, TriangleAlert, Trophy, Upload, User, Users,
-  Wallet, Wrench, X, Zap
+  Wallet, Wrench, X, Zap, Maximize2, Minimize2, MoreHorizontal, SlidersHorizontal, GripVertical, Eye, EyeOff
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 
@@ -21,7 +21,8 @@ export const ICONOS = {
   gema: Gem, usuarios: Users, usuario: User, grafico: ChartColumn, tendencia: TrendingUp, carpeta: FolderOpen, compartir: Share2, enlace: LinkIcon, archivo: Archive,
   mensaje: MessageCircle, correo: Mail, lugar: MapPin, mapa: MapIcon, telefono: Phone, trofeo: Trophy, brote: Sprout, info: Info, atras: ArrowLeft,
   adelante: ArrowRight, izquierda: ChevronLeft, derecha: ChevronRight, abajo: ChevronDown, arriba: ChevronUp, mas: Plus, lapiz: Pencil, basura: Trash2,
-  copiar: Copy, qr: QrCode, externo: ExternalLink, enviar: Send, megafono: Megaphone, cuadricula: LayoutGrid, paquete_ok: PackageCheck, premio: Award
+  copiar: Copy, qr: QrCode, externo: ExternalLink, enviar: Send, megafono: Megaphone, cuadricula: LayoutGrid, paquete_ok: PackageCheck, premio: Award,
+  pantalla_completa: Maximize2, pantalla_normal: Minimize2, mas_opciones: MoreHorizontal, filtros: SlidersHorizontal, arrastrar: GripVertical, ojo: Eye, ojo_cerrado: EyeOff
 } satisfies Record<string, ComponentType<Props>>;
 
 export type NombreIcono = keyof typeof ICONOS;

@@ -509,24 +509,27 @@ try {
   await page.waitForSelector('[data-testid=casilla-falta]:has-text("010") .album-red:has-text("En mercado")');
   if ((await page.$$('.album-red')).length !== 1) throw new Error('en la página 2 solo Caterpie debía estar en venta');
   await page.click('[data-testid=pagina-anterior]');
+  await page.click('[data-testid=btn-acciones]');
   if (!/2 en venta/.test(await page.textContent('[data-testid=faltan-mercado]'))) throw new Error('el botón "las que faltan" no cuenta las ofertas');
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('[data-testid=menu-acciones]', { state: 'detached' });
   await foto(page, 'album-mercado');
   log('carrito vaciado (copias liberadas); álbum 151 marca 2 faltantes en venta');
   // Ajustes de layout 2 · 4 (celular): cuadrícula 3×3 (por defecto) · 3×4 · 4×5, recordada al recargar; "Ir a página" y el texto se adaptan
   const celdasCel = async () => (await page.$$('.album-cell')).length;
-  const opcionesCel = await page.$$eval('[data-testid=selector-cuadricula] button', els => els.map(e => e.textContent.trim()));
-  if (opcionesCel.join(' ') !== '3×3 3×4 4×5' || !(await page.$('[data-testid=cuadricula-3x3].active'))) throw new Error('selector de cuadrícula del celular inesperado: ' + opcionesCel.join(' '));
-  await page.click('[data-testid=cuadricula-3x4]');
+  const opcionesCel = await page.$$eval('[data-testid=selector-cuadricula] option', els => els.map(e => e.textContent.trim()));
+  if (opcionesCel.join(' ') !== '3×3 3×4 4×5' || (await page.inputValue('[data-testid=selector-cuadricula]')) !== '3x3') throw new Error('selector de cuadrícula del celular inesperado: ' + opcionesCel.join(' '));
+  await page.selectOption('[data-testid=selector-cuadricula]', '3x4');
   await page.waitForSelector('[data-testid=pagina-texto]:has-text("de 18")');
   if ((await celdasCel()) !== 12) throw new Error('3×4 debía mostrar 12 casillas');
   await page.reload();
   await page.waitForSelector('[data-testid=hoja-carpeta][data-cuadricula="3x4"]');
-  if ((await celdasCel()) !== 12 || !(await page.$('[data-testid=cuadricula-3x4].active'))) throw new Error('la cuadrícula 3×4 debía recordarse al recargar');
-  await page.click('[data-testid=cuadricula-4x5]');
+  if ((await celdasCel()) !== 12 || (await page.inputValue('[data-testid=selector-cuadricula]')) !== '3x4') throw new Error('la cuadrícula 3×4 debía recordarse al recargar');
+  await page.selectOption('[data-testid=selector-cuadricula]', '4x5');
   await page.waitForSelector('[data-testid=pagina-texto]:has-text("de 11")');
   if ((await celdasCel()) !== 20) throw new Error('4×5 debía mostrar 20 casillas');
   await foto(page, 'album-4x5');
-  await page.click('[data-testid=cuadricula-3x3]');
+  await page.selectOption('[data-testid=selector-cuadricula]', '3x3');
   await page.waitForSelector('[data-testid=pagina-texto]:has-text("de 23")');
   log('cuadrícula del álbum en el celular: 3×3 → 3×4 (12 casillas, 18 páginas, recordada al recargar) → 4×5 (20 casillas, 11 páginas) → 3×3');
 
@@ -534,17 +537,17 @@ try {
   {
     const CHRIS_ID = sql(`select id from public.perfiles where username = 'chris_tcg'`);
     const BULK1 = sql(`select id from public.cajas where usuario_id = '${CHRIS_ID}' and nombre = 'Bulk 1'`);
-    // en la página 1 (3×3) faltan 001 (la comprada ya salió), 002, 003, 005, 007, 008, 009 → 7 botones +, de 48 px, centrados en su casilla
+    // en la página 1 (3×3) faltan 001 (la comprada ya salió), 002, 003, 005, 007, 008, 009 → 7 botones + discretos (40 px, azul al 35 %), centrados en su casilla
     await page.waitForSelector('[data-testid=btn-mas-rapido]');
-    const masBotones = await page.$$eval('[data-testid=btn-mas-rapido]', els => els.map(b => { const r = b.getBoundingClientRect(); const c = b.parentElement.querySelector('.pocket').getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), centrado: Math.abs((r.left + r.width / 2) - (c.left + c.width / 2)) < 2 }; }));
-    if (masBotones.length !== 7 || masBotones.some(b => b.w !== 48 || b.h !== 48 || !b.centrado)) throw new Error('botones + inesperados: ' + JSON.stringify(masBotones));
+    const masBotones = await page.$$eval('[data-testid=btn-mas-rapido]', els => els.map(b => { const r = b.getBoundingClientRect(); const c = b.parentElement.querySelector('.pocket').getBoundingClientRect(); const cs = getComputedStyle(b); return { w: Math.round(r.width), h: Math.round(r.height), centrado: Math.abs((r.left + r.width / 2) - (c.left + c.width / 2)) < 2, fondo: cs.backgroundColor, borde: cs.borderTopWidth }; }));
+    if (masBotones.length !== 7 || masBotones.some(b => b.w !== 40 || b.h !== 40 || !b.centrado || b.fondo !== 'rgba(31, 95, 204, 0.35)' || b.borde !== '1px')) throw new Error('botones + inesperados: ' + JSON.stringify(masBotones));
     // tocar la casilla fuera del + sigue abriendo la carta
     await page.click('[data-testid=casilla-falta]:has-text("002")', { position: { x: 10, y: 10 } });
     await page.waitForURL(/\/app\/carta\/sv03\.5-002/);
     await page.goto(APP + '/app/album/sv03.5?idioma=EN');
     await page.waitForSelector('[data-testid=btn-mas-rapido]');
     // el + de 002 abre la ventana completada: carta, casilla, Inglés · del álbum, NM; solo pide el acabado
-    await page.click('.celda-falta:has([data-testid=casilla-falta]:has-text("002")) [data-testid=btn-mas-rapido]');
+    await page.click('.celda-libro:has([data-testid=casilla-falta]:has-text("002")) [data-testid=btn-mas-rapido]');
     await page.waitForSelector('.sheet.hoja-rapida');
     if ((await page.textContent('[data-testid=rapido-nombre]')) !== 'Ivysaur' || (await page.textContent('[data-testid=rapido-idioma]')) !== 'Inglés · del álbum' || (await page.textContent('[data-testid=rapido-estado]')) !== 'NM') throw new Error('la ventana rápida no vino completada: ' + await page.textContent('.sheet.hoja-rapida'));
     if (!/Casilla 002 · 151/.test(await page.textContent('[data-testid=rapido-cabecera]'))) throw new Error('faltaba "Casilla 002 · 151"');
@@ -568,7 +571,7 @@ try {
     if (sql(`select count(*) || ':' || sum(cantidad) || ':' || count(*) filter (where album_coleccion = 'sv03.5') || ':' || count(*) filter (where caja_id = '${BULK1}') from public.entradas where usuario_id = '${CHRIS_ID}' and carta_id = 'sv03.5-003'`) !== '2:2:1:1') throw new Error('con cantidad 2 debía quedar 1 en la casilla y 1 en Bulk 1');
     if (!/Página 1 de 23/.test(await page.textContent('[data-testid=pagina-texto]'))) throw new Error('al cerrar debía seguir en la misma página');
     // "Guardar y siguiente" desde la última casilla vacía de la página (009) pasa a la 010 cambiando de página; cerrar deja esa página
-    await page.click('.celda-falta:has([data-testid=casilla-falta]:has-text("009")) [data-testid=btn-mas-rapido]');
+    await page.click('.celda-libro:has([data-testid=casilla-falta]:has-text("009")) [data-testid=btn-mas-rapido]');
     await page.waitForSelector('[data-testid=rapido-nombre]:has-text("Blastoise")');
     await page.click('[data-testid=rapido-siguiente]');
     await page.waitForSelector('[data-testid=rapido-nombre]:has-text("Caterpie")');
@@ -579,7 +582,7 @@ try {
     if (sql(`select count(*) from public.entradas where usuario_id = '${CHRIS_ID}' and carta_id = 'sv03.5-009' and album_coleccion = 'sv03.5'`) !== '1') throw new Error('la 009 debía quedar guardada en su casilla');
     // la casilla se llenó desde "otro dispositivo" (directo en la base): la ventana avisa y manda la copia a Bulk
     sql(`insert into public.entradas (usuario_id, caja_id, carta_id, cantidad, acabado, idioma, condicion, album_coleccion) values ('${CHRIS_ID}', null, 'sv03.5-011', 1, 'Normal', 'EN', 'NM', 'sv03.5')`);
-    await page.click('.celda-falta:has([data-testid=casilla-falta]:has-text("011")) [data-testid=btn-mas-rapido]');
+    await page.click('.celda-libro:has([data-testid=casilla-falta]:has-text("011")) [data-testid=btn-mas-rapido]');
     await page.waitForSelector('[data-testid=rapido-ocupada]:has-text("ya tiene una copia")');
     await page.click('[data-testid=rapido-guardar]');
     await page.waitForSelector('.sheet.hoja-rapida', { state: 'detached' });
@@ -978,6 +981,8 @@ try {
   // Álbum 151 ES: Bulbasaur 5 en la casilla + 2 en Bulk 2 (7 copias) y Caterpie ×2 en Bulk 2
   sql(`update public.entradas set cantidad = 5 where usuario_id = '${CHRIS}' and carta_id = 'sv03.5-001' and album_coleccion = 'sv03.5' and idioma = 'ES'`);
   await page.goto(APP + '/app/album/sv03.5?idioma=ES');
+  await page.waitForSelector('[data-testid=btn-acciones]');
+  await page.click('[data-testid=btn-acciones]');
   await page.waitForSelector('[data-testid=btn-poner-en-venta]:has-text("(3)")');
   await page.click('[data-testid=btn-poner-en-venta]');
   await page.waitForSelector('.sheet [data-testid=resumen-venta-album]');
@@ -1405,16 +1410,17 @@ try {
   let f = await fondoApp();
   if (!(await page.$('[data-testid=fondo-hojas].active')) || f.patron !== 'hojas' || f.opacidad !== '0.08' || f.svgs !== 1 || f.fijo !== 'fixed' || f.z !== '-1') throw new Error('por defecto debía haber un solo SVG fijo con Hojas al 8 %: ' + JSON.stringify(f));
   if (!(await page.$('[data-testid=fondo-aleatorio] .nota:has-text("cambia cada día")'))) throw new Error('Aleatorio debía decir que cambia cada día');
+  // el perfil se actualiza poco después (las escrituras van en fila): se espera hasta 6 s a que la base tenga el valor
+  const esperarPerfil = async (valor) => { for (let i = 0; i < 30; i++) { if (sql("select fondo || ':' || fondo_intensidad from public.perfiles where username = 'chris_tcg'") === valor) return; await page.waitForTimeout(200); } throw new Error('el perfil no quedó con ' + valor + ': ' + sql("select fondo || ':' || fondo_intensidad from public.perfiles where username = 'chris_tcg'")); };
   await page.click('[data-testid=fondo-olas]');
   await page.waitForSelector('[data-testid=fondo-app][data-patron=olas]');
-  await page.waitForFunction(() => document.querySelector('[data-testid=selector-fondo]').textContent.indexOf('Guardando') < 0);
-  if (sql("select fondo || ':' || fondo_intensidad from public.perfiles where username = 'chris_tcg'") !== 'olas:40') throw new Error('el fondo no se guardó en el perfil');
+  await esperarPerfil('olas:40');
   await page.focus('[data-testid=intensidad-fondo]');
   await page.keyboard.press('End');
   await page.waitForSelector('[data-testid=fondo-app][data-intensidad="100"]');
   f = await fondoApp();
   if (f.opacidad !== '0.2') throw new Error('intensidad 100 % debía ser opacidad 0.2: ' + JSON.stringify(f));
-  await page.waitForFunction(() => document.querySelector('[data-testid=selector-fondo]').textContent.indexOf('Guardando') < 0);
+  await esperarPerfil('olas:100');
   await page.reload();
   await page.waitForSelector('[data-testid=fondo-app][data-patron=olas][data-intensidad="100"]');
   await page.waitForSelector('[data-testid=selector-fondo]');
@@ -1448,13 +1454,11 @@ try {
   await page.waitForSelector('[data-testid=fondo-app][data-patron=rayos]');
   execSync('su postgres -c "psql -q -d poketcg_test -f supabase/migrations/0008_mejoras3.sql"');
   await page.click('[data-testid=fondo-hojas]');
-  await page.waitForFunction(() => document.querySelector('[data-testid=selector-fondo]').textContent.indexOf('Guardando') < 0);
   await page.evaluate(() => { const r = document.querySelector('[data-testid=intensidad-fondo]'); r.focus(); });
   await page.keyboard.press('Home');
   await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight');
   await page.waitForSelector('[data-testid=fondo-app][data-patron=hojas][data-intensidad="40"]');
-  await page.waitForFunction(() => document.querySelector('[data-testid=selector-fondo]').textContent.indexOf('Guardando') < 0);
-  if (sql("select fondo || ':' || fondo_intensidad from public.perfiles where username = 'chris_tcg'") !== 'hojas:40') throw new Error('el fondo no volvió a guardarse en el perfil');
+  await esperarPerfil('hojas:40');
   log('fondo de la app: Hojas al 8 % por defecto (un SVG fijo); Olas + 100 % guardado en el perfil y conservado al recargar; Aleatorio y Liso; tono claro en oscuro; sin columnas se recuerda en el dispositivo');
 
   // ---------- Mejoras 1 · A1: desplazamiento hasta el final en todas las páginas principales (PC y celular), también tras abrir y cerrar una hoja
@@ -1513,48 +1517,90 @@ try {
   await pagePc.waitForSelector('[data-testid=sec-ventas].active');
   if ((await pagePc.$('[data-testid=menu-lateral]')) || !(await pagePc.$('[data-testid=tab-mercado].active')) || !(await pagePc.isVisible('[data-testid=subtabs]'))) throw new Error('PC: Mis ventas debía mostrarse en el Mercado con chips y sin menú lateral');
   await foto(pagePc, 'pc-ventas');
-  // Ajustes de layout 2 · 4 (PC 1280×800): álbum en 4×5 y 1 página por defecto, la página completa entra sin bajar; selector
-  // 3×3 · 3×4 · 4×4 · 4×5 · 4×6 y 1 / 2 páginas (con 2 páginas, hasta 4×4); panel derecho de ~280 px; se recuerda al recargar
+  // Ajustes de layout 2 · 4 y Mejoras 4 · A (PC 1280×800): el libro ocupa casi toda la pantalla: una fila de herramientas,
+  // fila compacta, menú Acciones, "Ir a" junto al texto; la página completa entra sin bajar en todas las cuadrículas y en 1 o 2 páginas
   await pagePc.goto(APP + '/app/album/sv03.5');
   await pagePc.waitForSelector('[data-testid=hoja-carpeta][data-cuadricula="4x5"]');
   const celdasPc = async () => (await pagePc.$$('.album-cell')).length;
-  const medidasPc = async () => pagePc.evaluate(() => { const h = document.querySelector('[data-testid=hoja-carpeta]').getBoundingClientRect(); const l = document.querySelector('[data-testid=album-lateral]').getBoundingClientRect(); return { hojaAbajo: Math.round(h.bottom), hojaAncho: Math.round(h.width), hojaDerecha: Math.round(h.right), alto: innerHeight, scroll: document.documentElement.scrollHeight, lateralAncho: Math.round(l.width), lateralX: Math.round(l.left), celda: getComputedStyle(document.querySelector('[data-testid=hoja-carpeta]')).getPropertyValue('--celda').trim() }; });
+  const medidasPc = async () => pagePc.evaluate(() => { const h = document.querySelector('[data-testid=hoja-carpeta]').getBoundingClientRect(); const t = document.querySelector('[data-testid=libro-herramientas]').getBoundingClientRect(); return { hojaAbajo: Math.round(h.bottom), hojaAncho: Math.round(h.width), alto: innerHeight, ancho: innerWidth, scroll: document.documentElement.scrollHeight, herramientasAlto: Math.round(t.height), cubre: Math.round(100 * h.width * h.height / (innerWidth * innerHeight)) }; });
   let m = await medidasPc();
-  const opcionesPc = await pagePc.$$eval('[data-testid=selector-cuadricula-pc] button', els => els.map(e => e.textContent.trim()));
-  if (opcionesPc.join(' ') !== '3×3 3×4 4×4 4×5 4×6' || !(await pagePc.$('[data-testid=cuadricula-4x5-pc].active')) || !(await pagePc.$('[data-testid=paginas-1].active'))) throw new Error('PC: selector de cuadrícula inesperado: ' + opcionesPc.join(' '));
+  const opcionesPc = await pagePc.$$eval('[data-testid=selector-cuadricula] option', els => els.map(e => e.textContent.trim()));
+  if (opcionesPc.join(' ') !== '3×3 3×4 4×4 4×5 4×6' || (await pagePc.inputValue('[data-testid=selector-cuadricula]')) !== '4x5' || (await pagePc.inputValue('[data-testid=selector-paginas]')) !== '1') throw new Error('PC: selector de cuadrícula inesperado: ' + opcionesPc.join(' '));
   if ((await celdasPc()) !== 20 || !/Página 1 de 11/.test(await pagePc.textContent('[data-testid=pagina-texto]'))) throw new Error('PC: 4×5 debía mostrar 20 casillas de 11 páginas');
-  if (m.hojaAbajo > m.alto || m.lateralAncho < 270 || m.lateralAncho > 290 || m.lateralX < m.hojaDerecha) throw new Error('PC: la página completa debía verse sin bajar con el panel de 280 px a la derecha: ' + JSON.stringify(m));
-  if (!/\(11 páginas de 20\)/.test(await pagePc.textContent('[data-testid=ir-a-pagina]'))) throw new Error('PC: "Ir a página" no se adaptó a la cuadrícula');
+  if (m.hojaAbajo > m.alto || m.scroll > m.alto + 2 || m.herramientasAlto > 56 || (await pagePc.$('[data-testid=album-lateral]'))) throw new Error('PC: la página completa debía verse sin bajar, con una sola fila de herramientas y sin panel derecho: ' + JSON.stringify(m));
+  if ((await pagePc.$$('[data-testid=ir-a-pagina] option')).length !== 11) throw new Error('PC: "Ir a" debía tener 11 páginas');
+  const distintasPc = num(`select count(distinct carta_id) from public.entradas where usuario_id = '${CHRIS}' and carta_id like 'sv03.5-%'`);   // todos los idiomas (sin ?idioma=)
+  if (!new RegExp(`^${distintasPc} / 207 · ${Math.round(100 * distintasPc / 207)} % · S/ `).test((await pagePc.textContent('[data-testid=progreso-album]')).trim())) throw new Error(`PC: fila compacta inesperada (${distintasPc} cartas distintas): ` + await pagePc.textContent('[data-testid=progreso-album]'));
+  await pagePc.click('[data-testid=btn-acciones]');
+  const itemsAcciones = await pagePc.$$eval('[data-testid=menu-acciones] [role=menuitem]', els => els.map(e => e.textContent.trim()));
+  if (!itemsAcciones[0].startsWith('Agregar carta') || !itemsAcciones.some(t => t.startsWith('Comprar faltantes'))) throw new Error('PC: menú Acciones inesperado: ' + itemsAcciones.join(' | '));
+  await pagePc.keyboard.press('Escape');
+  await pagePc.waitForSelector('[data-testid=menu-acciones]', { state: 'detached' });
   await foto(pagePc, 'pc-album-4x5');
-  // 2 páginas: la cuadrícula baja a 4×4 y las opciones llegan hasta 4×4
-  await pagePc.click('[data-testid=paginas-2]');
+  // todas las cuadrículas, en 1 y 2 páginas, entran completas sin bajar; con 2 páginas (hasta 4×4) la hoja ocupa la mayor parte del ancho
+  for (const [paginas, cuadricula, esperadas] of [['1', '3x3', 9], ['1', '3x4', 12], ['1', '4x4', 16], ['1', '4x6', 24], ['2', '4x4', 32], ['2', '3x4', 24], ['2', '3x3', 18]]) {
+    await pagePc.selectOption('[data-testid=selector-paginas]', paginas);
+    await pagePc.selectOption('[data-testid=selector-cuadricula]', cuadricula);
+    await pagePc.waitForSelector(`[data-testid=hoja-carpeta][data-cuadricula="${cuadricula}"]${paginas === '2' ? '.doble' : ':not(.doble)'}`);
+    await pagePc.waitForTimeout(150);
+    m = await medidasPc();
+    // la hoja aprovecha el alto (llega casi abajo) o el ancho (3 columnas con 2 páginas son páginas altas: las limita el alto)
+    if ((await celdasPc()) !== esperadas || m.hojaAbajo > m.alto || m.scroll > m.alto + 2 || !(m.hojaAbajo >= m.alto - 40 || m.hojaAncho >= 0.8 * m.ancho) || (paginas === '2' && cuadricula === '4x4' && m.hojaAncho < 0.6 * m.ancho)) throw new Error(`PC: ${cuadricula} × ${paginas} página(s): ${esperadas} casillas, completa sin bajar y grande: ` + JSON.stringify({ celdas: await celdasPc(), ...m }));
+  }
+  const opcionesDoble = await pagePc.$$eval('[data-testid=selector-cuadricula] option', els => els.map(e => e.textContent.trim()));
+  if (opcionesDoble.join(' ') !== '3×3 3×4 4×4' || !/Páginas 1 – 2 de 23/.test(await pagePc.textContent('[data-testid=pagina-texto]'))) throw new Error('PC: con 2 páginas las opciones llegan hasta 4×4: ' + opcionesDoble.join(' '));
+  await pagePc.selectOption('[data-testid=selector-cuadricula]', '4x4');
   await pagePc.waitForSelector('[data-testid=hoja-carpeta].doble[data-cuadricula="4x4"]');
-  m = await medidasPc();
-  const opcionesDoble = await pagePc.$$eval('[data-testid=selector-cuadricula-pc] button', els => els.map(e => e.textContent.trim()));
-  if (opcionesDoble.join(' ') !== '3×3 3×4 4×4' || (await celdasPc()) !== 32 || !/Páginas 1 – 2 de 13/.test(await pagePc.textContent('[data-testid=pagina-texto]')) || m.hojaAbajo > m.alto) throw new Error('PC: 2 páginas debía mostrar 4×4 × 2 (32 casillas, 13 páginas) sin bajar: ' + opcionesDoble.join(' ') + ' ' + JSON.stringify(m));
   await pagePc.click('[data-testid=pagina-siguiente]');
   await pagePc.waitForSelector('[data-testid=pagina-texto]:has-text("Páginas 3 – 4 de 13")');
+  await pagePc.selectOption('[data-testid=ir-a-pagina]', '11');
+  await pagePc.waitForSelector('[data-testid=pagina-texto]:has-text("Páginas 11 – 12 de 13")');
   await foto(pagePc, 'pc-album-doble');
-  await pagePc.click('[data-testid=paginas-1]');
+  await pagePc.selectOption('[data-testid=selector-paginas]', '1');
   await pagePc.waitForSelector('[data-testid=hoja-carpeta]:not(.doble)[data-cuadricula="4x4"]');
-  await pagePc.click('[data-testid=cuadricula-4x6-pc]');
+  await pagePc.selectOption('[data-testid=selector-cuadricula]', '4x6');
   await pagePc.waitForSelector('[data-testid=pagina-texto]:has-text("de 9")');
-  if ((await celdasPc()) !== 24) throw new Error('PC: 4×6 debía mostrar 24 casillas');
-  m = await medidasPc();
-  if (m.hojaAbajo > m.alto) throw new Error('PC: en 4×6 la página también debía entrar sin bajar: ' + JSON.stringify(m));
   await pagePc.reload();
   await pagePc.waitForSelector('[data-testid=hoja-carpeta][data-cuadricula="4x6"]');
-  if (!(await pagePc.$('[data-testid=cuadricula-4x6-pc].active'))) throw new Error('PC: la cuadrícula 4×6 debía recordarse al recargar');
+  if ((await pagePc.inputValue('[data-testid=selector-cuadricula]')) !== '4x6') throw new Error('PC: la cuadrícula 4×6 debía recordarse al recargar');
   // otro álbum arranca con la última elección (4×6) salvo que tenga la suya
   await pagePc.goto(APP + '/app/album/base1');
   await pagePc.waitForSelector('[data-testid=hoja-carpeta][data-cuadricula="4x6"]');
-  await pagePc.click('[data-testid=cuadricula-4x5-pc]');
+  await pagePc.selectOption('[data-testid=selector-cuadricula]', '4x5');
   await pagePc.waitForSelector('[data-testid=hoja-carpeta][data-cuadricula="4x5"]');
   await pagePc.goto(APP + '/app/album/sv03.5');
   await pagePc.waitForSelector('[data-testid=hoja-carpeta][data-cuadricula="4x6"]');
-  await pagePc.click('[data-testid=cuadricula-4x5-pc]');
+  await pagePc.selectOption('[data-testid=selector-cuadricula]', '4x5');
   await pagePc.waitForSelector('[data-testid=hoja-carpeta][data-cuadricula="4x5"]');
-  log('álbum en PC: 4×5 en 1 página por defecto (20 casillas, 11 páginas, completa sin bajar, panel de 280 px); 2 páginas → 4×4 ×2; 4×6 recordado por álbum; otro álbum toma la última elección');
+  // pantalla completa: solo la carpeta (el navegador sin cabeza la simula); la hoja entra completa y el mismo botón vuelve
+  await pagePc.click('[data-testid=btn-pantalla-completa]');
+  await pagePc.waitForTimeout(500);
+  const completo = await pagePc.evaluate(() => !!document.fullscreenElement && document.fullscreenElement.classList.contains('libro'));
+  if (completo) {
+    const mc = await medidasPc();
+    if (mc.hojaAbajo > mc.alto || !(await pagePc.$('.libro-completo'))) throw new Error('PC: en pantalla completa la hoja debía entrar completa: ' + JSON.stringify(mc));
+    await pagePc.click('[data-testid=btn-pantalla-completa]');
+    await pagePc.waitForFunction(() => !document.fullscreenElement);
+  }
+  // el + de las casillas que faltan se vuelve sólido al pasar el mouse
+  await pagePc.hover('[data-testid=btn-mas-rapido] >> nth=0');
+  await pagePc.waitForTimeout(250);
+  const fondoHover = await pagePc.$eval('[data-testid=btn-mas-rapido] >> nth=0', e => getComputedStyle(e).backgroundColor);
+  if (fondoHover !== 'rgb(31, 95, 204)') throw new Error('PC: el + debía volverse sólido al pasar el mouse: ' + fondoHover);
+  log('álbum en PC: libro a casi toda la pantalla (sin panel derecho, fila compacta, menú Acciones, Ir a); todas las cuadrículas en 1 y 2 páginas entran sin bajar; 4×6 recordado; pantalla completa' + (completo ? ' OK' : ' (no disponible en pruebas)') + '; + sólido al pasar el mouse');
+  // 1920×1080: la hoja también ocupa la mayor parte (2 páginas 4×4 ≥ 60 % del ancho) y entra sin bajar
+  await pagePc.setViewportSize({ width: 1920, height: 1080 });
+  await pagePc.selectOption('[data-testid=selector-paginas]', '2');
+  await pagePc.waitForSelector('[data-testid=hoja-carpeta].doble[data-cuadricula="4x4"]');
+  await pagePc.waitForTimeout(300);
+  m = await medidasPc();
+  if (m.hojaAbajo > m.alto || m.scroll > m.alto + 2 || m.hojaAncho < 0.6 * m.ancho) throw new Error('1920×1080: la hoja debía ocupar la mayor parte sin bajar: ' + JSON.stringify(m));
+  await foto(pagePc, 'pc-album-1920');
+  await pagePc.selectOption('[data-testid=selector-paginas]', '1');
+  await pagePc.selectOption('[data-testid=selector-cuadricula]', '4x5');
+  await pagePc.waitForSelector('[data-testid=hoja-carpeta]:not(.doble)[data-cuadricula="4x5"]');
+  await pagePc.setViewportSize({ width: 1280, height: 800 });
+  await pagePc.waitForTimeout(300);
   // Ajustes de layout 2 · 5 (PC): flechas ≥ 56 px a los costados de la hoja, centradas en vertical, desactivadas en los extremos; teclado ← →
   const flechasPc = await pagePc.evaluate(() => { const r = s => document.querySelector(s).getBoundingClientRect(); const h = r('[data-testid=hoja-carpeta]'), a = r('[data-testid=pagina-anterior]'), s = r('[data-testid=pagina-siguiente]'); return { a: { w: Math.round(a.width), h: Math.round(a.height), x: Math.round(a.right), cy: Math.round(a.top + a.height / 2) }, s: { w: Math.round(s.width), h: Math.round(s.height), x: Math.round(s.left), cy: Math.round(s.top + s.height / 2) }, hoja: { l: Math.round(h.left), r: Math.round(h.right), cy: Math.round(h.top + h.height / 2) }, antDesactivada: document.querySelector('[data-testid=pagina-anterior]').disabled, texto: document.querySelector('[data-testid=pagina-texto]').getBoundingClientRect().bottom <= h.top }; });
   if (flechasPc.a.w < 56 || flechasPc.a.h < 56 || flechasPc.s.w < 56 || flechasPc.a.x > flechasPc.hoja.l || flechasPc.s.x < flechasPc.hoja.r || Math.abs(flechasPc.a.cy - flechasPc.hoja.cy) > 4 || Math.abs(flechasPc.s.cy - flechasPc.hoja.cy) > 4 || !flechasPc.antDesactivada || !flechasPc.texto) throw new Error('PC: flechas a los costados inesperadas: ' + JSON.stringify(flechasPc));
@@ -1579,7 +1625,7 @@ try {
   // Mejoras 3 · C (PC): ventana centrada; teclas 1–4 eligen el acabado, Enter = guardar y siguiente, Esc = cerrar
   await pagePc.goto(APP + '/app/album/sv03.5?idioma=EN');
   await pagePc.waitForSelector('[data-testid=btn-mas-rapido]');
-  await pagePc.click('.celda-falta:has([data-testid=casilla-falta]:has-text("002")) [data-testid=btn-mas-rapido]');
+  await pagePc.click('.celda-libro:has([data-testid=casilla-falta]:has-text("002")) [data-testid=btn-mas-rapido]');
   await pagePc.waitForSelector('.sheet.hoja-rapida [data-testid=rapido-nombre]:has-text("Ivysaur")');
   const ventana = await pagePc.$eval('.sheet.hoja-rapida', e => { const r = e.getBoundingClientRect(); return { w: Math.round(r.width), centrada: Math.abs((r.left + r.width / 2) - innerWidth / 2) < 4 }; });
   if (ventana.w !== 580 || !ventana.centrada) throw new Error('PC: la ventana de agregar rápido debía ir centrada y de 580 px: ' + JSON.stringify(ventana));
@@ -1675,8 +1721,10 @@ try {
   await page.waitForSelector('[data-testid=pagina-texto]:has-text("Página 1 de 1")');
   if ((await page.$$('.album-cell.filled')).length !== 3) throw new Error('el filtro "Tengo" debía mostrar 3 casillas');
   await page.click('[data-testid=filtro-album] button:has-text("Todas")');
-  await page.click('text=Consultar el precio de las que faltan');
-  await page.waitForFunction(() => /Para completarlo\s*S\//.test(document.querySelector('[data-testid=progreso-album]')?.textContent || ''));
+  await page.click('[data-testid=btn-acciones]');
+  await page.click('[data-testid=btn-precio-faltan]');
+  await page.waitForFunction(() => /faltan S\//.test(document.querySelector('[data-testid=progreso-album]')?.textContent || ''));
+  if (!/^3 \/ 207 · 1 % · S\/ /.test((await page.textContent('[data-testid=progreso-album]')).trim())) throw new Error('la fila compacta debía decir "3 / 207 · 1 % · S/ …": ' + await page.textContent('[data-testid=progreso-album]'));
   await foto(page, 'album-151');
   log('álbum 151:', total, 'cartas en 23 páginas,', faltan, 'faltan; filtros Tengo/Faltan y precio para completarlo');
 
@@ -1704,7 +1752,9 @@ try {
   await page.click('.sheet-foot >> text=Crear');
   await page.waitForURL(/\/app\/album\/p\//, { timeout: 20000 });
   if (sql("select color || '|' || marca_agua from public.albumes where nombre = 'Carpeta azul'") !== '#1E8A57|estrellas') throw new Error('el álbum no guardó color y marca de agua');
-  // editar: cambiar a dorado (color claro → texto oscuro) y emblema; la tarjeta del álbum lo refleja
+  // editar (Mejoras 4 · B: desde el menú Acciones del libro): cambiar a dorado (color claro → texto oscuro) y emblema; la tarjeta del álbum lo refleja
+  await page.waitForSelector('[data-testid=hoja-carpeta]');
+  await page.click('[data-testid=btn-acciones]');
   await page.click('[data-testid=btn-editar-album]');
   await page.waitForSelector('.sheet [data-testid=portada-propia][data-color="#1E8A57"]');
   await page.click('.sheet [data-testid=color-c99a00]');
@@ -1730,27 +1780,119 @@ try {
   await page.goto(APP + '/app/album');
   await page.click('[data-testid=album-propio]');
   await page.waitForURL(/\/app\/album\/p\//, { timeout: 20000 });
-  await page.waitForSelector('.pocket');
-  await page.click('.pocket >> nth=0');
+  // Mejoras 4 · B: el álbum propio es el mismo libro (hoja oscura, cuadrícula propia 3×3 como opción y por defecto, 2 páginas = 18 bolsillos,
+  // + discreto en los vacíos, fila compacta "tengo / asignadas · S/ · faltan S/", Acciones con Rellenar / Editar / Eliminar)
+  await page.waitForSelector('[data-testid=hoja-carpeta][data-cuadricula="3x3"] .pocket.vacio');
+  if ((await page.$$('.pocket.vacio')).length !== 9 || (await page.$$('[data-testid=btn-mas-bolsillo]')).length !== 9 || !/Página 1 de 2/.test(await page.textContent('[data-testid=pagina-texto]'))) throw new Error('el álbum propio debía abrirse como libro con 9 bolsillos vacíos por página (2 páginas)');
+  if ((await page.textContent('[data-testid=progreso-album]')).trim() !== '0 / 0 · S/ 0.00 · faltan S/ 0.00') throw new Error('fila compacta del álbum propio inesperada: ' + await page.textContent('[data-testid=progreso-album]'));
+  await page.click('[data-testid=btn-acciones]');
+  const accionesPropio = await page.$$eval('[data-testid=menu-acciones] [role=menuitem]', els => els.map(e => e.textContent.trim()));
+  if (accionesPropio.join(' | ') !== 'Rellenar con una colección | Editar álbum | Eliminar álbum') throw new Error('Acciones del álbum propio inesperadas: ' + accionesPropio.join(' | '));
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('[data-testid=menu-acciones]', { state: 'detached' });
+  await page.click('[data-testid=btn-mas-bolsillo] >> nth=0');
   await page.waitForSelector('.sheet .search-wrap input');
   await page.fill('.sheet .search-wrap input', 'charizard ex 151');
   await page.click('.sheet .card-row:has-text("006/165")');
   await page.waitForSelector('.pocket.filled');
-  await page.click('text=Rellenar con una colección');
+  await page.click('[data-testid=btn-acciones]');
+  await page.click('[data-testid=btn-rellenar-album]');
   await page.fill('.sheet input.input', 'Pokémon Card 151');
   await page.click('.set-item:has-text("SV2a")');
   await page.waitForFunction(() => document.querySelectorAll('.pocket.filled, .pocket.missing').length === 9, null, { timeout: 30000 });
   const bolsillos = await page.$$eval('.pocket', els => els.map(e => e.className.includes('filled') ? 'T' : e.className.includes('missing') ? 'F' : '.'));
   if (bolsillos.join('') !== 'TFFFFFFFF') throw new Error('bolsillos inesperados: ' + bolsillos.join(''));
+  const filaPropio = (await page.textContent('[data-testid=progreso-album]')).trim();
+  const tengoPropio = parseInt((filaPropio.match(/^(\d+) \/ 18 · S\/ .* · faltan S\/ /) || [])[1], 10);
+  if (!(tengoPropio >= 1)) throw new Error('fila compacta tras rellenar inesperada: ' + filaPropio);
   await foto(page, 'album-fisico');
-  // mover bolsillo 1 → 5 tocando
+  // mover bolsillo 1 → 5 tocando (menú del bolsillo lleno)
   await page.click('.pocket >> nth=0');
   await page.click('text=Mover a otro bolsillo');
   await page.click('.pocket >> nth=4');
   await page.waitForFunction(() => document.querySelectorAll('.pocket')[4].className.includes('filled') && document.querySelectorAll('.pocket')[0].className.includes('missing'));
+  // página 2 con la flecha y filtro Faltan (solo los bolsillos asignados sin tener)
+  await page.click('[data-testid=pagina-siguiente]');
+  await page.waitForSelector('[data-testid=pagina-texto]:has-text("Página 2 de 2")');
+  if ((await page.$$('.pocket.filled, .pocket.missing')).length !== 9) throw new Error('la página 2 debía tener 9 bolsillos asignados');
+  await page.click('[data-testid=filtro-album] button:has-text("Faltan")');
+  await page.waitForSelector(`[data-testid=pagina-texto]:has-text("Página 1 de ${Math.ceil((18 - tengoPropio) / 9)}")`);
+  if ((await page.$$('.pocket.missing')).length !== Math.min(9, 18 - tengoPropio) || (await page.$('.pocket.filled'))) throw new Error('el filtro Faltan debía mostrar solo bolsillos sin tener');
+  await page.click('[data-testid=filtro-album] button:has-text("Todos")');
+  await page.waitForSelector('.pocket.filled');
   const casillas = parseInt(sql('select count(*) from public.album_casillas'), 10);
-  log('álbum físico: 18 bolsillos,', casillas, 'asignados, movimiento OK');
+  log('álbum propio como libro: 18 bolsillos (3×3 propia, 2 páginas),', casillas, 'asignados, + en los vacíos, Acciones (Rellenar / Editar / Eliminar), fila compacta, movimiento 1 → 5 y filtro Faltan OK');
 
+
+  // ---------- Mejoras 4 · C: Pokédex (álbum virtual, una casilla por especie en orden nacional; primero en la lista)
+  await page.goto(APP + '/app/album');
+  await page.waitForSelector('[data-testid=album-pokedex]');
+  if ((await page.$eval('.album-grid > a:first-child', e => e.dataset.testid)) !== 'album-pokedex') throw new Error('la Pokédex debía ser el primer álbum de la lista');
+  const especiesChris = num(`select count(distinct d) from public.entradas e join public.cartas c on c.id = e.carta_id, unnest(c.dex) d where e.usuario_id = '${CHRIS}'`);
+  const especiesGen1 = num(`select count(distinct d) from public.entradas e join public.cartas c on c.id = e.carta_id, unnest(c.dex) d where e.usuario_id = '${CHRIS}' and d <= 151`);
+  if ((await page.textContent('[data-testid=album-pokedex] .album-foot-card span:first-child')).trim() !== `${especiesChris} / 1025`) throw new Error('la tarjeta Pokédex debía decir "' + especiesChris + ' / 1025": ' + await page.textContent('[data-testid=album-pokedex] .album-foot-card'));
+  await page.click('[data-testid=album-pokedex]');
+  await page.waitForURL(/\/app\/album\/pokedex/);
+  await page.waitForSelector('[data-testid=hoja-carpeta] [data-testid=dex-tengo][data-dex="1"]');
+  const dexs = await page.$$eval('[data-testid=hoja-carpeta] .pocket', els => els.map(e => e.dataset.dex));
+  if (dexs.join(',') !== '1,2,3,4,5,6,7,8,9' || !/Página 1 de 114/.test(await page.textContent('[data-testid=pagina-texto]'))) throw new Error('la Pokédex debía empezar en 0001 en orden nacional (3×3 = 114 páginas): ' + dexs.join(','));
+  if (!(await page.$('[data-testid=dex-falta][data-dex="2"]')) || (await page.textContent('[data-testid=dex-falta][data-dex="2"] .pocket-n')).trim() !== '0002' || !(await page.$('[data-testid=dex-falta][data-dex="2"] .thumb'))) throw new Error('la 0002 (Ivysaur) debía faltar, en gris, con su número de Pokédex y una carta del catálogo');
+  const filaDex = (await page.textContent('[data-testid=progreso-album]')).trim();
+  if (!new RegExp(`^${especiesChris} / 1025 · ${Math.round(100 * especiesChris / 1025)} % · S/ `).test(filaDex)) throw new Error('fila compacta de la Pokédex inesperada: ' + filaDex);
+  await foto(page, 'pokedex');
+  // casilla 0001: mi carta más valiosa de Bulbasaur → "Elegir otra carta para esta casilla" lista todas mis copias de la especie
+  await page.click('[data-testid=dex-tengo][data-dex="1"]');
+  await page.waitForSelector('.sheet [data-testid=dex-elegir-otra]');
+  if (!/Bulbasaur/.test(await page.textContent('.sheet .card-name')) || !/más valiosa/.test(await page.textContent('.sheet .card-main'))) throw new Error('la casilla 0001 debía mostrar mi Bulbasaur más valioso: ' + await page.textContent('.sheet .card-main'));
+  await page.click('.sheet [data-testid=dex-elegir-otra]');
+  await page.waitForSelector('.sheet [data-testid=dex-opcion]');
+  const copiasBulb = num(`select count(*) from public.entradas e join public.cartas c on c.id = e.carta_id where e.usuario_id = '${CHRIS}' and 1 = any(c.dex)`);
+  const nOpciones = (await page.$$('.sheet [data-testid=dex-opcion]')).length;
+  if (nOpciones !== copiasBulb || !(await page.$('.sheet [data-testid=dex-opcion][aria-pressed=true]'))) throw new Error(`debía listar mis ${copiasBulb} copias de Bulbasaur con la actual marcada: ${nOpciones}`);
+  const noActual = await page.$('.sheet [data-testid=dex-opcion][aria-pressed=false]');
+  if (!noActual) throw new Error('debía haber otra copia que elegir');
+  await noActual.click();
+  await page.waitForSelector('.sheet', { state: 'detached' });
+  for (let i = 0; i < 20 && num(`select count(*) from public.pokedex_elecciones where usuario_id = '${CHRIS}' and dex = 1`) !== 1; i++) await page.waitForTimeout(250);
+  if (num(`select count(*) from public.pokedex_elecciones where usuario_id = '${CHRIS}' and dex = 1`) !== 1) throw new Error('la elección no se guardó en pokedex_elecciones');
+  await page.click('[data-testid=dex-tengo][data-dex="1"]');
+  await page.waitForSelector('.sheet [data-testid=dex-usar-valiosa]');
+  if (!/Carta elegida/.test(await page.textContent('.sheet .card-main'))) throw new Error('la casilla debía indicar que la carta fue elegida a mano');
+  await page.click('.sheet [data-testid=dex-usar-valiosa]');
+  await page.waitForSelector('.sheet', { state: 'detached' });
+  for (let i = 0; i < 20 && num(`select count(*) from public.pokedex_elecciones where usuario_id = '${CHRIS}'`) !== 0; i++) await page.waitForTimeout(250);
+  if (num(`select count(*) from public.pokedex_elecciones where usuario_id = '${CHRIS}'`) !== 0) throw new Error('"Volver a la más valiosa" debía borrar la elección');
+  // filtros: generación 2 empieza en 0152; tipo Fuego (Charmander primero, sin Bulbasaur); Tengo (solo las que tengo de la gen. 1)
+  await page.selectOption('[data-testid=filtro-generacion]', '2');
+  await page.waitForSelector('[data-testid=hoja-carpeta] .pocket[data-dex="152"]');
+  if ((await page.$$eval('[data-testid=hoja-carpeta] .pocket', els => els.map(e => e.dataset.dex)))[0] !== '152' || !/de 12/.test(await page.textContent('[data-testid=pagina-texto]'))) throw new Error('la generación 2 debía empezar en 0152 (100 especies = 12 páginas)');
+  await page.selectOption('[data-testid=filtro-generacion]', '1');
+  await page.selectOption('[data-testid=filtro-tipo]', 'Fire');
+  await page.waitForSelector('[data-testid=hoja-carpeta] .pocket[data-dex="4"]');
+  const fuego = await page.$$eval('[data-testid=hoja-carpeta] .pocket', els => els.map(e => e.dataset.dex));
+  if (fuego[0] !== '4' || fuego.includes('1') || fuego.includes('7')) throw new Error('tipo Fuego debía empezar en Charmander, sin Bulbasaur ni Squirtle: ' + fuego.join(','));
+  await page.selectOption('[data-testid=filtro-tipo]', '');
+  await page.click('[data-testid=filtro-album] button:has-text("Tengo")');
+  await page.waitForFunction(n => document.querySelectorAll('[data-testid=dex-tengo]').length === n && !document.querySelector('[data-testid=dex-falta]'), especiesGen1);
+  await page.click('[data-testid=filtro-album] button:has-text("Todas")');
+  await page.waitForSelector('[data-testid=dex-falta][data-dex="2"]');
+  // una especie que falta: "Buscar en el mercado" por su nombre
+  await page.click('[data-testid=dex-falta][data-dex="2"]');
+  await page.waitForSelector('.sheet [data-testid=dex-ver-mercado]');
+  if (!/\/app\/mercado\?q=Ivysaur/.test(await page.getAttribute('.sheet [data-testid=dex-ver-mercado]', 'href'))) throw new Error('la especie que falta debía llevar al mercado por su nombre');
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.sheet', { state: 'detached' });
+  // ocultar (no se puede borrar) y volver a mostrar desde la lista
+  await page.click('[data-testid=btn-acciones]');
+  await page.click('[data-testid=btn-ocultar-pokedex]');
+  await page.waitForURL(/\/app\/album$/);
+  await page.waitForSelector('[data-testid=btn-mostrar-pokedex]');
+  if (await page.$('[data-testid=album-pokedex]')) throw new Error('la Pokédex oculta no debía salir en la lista');
+  for (let i = 0; i < 20 && sql(`select pokedex_oculto from public.perfiles where id = '${CHRIS}'`) !== 't'; i++) await page.waitForTimeout(250);
+  if (sql(`select pokedex_oculto from public.perfiles where id = '${CHRIS}'`) !== 't') throw new Error('pokedex_oculto debía guardarse en el perfil');
+  await page.click('[data-testid=btn-mostrar-pokedex]');
+  await page.waitForSelector('[data-testid=album-pokedex]');
+  log('Pokédex: primera en la lista (' + especiesChris + ' / 1025), orden nacional, carta más valiosa por especie, "Elegir otra carta" guardado y revertido, filtros generación/tipo/Tengo, falta → mercado, ocultar y mostrar');
 
   // ---------- Fase 2 · E: huellas compartidas (otro usuario ya preparó la colección 151 → se descarga en segundos)
   {

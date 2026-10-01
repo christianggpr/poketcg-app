@@ -29,3 +29,17 @@ test('normalizar: respeta una elección válida, baja a 4×4 con 2 páginas, ign
   assert.deepEqual(normalizar({ cols: 4, filas: 6, paginas: 1 }, false), POR_DEFECTO_CELULAR, '4×6 no existe en el celular');
   assert.deepEqual(normalizar({ cols: 5, filas: 5, paginas: 1 }, true), POR_DEFECTO_PC, '5×5 no existe');
 });
+
+// Mejoras 4 · B: la cuadrícula propia de un álbum personalizado (columnas × filas con las que se creó)
+test('cuadrícula propia: se añade a las opciones si no está (ordenada por casillas), con 2 páginas solo hasta 16, y es la inicial', () => {
+  assert.deepEqual(opcionesDe(true, 1, { cols: 4, filas: 3 }).map(o => o.id), ['3x3', '3x4', '4x3', '4x4', '4x5', '4x6']);
+  assert.deepEqual(opcionesDe(false, 1, { cols: 2, filas: 2 }).map(o => o.id), ['2x2', '3x3', '3x4', '4x5']);
+  assert.deepEqual(opcionesDe(true, 1, { cols: 3, filas: 3 }).map(o => o.id), ['3x3', '3x4', '4x4', '4x5', '4x6'], 'si ya existe no se repite');
+  assert.deepEqual(opcionesDe(true, 2, { cols: 5, filas: 5 }).map(o => o.id), ['3x3', '3x4', '4x4'], 'con 2 páginas, 25 casillas no entran');
+  assert.deepEqual(opcionesDe(true, 2, { cols: 4, filas: 3 }).map(o => o.id), ['3x3', '3x4', '4x3', '4x4']);
+  assert.deepEqual(opcionesDe(true, 1, { cols: 9, filas: 1 }).map(o => o.id), ['3x3', '3x4', '4x4', '4x5', '4x6'], 'fuera de 1–6 se ignora');
+  assert.deepEqual(normalizar({ cols: 4, filas: 3, paginas: 1 }, true, { cols: 4, filas: 3 }), { cols: 4, filas: 3, paginas: 1 }, 'la propia es válida');
+  assert.deepEqual(normalizar(null, true, { cols: 4, filas: 3 }), { cols: 4, filas: 3, paginas: 1 }, 'sin elección arranca con la propia');
+  assert.deepEqual(normalizar({ cols: 5, filas: 5, paginas: 2 }, true, { cols: 5, filas: 5 }), { cols: 4, filas: 4, paginas: 2 }, 'propia grande con 2 páginas → 4×4');
+  assert.deepEqual(normalizar({ cols: 4, filas: 3, paginas: 1 }, true), POR_DEFECTO_PC, 'sin propia, 4×3 no existe');
+});
