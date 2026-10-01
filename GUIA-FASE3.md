@@ -47,10 +47,18 @@ Comprobante subido (a ti) · pago confirmado / rechazado · fecha de entrega fij
 - Los datos de cobro se guardan **cifrados** (AES-256) y solo se descifran para el Excel y el panel de pagos.
 - Los comprobantes (de compradores y de tus pagos) van a un bucket **privado**: solo el dueño y tú pueden abrirlos, con enlaces temporales.
 
+## 5b. App Android (.apk) en la portada
+
+- La portada y `/instalar` ofrecen **Descargar app para Android**: es la misma web envuelta en una app oficial de Chrome (Trusted Web Activity), con icono, pantalla completa y accesos directos. Se actualiza sola con la web; no hay que volver a descargarla.
+- La construye y firma GitHub Actions (`.github/workflows/android.yml`) y deja el archivo en `public/descargas/poketcg.apk`; Vercel lo publica. **Una sola vez** debes guardar la clave de firma en GitHub → Settings → Secrets and variables → Actions: `ANDROID_KEYSTORE_BASE64` y `ANDROID_KEYSTORE_PASSWORD` (los valores están en `D:\POKEMON APP\v2\android\SECRETOS-ANDROID.txt`; guarda esa carpeta a buen recaudo y nunca la subas al repositorio).
+- Para publicar una versión nueva de la app (casi nunca hace falta): en `android/twa-manifest.json` sube `appVersionCode` y `appVersionName`, o pulsa "Run workflow" en la pestaña Actions.
+- `public/.well-known/assetlinks.json` une la web con la app: si lo borras, la app mostrará la barra de Chrome.
+- En Android, al abrir el .apk descargado el celular pide permiso para "instalar apps desconocidas" (solo la primera vez). También se puede instalar desde Chrome (menú ⋮ → Instalar aplicación) y en iPhone con Compartir → Añadir a pantalla de inicio.
+
 ## 6. Pruebas automáticas (ya corridas, todas en verde)
 
 - `npm test`: 34 pruebas (plazos, compra y vencimiento, comprobantes y confirmación con salida del stock, tienda y código, entrega a la colección del comprador, confirmación automática, órdenes vencidas que devuelven las copias, saldos y pagos, recordatorios, foto > S/ 50, más las de las Fases 1 y 2).
-- `node test/e2e.mjs`: 53 pasos de extremo a extremo con tres sesiones (comprador/admin, vendedora y tienda), del carrito al pago del vendedor.
+- `node test/e2e.mjs`: 54 pasos de extremo a extremo con tres sesiones (comprador/admin, vendedora y tienda), del carrito al pago del vendedor, más la descarga de la app Android.
 
 ## 7. Si algo falla
 
