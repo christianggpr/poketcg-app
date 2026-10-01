@@ -159,12 +159,22 @@ export async function tick(admin: SupabaseClient, presupuestoMs = 50000, opts: {
   }
 }
 
-/** Avanza la tarea diaria si está pendiente (para llamadas oportunistas desde las visitas). */
+/**
+ * Avanza la tarea diaria si está pendiente (para llamadas oportunistas desde las visitas).
+ * Si hay CRON_SECRET, en vez de trabajar aquí (4 s) despierta la cadena completa de /api/tareas/tick,
+ * que termina sola; así la primera visita del día basta para que todo se actualice.
+ */
 export async function tickSiPendiente(admin: SupabaseClient, presupuestoMs = 4000): Promise<void> {
   try {
     const fecha = fechaLima();
-    const { data } = await admin.from('tareas_programadas').select('id, estado').eq('nombre', 'renovacion_diaria').eq('detalle->>fecha', fecha).limit(1).maybeSingle();
+    const { data } = await admin.from('tareas_programadas').select('id, estado, bloqueo_hasta').eq('nombre', 'renovacion_diaria').eq('detalle->>fecha', fecha).limit(1).maybeSingle();
     if (data && data.estado !== 'en_curso') return;
+    if (data && data.bloqueo_hasta && new Date(data.bloqueo_hasta as string).getTime() > Date.now()) return;   // ya hay un tick trabajando
+    if (process.env.CRON_SECRET) {
+      const { appUrl } = await import('./config');
+      await fetch(`${appUrl()}/api/tareas/tick?cadena=1`, { method: 'POST', headers: { authorization: `Bearer ${process.env.CRON_SECRET}` }, signal: AbortSignal.timeout(3000) }).catch(() => {});
+      return;
+    }
     await tick(admin, presupuestoMs);
   } catch { /* la visita no debe fallar por la tarea */ }
 }

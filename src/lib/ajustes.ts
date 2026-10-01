@@ -46,12 +46,17 @@ export async function renovarTipoCambio(admin: SupabaseClient, forzar = false): 
     const j = (await r.json()) as { rates?: { PEN?: number; EUR?: number } };
     const pen = j.rates?.PEN, eur = j.rates?.EUR;
     if (!pen || !eur || pen < 1 || pen > 10 || eur < 0.5 || eur > 2) throw new Error('respuesta rara: ' + JSON.stringify(j.rates || {}).slice(0, 80));
-    const fx: TipoCambio = { usd_pen: Math.round(pen * 10000) / 10000, eur_pen: Math.round((pen / eur) * 10000) / 10000, t: Date.now(), fuente: 'open.er-api.com' };
+    const fx: TipoCambio = { usd_pen: Math.round(pen * 10000) / 10000, eur_pen: Math.round((pen / eur) * 10000) / 10000, t: Date.now(), fuente: 'open.er-api.com', ultimo_intento: Date.now(), ultimo_error: null };
     await escribirClave(admin, 'fx', fx);
+    cache = null;   // que la siguiente lectura vea el valor nuevo
     return { fx, renovado: true };
   } catch (e) {
+    // se conserva el último valor y queda registrado el intento fallido (se muestra en /admin)
+    const mensaje = e instanceof Error ? e.message : String(e);
     const respaldo = await leerClave<TipoCambio>(admin, 'fx_respaldo');
-    return { fx: actual || (respaldo ? { ...respaldo, fuente: 'respaldo' } : FX_RESPALDO), renovado: false, error: e instanceof Error ? e.message : String(e) };
+    const fx: TipoCambio = actual || (respaldo ? { ...respaldo, fuente: 'respaldo' } : FX_RESPALDO);
+    try { await escribirClave(admin, 'fx', { ...fx, ultimo_intento: Date.now(), ultimo_error: mensaje }); cache = null; } catch { /* sin base */ }
+    return { fx, renovado: false, error: mensaje };
   }
 }
 

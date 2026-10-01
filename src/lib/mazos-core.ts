@@ -23,7 +23,9 @@ export function parsearArquetipos(html: string): Omit<Arquetipo, 'formato' | 'ac
     const iconos = [...tr.matchAll(/<img class="pokemon"[^>]*alt="([^"]*)"/g)].map(x => x[1]);
     const puntos = parseInt(celdas[3] || '', 10);
     const cuota = parseFloat((celdas[4] || '').replace('%', ''));
-    res.push({ id: parseInt(m[1], 10), nombre: quitarEtiquetas(m[2]), iconos, orden: res.length + 1, puntos: isNaN(puntos) ? null : puntos, cuota: isNaN(cuota) ? null : cuota });
+    const id = parseInt(m[1], 10);
+    if (res.some(a => a.id === id)) continue;   // un arquetipo repetido rompería el upsert
+    res.push({ id, nombre: quitarEtiquetas(m[2]), iconos, orden: res.length + 1, puntos: isNaN(puntos) ? null : puntos, cuota: isNaN(cuota) ? null : cuota });
   }
   return res;
 }
@@ -42,7 +44,13 @@ export function parsearListasDeArquetipo(html: string): { id: number; puesto: nu
     const puesto = parseInt(quitarEtiquetas(celdas[1] || ''), 10);
     const iconos = [...(celdas[2] || '').matchAll(/alt="([^"]*)"/g)].map(x => x[1]);
     const jugador = quitarEtiquetas(celdas[3] || '');
-    res.push({ id: parseInt(lista[1], 10), puesto: isNaN(puesto) ? null : puesto, jugador, torneo, iconos });
+    const id = parseInt(lista[1], 10);
+    // La misma lista puede aparecer en varios resultados (el mismo jugador la usa en varios torneos):
+    // se guarda una sola vez, con su mejor puesto. Repetida, el upsert fallaba con
+    // "ON CONFLICT DO UPDATE command cannot affect row a second time" y la carga se detenía.
+    const ya = res.find(r => r.id === id);
+    if (ya) { if (!isNaN(puesto) && (ya.puesto == null || puesto < ya.puesto)) { ya.puesto = puesto; ya.jugador = jugador; ya.torneo = torneo; } continue; }
+    res.push({ id, puesto: isNaN(puesto) ? null : puesto, jugador, torneo, iconos });
   }
   return res;
 }

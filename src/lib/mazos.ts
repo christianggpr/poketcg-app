@@ -16,7 +16,7 @@ async function descargar(ruta: string): Promise<string> {
   return r.text();
 }
 
-export type CursorMazos = { inicio: string; ids: number[]; i: number; listas: number; nuevas: number };
+export type CursorMazos = { inicio: string; ids: number[]; i: number; listas: number; nuevas: number; errores?: string[] };
 
 type Res = { hecho: boolean; cursor: CursorMazos; detalle: Record<string, unknown> };
 
@@ -39,6 +39,27 @@ export async function actualizarMazos(admin: SupabaseClient, presupuestoMs: numb
   }
   while (c.i < c.ids.length && quedaTiempo()) {
     const id = c.ids[c.i];
+    try {
+      await procesarArquetipo(admin, c, id);
+    } catch (e) {
+      // un arquetipo con problemas no detiene la carga de los demás: se anota y se sigue
+      c.errores = [...(c.errores || []), `${id}: ${e instanceof Error ? e.message : String(e)}`].slice(-20);
+    }
+    c.i++;
+  }
+  const hecho = c.i >= c.ids.length;
+  if (hecho) {
+    if (c.errores && c.errores.length >= c.ids.length) throw new Error('Ningún arquetipo se pudo cargar: ' + c.errores[0]);
+    // arquetipos que salieron del meta (y sus variantes y listas, en cascada)
+    await admin.from('mazos_arquetipos').delete().lt('actualizado', c.inicio);
+    await admin.from('ajustes_globales').upsert({ clave: 'mazos', valor: { actualizado: new Date().toISOString(), arquetipos: c.ids.length, listas: c.listas, nuevas: c.nuevas, errores: c.errores || [], formato: FORMATO, periodo: PERIODO }, actualizado_en: new Date().toISOString() });
+  }
+  return { hecho, cursor: c, detalle: { arquetipos: c.ids.length, procesados: c.i, listas: c.listas, nuevas: c.nuevas, errores: c.errores || [] } };
+}
+
+/** Descarga las listas de un arquetipo, guarda las nuevas y recalcula sus variantes. */
+async function procesarArquetipo(admin: SupabaseClient, c: CursorMazos, id: number): Promise<void> {
+  {
     const { data: arq } = await admin.from('mazos_arquetipos').select('nombre').eq('id', id).maybeSingle();
     const nombre = (arq?.nombre as string) || `Mazo ${id}`;
     const html = await descargar(`/decks/${id}?format=${FORMATO}&time=${PERIODO}`);
@@ -60,7 +81,8 @@ export async function actualizarMazos(admin: SupabaseClient, presupuestoMs: numb
       }
     }
     if (completas.length) {
-      const { error } = await admin.from('mazos_listas').upsert(completas.map(l => ({ id: l.id, arquetipo_id: id, jugador: l.jugador, torneo: l.torneo, puesto: l.puesto, iconos: l.iconos, cartas: l.cartas })), { onConflict: 'id' });
+      const unicas = [...new Map(completas.map(l => [l.id, l])).values()];
+      const { error } = await admin.from('mazos_listas').upsert(unicas.map(l => ({ id: l.id, arquetipo_id: id, jugador: l.jugador, torneo: l.torneo, puesto: l.puesto, iconos: l.iconos, cartas: l.cartas })), { onConflict: 'id' });
       if (error) throw new Error('mazos_listas: ' + error.message);
     }
     for (const l of listas) {
@@ -78,13 +100,5 @@ export async function actualizarMazos(admin: SupabaseClient, presupuestoMs: numb
       await admin.from('mazos_variantes').delete().eq('arquetipo_id', id).lt('actualizado', c.inicio);
     }
     c.listas += completas.length;
-    c.i++;
   }
-  const hecho = c.i >= c.ids.length;
-  if (hecho) {
-    // arquetipos que salieron del meta (y sus variantes y listas, en cascada)
-    await admin.from('mazos_arquetipos').delete().lt('actualizado', c.inicio);
-    await admin.from('ajustes_globales').upsert({ clave: 'mazos', valor: { actualizado: new Date().toISOString(), arquetipos: c.ids.length, listas: c.listas, nuevas: c.nuevas, formato: FORMATO, periodo: PERIODO }, actualizado_en: new Date().toISOString() });
-  }
-  return { hecho, cursor: c, detalle: { arquetipos: c.ids.length, procesados: c.i, listas: c.listas, nuevas: c.nuevas } };
 }

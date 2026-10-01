@@ -26,9 +26,18 @@ test('Limitless: se leen los arquetipos de /decks', () => {
 
 test('Limitless: se leen las últimas listas de un arquetipo (puesto, jugador, torneo, iconos)', () => {
   const l = parsearListasDeArquetipo(paginaArquetipo(284));
-  assert.deepEqual(l.map(x => x.id), [29182, 28936, 29476]);
+  assert.deepEqual(l.map(x => x.id), [29182, 28936, 29476], 'la lista repetida (29182, dos torneos) se cuenta una sola vez');
   assert.deepEqual([l[0].puesto, l[0].jugador, l[0].torneo], [1, 'Edmund Khoo', '26th September 2026 - Regional Brisbane']);
   assert.deepEqual(l[2].iconos, ['dragapult', 'dusknoir']);
+});
+
+test('Limitless: una lista repetida en varios resultados conserva su mejor puesto; arquetipos repetidos se ignoran', () => {
+  const html = paginaArquetipo(284).replace('<td>1st</td>', '<td>7th</td>');   // la primera aparición queda 7.º; la repetida (al final) sigue siendo 1.º
+  const l = parsearListasDeArquetipo(html);
+  assert.deepEqual(l.map(x => x.id), [29182, 28936, 29476]);
+  assert.equal(l[0].puesto, 1, 'se queda con el mejor puesto de las apariciones');
+  const dobles = paginaDecks().replace('</table>', paginaDecks().match(/<tr>\s*<td>1<\/td>[\s\S]*?<\/tr>/)![0] + '</table>');
+  assert.equal(parsearArquetipos(dobles).length, 3, 'un arquetipo repetido en /decks no se duplica');
 });
 
 test('Limitless: se lee una lista con set, número, copias, nombre y categoría', () => {

@@ -27,8 +27,9 @@ const correos = async () => (await fetch(MOCK + '/__correos')).json();
 const cabecerasCron = { Authorization: 'Bearer secreto-de-prueba-123' };
 /** Ejecuta la tarea diaria completa (tipo de cambio, precios, publicaciones, mercado, mazos). */
 const correrTarea = async () => {
-  let r = await (await fetch(APP + '/api/tareas/tick?forzar=1', { headers: cabecerasCron })).json();
-  for (let i = 0; i < 6 && r.pendiente; i++) r = await (await fetch(APP + '/api/tareas/tick', { headers: cabecerasCron })).json();
+  // cadena=no: aquí el propio script repite las llamadas (la cadena automática se prueba aparte)
+  let r = await (await fetch(APP + '/api/tareas/tick?forzar=1&cadena=no', { headers: cabecerasCron })).json();
+  for (let i = 0; i < 6 && r.pendiente; i++) r = await (await fetch(APP + '/api/tareas/tick?cadena=no', { headers: cabecerasCron })).json();
   return r;
 };
 const num = q => parseInt(sql(q), 10);
@@ -443,6 +444,32 @@ try {
   await fetch(MOCK + '/__limitless?caido=0');
   if (tarea.tarea?.estado !== 'ok' || !/se conserva/.test(tarea.hecho.join(' | ')) || num('select count(*) from public.mazos_variantes') !== 4) throw new Error('con Limitless caído debía conservarse la versión anterior: ' + JSON.stringify(tarea).slice(0, 300));
   log('tarea diaria: 3 arquetipos, 5 listas, 2 variantes de Dragapult (≥ 90 %); sin descargas repetidas; Limitless caído → se conserva');
+
+  // Mejoras 1 · A2: la tarea se encadena sola hasta terminar (con presupuesto 0 la primera llamada solo renueva el cambio)
+  const primera = await (await fetch(APP + '/api/tareas/tick?forzar=1&presupuesto=0', { headers: cabecerasCron })).json();
+  if (!primera.ok || !primera.pendiente || !primera.continuara) throw new Error('la primera llamada debía quedar pendiente y continuar en cadena: ' + JSON.stringify(primera).slice(0, 300));
+  let encadenada = null;
+  for (let i = 0; i < 40; i++) {
+    await new Promise(r => setTimeout(r, 1500));
+    const t = await (await page.request.get(APP + '/api/admin/tareas')).json();
+    encadenada = t.tareas?.[0];
+    if (encadenada?.estado === 'ok') break;
+  }
+  if (encadenada?.estado !== 'ok' || encadenada.detalle?.fase !== 'fin' || encadenada.detalle?.mazos?.arquetipos !== 3) throw new Error('la cadena no terminó la tarea sola: ' + JSON.stringify(encadenada?.detalle).slice(0, 300));
+  // /admin: estado de los mazos, botón "Actualizar mazos ahora" con progreso, y tipo de cambio con fecha, hora y fuente
+  sql('delete from public.mazos_variantes; delete from public.mazos_listas; delete from public.mazos_arquetipos;');
+  await page.goto(APP + '/admin?tab=mercado');
+  await page.waitForSelector('[data-testid=mazos-estado]:has-text("0 arquetipos")');
+  if (!(await page.$('[data-testid=admin-mazos] .notice.warn'))) throw new Error('con menos de 15 arquetipos debía avisar');
+  await page.click('[data-testid=btn-actualizar-mazos]');
+  await page.waitForSelector('[data-testid=mazos-progreso]:has-text("✔")', { timeout: 60000 });
+  if (!/Arquetipo 3 de 3/.test(await page.textContent('[data-testid=mazos-progreso]'))) throw new Error('el progreso no llegó a 3 de 3: ' + await page.textContent('[data-testid=mazos-progreso]'));
+  await page.waitForSelector('[data-testid=mazos-estado]:has-text("3 arquetipos")');
+  if (num('select count(*) from public.mazos_listas') !== 5 || num('select count(*) from public.mazos_variantes') !== 4) throw new Error('el botón no recargó los mazos completos');
+  const fxTxt = await page.textContent('[data-testid=fx-vigente]');
+  if (!/Última actualización: \d{2}\/\d{2}\/\d{4}, \d{2}:\d{2} \(hora de Lima/.test(fxTxt) || !/fuente: (open\.er-api\.com|respaldo)/.test(fxTxt)) throw new Error('el tipo de cambio no muestra fecha, hora y fuente: ' + fxTxt);
+  await foto(page, 'admin-mazos');
+  log('cadena automática de la tarea diaria (termina sola), botón "Actualizar mazos ahora" (3 de 3) y tipo de cambio con fecha/hora/fuente');
 
   await page.goto(APP + '/app/mazos');
   await page.waitForSelector('[data-testid=fila-mazo]');
@@ -1047,6 +1074,51 @@ try {
   await page.click('[data-testid=tema-auto]');
   if ((await page.evaluate(() => document.documentElement.getAttribute('data-theme'))) !== null) throw new Error('el tema automático no quitó el atributo');
   log('modo oscuro: Ajustes → Oscuro se conserva al recargar; Automático vuelve al del sistema');
+
+  // ---------- Mejoras 1 · A1: desplazamiento hasta el final en todas las páginas principales (PC y celular), también tras abrir y cerrar una hoja
+  const cajaChris = sql(`select id from public.cajas where usuario_id = '${CHRIS}' order by orden limit 1`);
+  const PAGINAS_SCROLL = ['/app', '/app/album', '/app/album/sv03.5', '/app/cajas', `/app/cajas/${cajaChris}`, '/app/mercado', '/app/carrito', '/app/mazos', '/app/compras', '/app/ventas', '/app/notificaciones', '/app/ajustes', '/admin', '/ayuda', '/tiendas', '/u/vendedora_lima', '/carta/sv03.5-001'];
+  const comprobarScroll = async (pg, etiqueta) => {
+    const problemas = [];
+    for (const ruta of PAGINAS_SCROLL) {
+      await pg.goto(APP + ruta, { waitUntil: 'networkidle' }).catch(() => {});
+      await pg.waitForTimeout(500);
+      // baja con la rueda (como una persona) y luego hasta el final
+      for (let i = 0; i < 6; i++) await pg.mouse.wheel(0, 1500).catch(() => {});
+      await pg.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await pg.waitForTimeout(300);
+      const e = await pg.evaluate(() => ({ y: Math.round(scrollY), h: document.documentElement.scrollHeight, inner: innerHeight, overflow: document.body.style.overflow, llego: Math.ceil(scrollY + innerHeight) >= document.documentElement.scrollHeight - 2, hojas: document.querySelectorAll('.sheet-backdrop').length }));
+      if (!e.llego || e.overflow || e.hojas) problemas.push(`${ruta}: ${JSON.stringify(e)}`);
+    }
+    // abre una hoja en Buscar ("+ otra copia"), la cierra con Escape y comprueba que se puede seguir bajando
+    await pg.goto(APP + '/app');
+    await pg.waitForSelector('text=+ otra copia');
+    await pg.evaluate(() => window.scrollTo(0, 400));
+    await pg.click('text=+ otra copia >> nth=0');
+    await pg.waitForSelector('.sheet-backdrop');
+    const conHoja = await pg.evaluate(() => document.body.style.overflow);
+    await pg.keyboard.press('Escape');
+    await pg.waitForSelector('.sheet-backdrop', { state: 'detached' });
+    await pg.evaluate(() => window.scrollTo(0, 0));
+    for (let i = 0; i < 4; i++) await pg.mouse.wheel(0, 1200);
+    await pg.waitForTimeout(400);
+    const trasHoja = await pg.evaluate(() => ({ y: Math.round(scrollY), max: document.documentElement.scrollHeight - innerHeight, overflow: document.body.style.overflow }));
+    if (conHoja !== 'hidden' || trasHoja.overflow !== '' || trasHoja.y < Math.min(1000, trasHoja.max - 2)) problemas.push(`tras abrir y cerrar una hoja: ${JSON.stringify({ conHoja, trasHoja })}`);
+    if (problemas.length) throw new Error(`desplazamiento con problemas (${etiqueta}):\n` + problemas.join('\n'));
+  };
+  await comprobarScroll(page, 'celular 420×860');
+  const ctxPc = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'es-PE' });
+  const pagePc = await ctxPc.newPage();
+  await entrar(pagePc, 'chris_tcg', 'clave12345');
+  await comprobarScroll(pagePc, 'PC 1280×800');
+  await ctxPc.close();
+  const ctxCel = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'es-PE' });
+  const pageCel = await ctxCel.newPage();
+  await entrar(pageCel, 'chris_tcg', 'clave12345');
+  await comprobarScroll(pageCel, 'celular 390×844 táctil');
+  await foto(pageCel, 'scroll-celular');
+  await ctxCel.close();
+  log('desplazamiento: se llega al final de ' + PAGINAS_SCROLL.length + ' páginas en PC (1280×800) y celular (390×844), también después de abrir y cerrar una hoja');
 
   // ---------- app Android (APK): la portada ofrece la descarga cuando existe public/descargas/android.json (test/reiniciar.sh deja uno de prueba)
   const ctxP = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE' });

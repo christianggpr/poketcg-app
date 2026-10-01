@@ -47,7 +47,8 @@ export const LISTAS = {
     ['MEW', '159', 4, 'Energy Sticker', 'T'], ['SVE', '002', 16, 'Basic Fire Energy', 'E']
   ] }
 };
-export const LISTAS_POR_ARQUETIPO = { 284: [29182, 28936, 29476], 255: [31001], 247: [31002] };
+// La lista 29182 aparece dos veces (como en Limitless, cuando el mismo jugador la usa en dos torneos): debe guardarse una sola vez.
+export const LISTAS_POR_ARQUETIPO = { 284: [29182, 28936, 29476, 29182], 255: [31001], 247: [31002] };
 
 export function paginaDecks() {
   const filas = ARQUETIPOS.map((a, i) => `<tr>
