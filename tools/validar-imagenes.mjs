@@ -109,7 +109,11 @@ async function setApi(lang, id) {
 }
 
 const urlTcgdex = (s, lang, l, calidad = 'low') => `${ASSETS}/${lang}/${s.s}/${s.tid || s.id}/${l}/${calidad}.webp`;
-const urlPtcgio = (c, grande = false) => { const i = c.p.indexOf('-'); return `${PTCGIO}/${c.p.slice(0, i)}/${c.p.slice(i + 1)}${grande ? '_hires' : ''}.png`; };
+// pokemontcg.io: id de la carta (campo p) o, si no lo tiene, el id de la colección (campo p de la colección o esta
+// tabla para las que TCGdex no relaciona) + número sin ceros.
+const PTCGIO_SETS = { '2011bw': 'mcd11', '2012bw': 'mcd12', '2013bw': 'mcd13', '2014xy': 'mcd14', '2015xy': 'mcd15', '2016xy': 'mcd16', '2017sm': 'mcd17', '2018sm': 'mcd18', '2019sm': 'mcd19', '2021swsh': 'mcd21', '2022swsh': 'mcd22', '2023sv': 'mcd23', '2024sv': 'mcd24', exu: 'exu' };
+const idPtcgio = (c, s) => { if (c.p) return c.p; const set = s.p || PTCGIO_SETS[s.id]; if (!set) return null; return `${set}-${/^\d+$/.test(c.l) ? parseInt(c.l, 10) : c.l}`; };
+const urlPtcgio = (id, grande = false) => { const i = id.indexOf('-'); return `${PTCGIO}/${id.slice(0, i)}/${id.slice(i + 1)}${grande ? '_hires' : ''}.png`; };
 /** Limitless japonés: código sin guiones (SV-P → SVP) y número sin ceros a la izquierda. */
 const urlLimitlessJp = (s, c, grande = false) => { if (!s.tid || !/^\d+$/.test(c.l)) return null; const code = s.tid.replace(/-/g, ''); return `${LIMITLESS}/tpc/${code}/${code}_${parseInt(c.l, 10)}_R_JP${grande ? '' : '_LG'}.png`; };
 /** Limitless internacional: código impreso (MEW) y número de tres cifras. */
@@ -149,20 +153,28 @@ for (let k = 0; k < sets.length; k++) {
     const res = await enLotes(probar, CONCURRENCIA, c => existe(urlTcgdex(s, lang, c.l)));
     probar.forEach((c, i) => m.set(c.l, res[i]));
     estado[lang] = m;
-    const sin = cartas.filter(c => m.get(c.l) !== 'ok').map(c => c.l);
-    const ok = cartas.length - sin.length;
-    info[lang] = { existe: ok > 0, con: ok, sin: ok > 0 ? sin : [] };
+    // 'error' (no se pudo comprobar) no cuenta como "sin imagen": la app la pedirá a TCGdex igual y, si falla, seguirá con las demás fuentes
+    const sin = cartas.filter(c => m.get(c.l) === 'no').map(c => c.l);
+    const dudosas = cartas.filter(c => m.get(c.l) === 'error').map(c => c.l);
+    const ok = cartas.length - sin.length - dudosas.length;
+    info[lang] = { existe: ok > 0, con: ok, sin: ok > 0 ? sin : [], dudosas };
   }
   // Respaldos para las que no tienen imagen en TCGdex en el idioma principal
   const fuentes = { tcgdex: 0, 'tcgdex-es': 0, pokemontcg: 0, limitless: 0, ninguna: 0 };
   const sinImagenSet = [];
   const principal = ja ? 'ja' : 'en';
-  const pendientes = cartas.filter(c => estado[principal].get(c.l) !== 'ok');
-  for (const c of cartas) if (estado[principal].get(c.l) === 'ok') { fuentes.tcgdex++; if (c.sinTcgdex) yaEnTcgdex.push(c.id); }
+  const pendientes = cartas.filter(c => estado[principal].get(c.l) === 'no');
+  let dudosasSet = 0;
+  for (const c of cartas) {
+    const e = estado[principal].get(c.l);
+    if (e === 'ok') { fuentes.tcgdex++; if (c.sinTcgdex) yaEnTcgdex.push(c.id); }
+    else if (e === 'error') { fuentes.tcgdex++; dudosasSet++; }
+  }
   await enLotes(pendientes, Math.max(2, Math.floor(CONCURRENCIA / 2)), async c => {
     if (!ja) {
       if (estado.es.get(c.l) === 'ok') { fuentes['tcgdex-es']++; return; }
-      if (c.p && (await existe(urlPtcgio(c))) === 'ok') { fuentes.pokemontcg++; return; }
+      const idP = idPtcgio(c, s);
+      if (idP && (await existe(urlPtcgio(idP))) === 'ok') { fuentes.pokemontcg++; if (!c.p) salida.cartas[c.id] = ['pokemontcg', urlPtcgio(idP), urlPtcgio(idP, true)]; return; }
       const lim = urlLimitlessIntl(s, c);
       if (lim && (await existe(lim)) === 'ok') { fuentes.limitless++; salida.cartas[c.id] = ['limitless', lim, urlLimitlessIntl(s, c, true)]; return; }
     } else if (SERIES_JP_LIMITLESS.has(s.s)) {
@@ -178,11 +190,11 @@ for (let k = 0; k < sets.length; k++) {
   total += cartas.length; conImagen += okSet;
   if (!sinFuente) { totalConFuente += cartas.length; conImagenConFuente += okSet; }
   for (const f of Object.keys(fuentes)) fuentesTotal[f] += fuentes[f];
-  salida.sets[s.id] = { nombre: s.n, total: cartas.length, conImagen: okSet, sinFuentePublica: sinFuente || undefined, ...info, fuentes, sinImagen: sinImagenSet.map(c => c.l) };
+  salida.sets[s.id] = { nombre: s.n, total: cartas.length, conImagen: okSet, sinFuentePublica: sinFuente || undefined, ...info, fuentes, dudosas: dudosasSet, sinImagen: sinImagenSet.map(c => c.l) };
   for (const c of sinImagenSet) salida.sinImagen.push({ id: c.id, s: s.id, l: c.l, n: c.n, nj: c.nj || undefined });
   const detalle = idiomas.map(l => `${l} ${info[l].con}`).join(', ');
   const resp = ['tcgdex-es', 'pokemontcg', 'limitless'].filter(f => fuentes[f]).map(f => `${f} ${fuentes[f]}`).join(', ');
-  lineas.push(`${s.id} · ${s.n} · ${okSet}/${cartas.length} (${pct(okSet, cartas.length)}) · TCGdex ${detalle}${resp ? ' · respaldo: ' + resp : ''}${sinImagenSet.length ? ` · sin imagen: ${sinFuente && sinImagenSet.length === cartas.length ? 'todas (sin fuente pública)' : sinImagenSet.map(c => c.l).join(', ')}` : ''}`);
+  lineas.push(`${s.id} · ${s.n} · ${okSet}/${cartas.length} (${pct(okSet, cartas.length)}) · TCGdex ${detalle}${resp ? ' · respaldo: ' + resp : ''}${dudosasSet ? ` · sin comprobar (error de red): ${dudosasSet}` : ''}${sinImagenSet.length ? ` · sin imagen: ${sinFuente && sinImagenSet.length === cartas.length ? 'todas (sin fuente pública)' : sinImagenSet.map(c => c.l).join(', ')}` : ''}`);
   console.log(`[${k + 1}/${sets.length}] ${lineas[lineas.length - 1]}`);
 }
 
