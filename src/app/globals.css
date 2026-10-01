@@ -232,8 +232,11 @@ svg.ico { display: inline-block; }
 .input:focus { box-shadow: var(--foco); }
 textarea.input { min-height: 72px; resize: vertical; }
 .search-wrap { position: relative; }
-.search-wrap .input { padding-left: 44px; font-size: 16px; min-height: 52px; }
-.search-wrap .ico { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--texto-2); display: flex; }
+.search-wrap .input { padding-left: 46px; font-size: 16px; min-height: 52px; }
+/* Ajustes de layout · 2: solo el envoltorio (> .ico) se posiciona; el svg de dentro también lleva la clase .ico y antes
+   se desplazaba 14 px más, montándose sobre el texto del campo */
+.search-wrap > .ico { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--texto-2); display: flex; }
+.search-wrap > .ico > svg, .buscador-pc > .ico > svg, .buscador-mercado > .ico > svg, .buscar-bulk > .ico > svg { position: static; transform: none; }
 .search-wrap .clear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); }
 .seg { display: inline-flex; gap: 6px; flex-wrap: wrap; }
 .seg button { border: 0; background: var(--tarjeta); box-shadow: var(--sombra); padding: 9px 16px; min-height: 44px; border-radius: 999px; font-weight: 800; font-size: 14px; color: var(--texto); }
@@ -793,8 +796,8 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
 .topbar .brand .volver { width: 44px; height: 44px; border-radius: 50%; flex: none; }
 .topbar .brand .brand-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .buscador-pc { display: none; position: relative; }
-.buscador-pc .ico, .buscador-mercado .ico { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--texto-2); display: flex; }
-.buscador-pc .input, .buscador-mercado .input { padding-left: 44px; font-size: 16px; min-height: 52px; }
+.buscador-pc > .ico, .buscador-mercado > .ico { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--texto-2); display: flex; pointer-events: none; }
+.buscador-pc .input, .buscador-mercado .input { padding-left: 46px; font-size: 16px; min-height: 52px; }
 .titulo-pestana { margin: 4px 0 12px; }
 .resumen-coleccion { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .resumen-coleccion .precio-grande { line-height: 1.1; }
@@ -934,8 +937,8 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
 .tarjeta-bulk .venta-bulk { margin: 0; }
 .tarjeta-bulk .venta-bulk .switch { flex: none; }
 .buscar-bulk { position: relative; }
-.buscar-bulk .ico { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--texto-2); display: flex; }
-.buscar-bulk .input { padding-left: 42px; }
+.buscar-bulk > .ico { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--texto-2); display: flex; pointer-events: none; }
+.buscar-bulk .input { padding-left: 46px; }
 .acciones-bulk { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .acciones-bulk .btn.primary { flex: 1 1 100%; }
 .bulk-tabla { margin-top: 12px; }
