@@ -24,6 +24,7 @@ import { Sheet } from '../Sheet';
 import { useToast } from '../Toast';
 import { PorLlegar, Recibidas } from './PorLlegar';
 import { AvisosOrdenar, LlenarAlbumesSheet, OrdenarRepetidasSheet, useOrdenar } from './Repetidas';
+import { PonerEnVentaSheet } from './VentaAlbum';
 import { Campo, useEsPC } from '../ui';
 
 /** Idioma de una entrada para agrupar álbumes: JP para colecciones japonesas, el registrado o "—". */
@@ -225,13 +226,6 @@ export function AlbumColeccion({ setId }: { setId: string }) {
     router.replace(`/app/album/${encodeURIComponent(set!.id)}?idioma=${encodeURIComponent(idiomaNuevo)}`);
   }
   const sinPublicar = [...propias.values()].flat().filter(e => !col.publicacionDe(e.id));
-  async function ponerEnVenta() {
-    setAsignando(true);
-    await precios.pedir([...new Set(sinPublicar.map(e => e.carta_id as string))]).catch(() => {});
-    const n = await col.publicarVarias(sinPublicar.map(e => e.id));
-    setAsignando(false);
-    if (n) toast(`${n} ${n === 1 ? 'carta publicada' : 'cartas publicadas'} con el precio por defecto`, 'ok', 3500); else toast('No se publicó ninguna carta', 'danger');
-  }
   const total = cartas.filter(c => !c.sd).length;
   const pct = total ? Math.round((idsPropias.length / total) * 100) : 0;
   const enVentaFaltan = idsFaltan.filter(id => enRed.has(id)).length;
@@ -249,15 +243,18 @@ export function AlbumColeccion({ setId }: { setId: string }) {
     const enCasilla = es.filter(e => e.album_coleccion === set.id).reduce((n, e) => n + e.cantidad, 0);
     const otras = qty - enCasilla;
     const red = enRed.get(c.id);
-    const enVenta = es.some(e => col.publicacionDe(e.id)?.estado === 'activa');
-    const titulo = `${nombreCarta(c, idioma)} · ${c.l}${qty ? ` · tienes ${qty}${enCasilla > 1 ? ` (${enCasilla - 1} repetidas en la casilla)` : ''}${otras ? ` (${otras} en Bulk)` : ''}` : red ? ` · en el mercado desde ${fmtPen(red.precio_min)}` : ' · te falta'}`;
+    const pubs = es.filter(e => e.album_coleccion === set.id).map(e => col.publicacionDe(e.id)).filter((p): p is NonNullable<typeof p> => !!p && (p.estado === 'activa' || p.estado === 'pausada'));
+    const enVenta = pubs.length > 0;
+    // Mejoras 2 · C: copias de la casilla puestas a la venta ("en el álbum, para vender")
+    const paraVender = pubs.reduce((n, p) => n + p.cantidad, 0);
+    const titulo = `${nombreCarta(c, idioma)} · ${c.l}${qty ? ` · tienes ${qty}${enCasilla > 1 ? ` (${enCasilla - 1} repetidas en la casilla)` : ''}${otras ? ` (${otras} en Bulk)` : ''}${paraVender ? ` · ${paraVender} en el álbum, para vender` : ''}` : red ? ` · en el mercado desde ${fmtPen(red.precio_min)}` : ' · te falta'}`;
     if (qty) {
       return (
         <Link href={`/app/carta/${encodeURIComponent(c.id)}`} className="pocket filled album-cell" title={titulo} data-testid="casilla-tengo">
           <Thumb carta={c} set={set} alt={nombreCarta(c, idioma)} idioma={idiomaAlb} />
           <span className="pocket-n">{c.l}</span>
           {enCasilla > 1 ? <span className="casilla-cant repetida" title={`${enCasilla - 1} repetidas en la casilla: usa "Ordenar repetidas"`}>×{enCasilla}</span> : otras ? <span className="casilla-cant bulk" title={`${otras} más en Bulk`}>+{otras}</span> : null}
-          {enVenta ? <span className="album-venta" title="En venta en el mercado"><Icono n="ventas" tam={11} /></span> : null}
+          {enVenta ? <span className="album-venta" title={paraVender && enCasilla > 1 ? `${paraVender} ${paraVender === 1 ? 'copia' : 'copias'} en el álbum, para vender` : 'En venta en el mercado'} data-testid="casilla-venta">{<Icono n="ventas" tam={11} />}{enCasilla > 1 ? <span className="n"> {paraVender}</span> : null}</span> : null}
           <span className="casilla-loc">{(() => { const d = ubicador.donde(es[0]); return d ? <LocChip loc={d} corto /> : null; })()}</span>
         </Link>
       );
@@ -354,7 +351,7 @@ export function AlbumColeccion({ setId }: { setId: string }) {
       {agregar ? <AddEntrySheet carta={agregar} idiomaInicial={idiomaAlb !== '—' ? idiomaAlb : ''} onClose={() => setAgregar(null)} /> : null}
       {asistente === 'repetidas' ? <OrdenarRepetidasSheet repetidas={ordenar.repetidas} onClose={() => setAsistente(null)} /> : null}
       {asistente === 'llenar' ? <LlenarAlbumesSheet candidatas={ordenar.candidatas} onClose={() => setAsistente(null)} /> : null}
-      {confirmarVenta ? <Confirmar titulo="Poner en venta" texto={`Se publicarán en el mercado ${sinPublicar.length} ${sinPublicar.length === 1 ? 'carta' : 'cartas'} de ${nombreColeccion(set, idioma, true)} con el precio por defecto (el mayor entre el piso y el precio de mercado). Podrás cambiar precios, pausar o retirar cuando quieras; las de más de S/ 50 quedan pausadas hasta que les agregues una foto.`} okLabel="Publicar" onOk={() => { setConfirmarVenta(false); ponerEnVenta(); }} onClose={() => setConfirmarVenta(false)} /> : null}
+      {confirmarVenta ? <PonerEnVentaSheet set={set} idioma={idiomaAlb || (set.rg === 'ja' ? 'JP' : '')} entradas={sinPublicar} onClose={() => setConfirmarVenta(false)} /> : null}
     </div>
   );
 }

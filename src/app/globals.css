@@ -1093,3 +1093,23 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
 .bulk-vacio .btn { margin-top: 12px; }
 .marca { width: 22px; height: 22px; accent-color: var(--primario); flex: none; margin: 0; }
 .grupo-llenar .card-row { gap: 10px; }
+
+/* Mejoras 2 · C · poner en venta un álbum: elegir con qué me quedo */
+.hoja-venta-album .pregunta-venta { margin: 4px 0 10px; font-size: 20px; }
+.opciones-venta .opcion { align-items: flex-start; }
+.opciones-venta .opcion .marca { margin-top: 2px; }
+.opciones-venta .opcion.apagada { opacity: .55; }
+.opciones-venta .bloque { display: block; margin-top: 2px; font-weight: 600; }
+.opciones-venta .opcion .pill { margin-left: 6px; vertical-align: middle; }
+.detalle-opcion { padding: 10px 12px; border-radius: 12px; background: var(--suave); margin-top: -2px; }
+.detalle-opcion .row { flex-wrap: wrap; }
+.detalle-opcion .precio-limite { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; }
+.detalle-opcion .precio-limite .input { width: 92px; }
+.deslizador { flex: 1 1 140px; min-width: 120px; accent-color: var(--primario); min-height: 44px; }
+.lista-venta { margin-top: 10px; }
+.lista-venta .card-row.apagada { opacity: .6; }
+.lista-venta .card-row { gap: 10px; }
+.resumen-venta { margin-top: 12px; }
+.resumen-venta .fila-dato { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; align-items: baseline; }
+.resumen-venta .fila-dato b { text-align: right; }
+.hoja-carpeta .pocket .album-venta .n { font-size: 10px; }

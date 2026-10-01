@@ -834,11 +834,52 @@ try {
   if (!/^\+\d+$/.test(cant004)) throw new Error('la casilla 004 debía mostrar "+N" (copias en Bulk): ' + cant004);
   log('Mejoras 2 · B: recibida ×3 → 1 a la casilla y 2 al Bulk; repetida sugiere "Mandar a Bulk"; "Ordenar repetidas" saca 4 copias a Bulk 2 con posición; "Llenar álbumes" lleva Pikachu del Bulk a la casilla 025');
 
+  // ---------- Mejoras 2 · C: poner en venta un álbum eligiendo con qué me quedo
+  // Álbum 151 ES: Bulbasaur 5 en la casilla + 2 en Bulk 2 (7 copias) y Caterpie ×2 en Bulk 2
+  sql(`update public.entradas set cantidad = 5 where usuario_id = '${CHRIS}' and carta_id = 'sv03.5-001' and album_coleccion = 'sv03.5' and idioma = 'ES'`);
+  await page.goto(APP + '/app/album/sv03.5?idioma=ES');
+  await page.waitForSelector('[data-testid=btn-poner-en-venta]:has-text("(3)")');
+  await page.click('[data-testid=btn-poner-en-venta]');
+  await page.waitForSelector('.sheet [data-testid=resumen-venta-album]');
+  const textoResumen = async () => (await page.textContent('.sheet [data-testid=resumen-venta-album]')).replace(/\s+/g, ' ');
+  // 1 de cada (por defecto): de 7 Bulbasaur se queda 1 y salen 6; de 2 Caterpie se queda 1 y sale 1
+  let res = await textoResumen();
+  if (!/Se publican7 copias \(2 cartas\)/.test(res) || !/Te quedas con2 copias \(2 cartas\)/.test(res)) throw new Error('resumen "1 de cada" inesperado: ' + res);
+  // + las de mayor precio: límite S/ 16 → Caterpie (S/ 19.17) se queda completo; no se publica ninguna de más de S/ 16; Bulbasaur (S/ 15.06) sigue con "1 de cada"
+  await page.click('.sheet [data-testid=opcion-mayor-precio] input');
+  await page.fill('.sheet [data-testid=input-limite]', '16');
+  res = await textoResumen();
+  if (!/Se publican6 copias \(1 carta\)/.test(res) || !/Te quedas con3 copias \(2 cartas\)/.test(res)) throw new Error('resumen "mayor precio" inesperado: ' + res);
+  if (!/1 carta se queda/.test(await page.textContent('.sheet [data-testid=detalle-mayor-precio]'))) throw new Error('el detalle del límite no cuenta la carta que se queda');
+  // elegir una por una: la lista viene marcada según las reglas
+  await page.click('.sheet [data-testid=opcion-una-por-una] input');
+  await page.waitForSelector('.sheet [data-testid=lista-una-por-una]');
+  if (!/Se queda \(mayor precio\)/.test(await page.textContent('.sheet [data-testid=fila-venta-carta]:has-text("Caterpie")'))) throw new Error('Caterpie debía figurar como "se queda (mayor precio)"');
+  if (!/Se publican 6 · se queda 1/.test(await page.textContent('.sheet [data-testid=fila-venta-carta]:has-text("Bulbasaur")'))) throw new Error('Bulbasaur debía figurar como "se publican 6 · se queda 1"');
+  await foto(page, 'venta-album');
+  // vender todo → 9 copias; vuelta a las reglas y confirmar con "1 de cada" (7 copias)
+  await page.click('.sheet [data-testid=opcion-vender-todo] input');
+  res = await textoResumen();
+  if (!/Se publican9 copias \(2 cartas\)/.test(res) || !/Te quedas con0 copias/.test(res)) throw new Error('resumen "vender todo" inesperado: ' + res);
+  await page.click('.sheet [data-testid=opcion-vender-todo] input');
+  await page.click('.sheet [data-testid=opcion-mayor-precio] input');
+  res = await textoResumen();
+  if (!/Se publican7 copias \(2 cartas\)/.test(res)) throw new Error('resumen tras volver a "1 de cada" inesperado: ' + res);
+  await page.click('.sheet [data-testid=btn-confirmar-venta-album]:has-text("Publicar 7 copias")');
+  await page.waitForSelector('.toast:has-text("7 copias publicadas")');
+  const pubsES = sql(`select string_agg(coalesce(c.nombre, 'Álbum') || ':' || e.carta_id || ':' || e.cantidad || '→' || p.cantidad || ':' || p.estado, ' | ' order by e.carta_id, e.cantidad) from public.publicaciones p join public.entradas e on e.id = p.entrada_id left join public.cajas c on c.id = e.caja_id where p.usuario_id = '${CHRIS}' and e.idioma = 'ES' and p.estado in ('activa', 'pausada')`);
+  if (pubsES !== 'Bulk 2:sv03.5-001:2→2:activa | Álbum:sv03.5-001:5→4:activa | Bulk 2:sv03.5-010:2→1:activa') throw new Error('publicaciones del álbum ES inesperadas: ' + pubsES);
+  // la casilla 001 muestra "4 para vender" (en el álbum, para vender) y la ficha de la carta lo dice
+  await page.waitForSelector('[data-testid=casilla-tengo]:has-text("001") [data-testid=casilla-venta]:has-text("4")');
+  await page.goto(APP + '/app/carta/sv03.5-001');
+  await page.waitForSelector('.pill:has-text("4 para vender")');
+  log('Mejoras 2 · C: Poner en venta el álbum 151 ES → "1 de cada" publica 7 de 9 copias (Bulbasaur 4 + 2, Caterpie 1); "más de S/ 10" deja Bulbasaur; "vender todo" 9; la casilla muestra "4 para vender"');
+
   // Bulk: ya no queda nada por colocar (Bulbasaur ×3 se repartió desde Recibidas: 1 al álbum 151 ES y 2 al Bulk como repetidas)
   await page.goto(APP + '/app/bulk');
   await page.waitForSelector('[data-testid=selector-bulk]');
   if (await page.$('[data-testid=por-colocar]')) throw new Error('no debía quedar nada por colocar');
-  if (sql(`select string_agg(coalesce(c.nombre, 'Álbum ' || e.album_coleccion) || ':' || e.cantidad, ' | ' order by e.cantidad) from public.entradas e left join public.cajas c on c.id = e.caja_id where e.usuario_id = '${CHRIS}' and e.carta_id = 'sv03.5-001' and e.compra_orden_id = '${ordenId}'`) !== 'Álbum sv03.5:1 | Bulk 2:2') throw new Error('la carta comprada no quedó repartida (1 álbum + 2 Bulk 2): ' + sql(`select string_agg(coalesce(c.nombre, 'Álbum') || ':' || e.cantidad, ' | ') from public.entradas e left join public.cajas c on c.id = e.caja_id where e.usuario_id = '${CHRIS}' and e.carta_id = 'sv03.5-001'`));
+  if (sql(`select string_agg(coalesce(c.nombre, 'Álbum ' || e.album_coleccion) || ':' || e.cantidad, ' | ' order by e.cantidad) from public.entradas e left join public.cajas c on c.id = e.caja_id where e.usuario_id = '${CHRIS}' and e.carta_id = 'sv03.5-001' and e.compra_orden_id = '${ordenId}'`) !== 'Bulk 2:2 | Álbum sv03.5:5') throw new Error('la carta comprada no quedó repartida (álbum —5 tras la prueba de venta— + 2 en Bulk 2): ' + sql(`select string_agg(coalesce(c.nombre, 'Álbum') || ':' || e.cantidad, ' | ') from public.entradas e left join public.cajas c on c.id = e.caja_id where e.usuario_id = '${CHRIS}' and e.carta_id = 'sv03.5-001'`));
   await ctxL.close(); await ctxT.close();
   log('comprador: 3 cartas compradas (6 copias) entraron solas "por colocar"; Bulbasaur ×3 repartido desde Recibidas: 1 al álbum 151 ES y 2 a Bulk 2 como repetidas');
 
@@ -1136,7 +1177,8 @@ try {
   if (!/Bulbasaur/.test(await pagePub.textContent('[data-testid=ficha-nombre]'))) throw new Error('la ficha pública no muestra el nombre');
   if (!(await pagePub.textContent('[data-testid=ficha-promedio]')).includes(pen(precioVenta))) throw new Error('la ficha no muestra el promedio de ventas ' + pen(precioVenta) + ': ' + await pagePub.textContent('[data-testid=ficha-promedio]'));
   if ((await pagePub.$$('[data-testid=ficha-venta]')).length < 1 || !/@vendedora_lima/.test(await pagePub.textContent('[data-testid=ficha-publica]'))) throw new Error('la ficha no lista las ventas con el vendedor');
-  if (/chris_tcg/.test(await pagePub.textContent('[data-testid=ficha-publica]'))) throw new Error('la ficha pública expone al comprador');
+  // el comprador no aparece en las ventas (chris sí puede figurar como vendedor: publicó Bulbasaur ES en el bloque C)
+  for (const v of await pagePub.$$('[data-testid=ficha-venta]')) if (/chris_tcg/.test(await v.textContent())) throw new Error('la ficha pública expone al comprador');
   const htmlFicha = await pagePub.content();
   if (!/"@type":"Product"/.test(htmlFicha) || !/Bulbasaur.*precio en Perú/.test(await pagePub.title())) throw new Error('faltan los datos para buscadores en la ficha: ' + await pagePub.title());
   await foto(pagePub, 'ficha-publica');

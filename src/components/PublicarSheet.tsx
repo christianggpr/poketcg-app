@@ -150,9 +150,11 @@ export function PublicarSheet({ entrada, onClose }: { entrada: Entrada; onClose:
 }
 
 /** Etiqueta con el estado de una publicación (en venta S/ X · pausada · reservada). */
-export function EstadoPub({ pub, conPrecio = true }: { pub: Publicacion | undefined | null; conPrecio?: boolean }) {
+export function EstadoPub({ pub, conPrecio = true, entrada }: { pub: Publicacion | undefined | null; conPrecio?: boolean; entrada?: Entrada | null }) {
   if (!pub) return null;
-  if (pub.estado === 'activa') return <span className="pill ok" title="Publicada en el mercado">en venta{conPrecio ? ` ${fmtPen(pub.precio_pen)}` : ''}</span>;
+  // Mejoras 2 · C: en un álbum, las copias repetidas que se venden "están en el álbum, para vender" (la casilla se queda con 1)
+  const parcial = entrada && entrada.album_coleccion && pub.cantidad < entrada.cantidad ? `${pub.cantidad} ${pub.cantidad === 1 ? 'copia' : 'copias'} en el álbum, para vender · ` : '';
+  if (pub.estado === 'activa') return <span className="pill ok" title={parcial ? `${parcial}la otra se queda en la casilla` : 'Publicada en el mercado'}>{parcial ? `${pub.cantidad} para vender` : 'en venta'}{conPrecio ? ` ${fmtPen(pub.precio_pen)}` : ''}</span>;
   if (pub.estado === 'pausada') return <span className="pill warn" title={pub.motivo_pausa === 'foto' ? 'Pausada: falta la foto' : 'Pausada'}><Icono n="pausa" tam={12} /> pausada{pub.motivo_pausa === 'foto' ? ' (falta foto)' : ''}</span>;
   if (pub.estado === 'reservada') return <span className="pill primary"><Icono n="candado" tam={12} /> reservada</span>;
   return null;

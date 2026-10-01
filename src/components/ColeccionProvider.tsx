@@ -43,7 +43,8 @@ type Ctx = {
   publicacionDe: (entradaId: string) => Publicacion | undefined;
   recargarPublicaciones: () => Promise<void>;
   publicar: (entradaId: string, d?: { cantidad?: number; tipo_precio?: 'defecto' | 'manual'; precio_pen?: number }) => Promise<Publicacion | null>;
-  publicarVarias: (entradaIds: string[]) => Promise<number>;
+  /** Publica varias entradas con el precio por defecto: toda la cantidad (id) o parte ({ entrada_id, cantidad }). */
+  publicarVarias: (items: (string | { entrada_id: string; cantidad: number })[]) => Promise<number>;
   editarPublicacion: (id: string, d: Partial<Pick<Publicacion, 'cantidad' | 'tipo_precio' | 'precio_pen' | 'estado' | 'fotos'>>) => Promise<Publicacion | null>;
   cambiarEstado: (ids: string[], estado: 'activa' | 'pausada' | 'retirada') => Promise<number>;
   // Mejoras 2 · B: el álbum es lo principal; el Bulk guarda las repetidas (funciones de la base, 0006_mejoras2.sql)
@@ -301,9 +302,12 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
       setPublicaciones(x => upsert(x, data as Publicacion));
       return data as Publicacion;
     },
-    async publicarVarias(entradaIds) {
+    async publicarVarias(items) {
       const sb = supabaseBrowser();
-      const nuevas = entradaIds.filter(id => !publicaciones.some(p => p.entrada_id === id && PUBLICACION_VIVA.has(p.estado))).map(id => { const e = entradas.find(x => x.id === id); return e && e.carta_id ? { entrada_id: id, cantidad: e.cantidad, tipo_precio: 'defecto' } : null; }).filter((x): x is { entrada_id: string; cantidad: number; tipo_precio: string } => !!x);
+      const nuevas = items.map(it => (typeof it === 'string' ? { id: it, cantidad: null } : { id: it.entrada_id, cantidad: it.cantidad }))
+        .filter(it => !publicaciones.some(p => p.entrada_id === it.id && PUBLICACION_VIVA.has(p.estado)))
+        .map(it => { const e = entradas.find(x => x.id === it.id); const cantidad = Math.min(e?.cantidad || 0, it.cantidad ?? e?.cantidad ?? 0); return e && e.carta_id && cantidad > 0 ? { entrada_id: it.id, cantidad, tipo_precio: 'defecto' } : null; })
+        .filter((x): x is { entrada_id: string; cantidad: number; tipo_precio: string } => !!x);
       let n = 0;
       for (let i = 0; i < nuevas.length; i += 100) {
         const { data, error } = await sb.from('publicaciones').insert(nuevas.slice(i, i + 100)).select('*');
