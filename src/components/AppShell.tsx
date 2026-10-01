@@ -9,6 +9,7 @@ import { useMercado } from './MercadoProvider';
 import { usePerfil } from './PerfilProvider';
 import { Aviso, Cargando } from './ui';
 import { Icono } from './Icono';
+import { liberarScrollSiNoHayHojas } from './Sheet';
 import { BarraInferiorCelular, BarraSuperior, BuscadorMercadoCelular, ChipsSecciones, type PestanaPrincipal, type Seccion } from './Barras';
 import { ResumenColeccion } from './ResumenColeccion';
 import { PorLlegar } from './vistas/PorLlegar';
@@ -54,6 +55,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const inicioColeccion = ruta === '/app/album';
   const inicioMercado = ruta === '/app/mercado';
   const listo = !!cat && col.cargado;
+  // Mejoras 1 · A1: al cambiar de página, si no quedó ninguna hoja abierta, el desplazamiento se libera siempre
+  useEffect(() => { const t = setTimeout(liberarScrollSiNoHayHojas, 50); return () => clearTimeout(t); }, [ruta]);
   return (
     <div id="app" className={lateral ? 'con-lateral' : ''} data-pestana={principal?.id || ''}>
       <BarraSuperior principales={PRINCIPALES} principal={principal} interior={interior} />

@@ -342,7 +342,11 @@ try {
   await page.click('.sheet:has-text("Eliminar carta") .sheet-foot >> text=Eliminar');
   await page.waitForSelector('.toast:has-text("eliminada")');
   if (num("select count(*) from public.publicaciones where carta_id = 'sv03.5-001'") !== 0) throw new Error('la publicación no se borró con la entrada');
-  log('entrada eliminada → publicación eliminada');
+  // Mejoras 1 · A1 (arreglo): dos hojas apiladas (editar → confirmar) que se cierran a la vez no deben dejar la página sin desplazamiento
+  await page.waitForTimeout(300);
+  const bloqueo = await page.evaluate(() => ({ overflow: document.body.style.overflow, hojas: document.querySelectorAll('.sheet-backdrop').length }));
+  if (bloqueo.hojas !== 0 || bloqueo.overflow !== '') throw new Error('tras cerrar las dos hojas la página quedó bloqueada: ' + JSON.stringify(bloqueo));
+  log('entrada eliminada → publicación eliminada; el desplazamiento queda libre tras cerrar las dos hojas apiladas');
 
   // ---------- Fase 2 · C: mercado, carrito y reservas
   // Otra coleccionista (creada directo en la base) pone una caja en venta: Bulbasaur ×3, Charmander reverse ×1, Caterpie ×2

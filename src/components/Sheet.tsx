@@ -1,15 +1,30 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Icono } from './Icono';
+
+// Mejoras 1 · A1 (arreglo): el bloqueo del desplazamiento se lleva con una pila de hojas abiertas. Antes cada hoja
+// guardaba el valor anterior de body.overflow y lo restauraba al cerrarse; con dos hojas apiladas (p. ej. editar una
+// carta → "Eliminar" → confirmar) que se cerraban a la vez, la de arriba restauraba "hidden" al final y la página
+// quedaba sin poder bajar hasta recargar. Ahora solo la última hoja en cerrarse libera el desplazamiento, y Escape
+// cierra únicamente la hoja de arriba.
+const pila: symbol[] = [];
+function abrirHoja(id: symbol) { pila.push(id); document.body.style.overflow = 'hidden'; }
+function cerrarHoja(id: symbol) { const i = pila.indexOf(id); if (i >= 0) pila.splice(i, 1); if (!pila.length) document.body.style.overflow = ''; }
+/** Si no queda ninguna hoja montada (p. ej. tras cambiar de página), libera el desplazamiento. */
+export function liberarScrollSiNoHayHojas() {
+  if (typeof document === 'undefined') return;
+  if (!document.querySelector('.sheet-backdrop')) { pila.length = 0; document.body.style.overflow = ''; }
+}
 
 /** Hoja inferior (celular) / ventana centrada (PC). Se cierra con el fondo, la X o Escape. */
 export function Sheet({ titulo, sobre, onClose, children, pie, className = '' }: { titulo?: string; sobre?: React.ReactNode; onClose: () => void; children: React.ReactNode; pie?: React.ReactNode; className?: string }) {
+  const id = useRef<symbol | null>(null);
+  if (!id.current) id.current = Symbol('hoja');
+  useEffect(() => { const h = id.current!; abrirHoja(h); return () => cerrarHoja(h); }, []);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && pila[pila.length - 1] === id.current) onClose(); };
     document.addEventListener('keydown', onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
+    return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
   return (
     <div className="sheet-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
