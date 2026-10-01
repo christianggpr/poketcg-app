@@ -1120,3 +1120,11 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
 .resumen-venta .fila-dato { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; align-items: baseline; }
 .resumen-venta .fila-dato b { text-align: right; }
 .hoja-carpeta .pocket .album-venta .n { font-size: 10px; }
+
+/* Ajustes de layout · 5: en la hoja del álbum el número va abajo a la izquierda (pequeño y translúcido) para no tapar
+   el nombre impreso en la carta; el contador (×N / +N) sigue arriba a la derecha y la etiqueta de venta pasa arriba a la izquierda */
+.hoja-carpeta .pocket .pocket-n { top: auto; bottom: 4px; left: 4px; font-size: 9.5px; padding: 1px 5px; background: rgba(255, 255, 255, .82); color: var(--carpeta); line-height: 1.3; }
+.hoja-carpeta .pocket.missing .pocket-n { background: rgba(255, 255, 255, .72); }
+.hoja-carpeta .pocket .album-venta { top: 4px; left: 4px; bottom: auto; }
+.hoja-carpeta .pocket .casilla-falta { left: 34px; right: 4px; }
+.hoja-carpeta .pocket .casilla-loc { left: 34px; }
