@@ -35,18 +35,20 @@ jobs:
           node-version: 20
 
       - name: Comprobar las imágenes
-        run: node tools/validar-imagenes.mjs
+        run: node tools/validar-imagenes.mjs --concurrencia 16
 
       - name: Regenerar el catálogo
         if: ${{ inputs.regenerar }}
         run: |
-          node tools/generar-catalogo.mjs
+          node tools/generar-catalogo.mjs --solo-imagenes
           node tools/validar-catalogo.mjs
 
       - name: Resumen
+        if: ${{ !cancelled() }}
         run: head -8 tools/informe-imagenes.txt >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
         with:
           name: informe-imagenes
           path: |
@@ -54,6 +56,7 @@ jobs:
             tools/imagenes.json
 
       - name: Subir el resultado al repositorio
+        if: ${{ !cancelled() }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

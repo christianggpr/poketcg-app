@@ -137,8 +137,17 @@ for (let k = 0; k < sets.length; k++) {
     const m = new Map();
     const aProbar = [];
     for (const c of cartas) { if (positivos.has(norm(c.l))) m.set(c.l, 'ok'); else aProbar.push(c); }
-    const res = await enLotes(aProbar, CONCURRENCIA, c => existe(urlTcgdex(s, lang, c.l)));
-    aProbar.forEach((c, i) => m.set(c.l, res[i]));
+    // Español (idioma secundario): si la API no da ninguna imagen, se prueba una muestra repartida; si ninguna existe,
+    // se da por hecho que no hay (ahorra miles de peticiones). En el idioma principal se comprueba carta por carta.
+    let probar = aProbar;
+    if (lang === 'es' && api && positivos.size === 0 && aProbar.length > 8) {
+      const paso = Math.max(1, Math.floor(aProbar.length / 6));
+      const muestra = aProbar.filter((_, i) => i % paso === 0).slice(0, 8);
+      const r = await enLotes(muestra, 4, c => existe(urlTcgdex(s, lang, c.l)));
+      if (!r.includes('ok')) { for (const c of aProbar) m.set(c.l, r.includes('error') ? 'error' : 'no'); probar = []; }
+    }
+    const res = await enLotes(probar, CONCURRENCIA, c => existe(urlTcgdex(s, lang, c.l)));
+    probar.forEach((c, i) => m.set(c.l, res[i]));
     estado[lang] = m;
     const sin = cartas.filter(c => m.get(c.l) !== 'ok').map(c => c.l);
     const ok = cartas.length - sin.length;
