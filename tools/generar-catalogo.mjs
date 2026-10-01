@@ -95,7 +95,10 @@ function resumen(nums) {
 for (const c of db.cards) if (c.dex) c.dex = c.dex.map(d => Math.floor(Number(d))).filter(d => Number.isInteger(d));
 const ids = new Set(db.cards.map(c => c.id));
 const nuevos = rellenos.filter(r => !ids.has(r.id));
-const version = process.env.CATALOGO_VERSION || new Date().toISOString().slice(0, 10) + '.1';
+// Versión: la fecha de hoy y un número que sube si ya se generó otra versión hoy (la app descarga el catálogo de nuevo cuando cambia).
+const hoy = new Date().toISOString().slice(0, 10);
+const versionActual = (() => { try { return JSON.parse(fs.readFileSync(path.join(raiz, 'public', 'data', 'version.json'), 'utf8')).version || ''; } catch { return ''; } })();
+const version = process.env.CATALOGO_VERSION || (versionActual.startsWith(hoy + '.') ? `${hoy}.${(parseInt(versionActual.slice(hoy.length + 1), 10) || 0) + 1}` : hoy + '.1');
 const catalogo = {
   version,
   generated: new Date().toISOString(),
@@ -103,6 +106,34 @@ const catalogo = {
   cards: db.cards.concat(nuevos),
   species: dex
 };
+
+// Imágenes (tools/validar-imagenes.mjs → tools/imagenes.json): qué números no tienen imagen en TCGdex en cada
+// idioma (ien / ies / ija de la colección) y qué cartas usan otra fuente (im = [origen, url pequeña, url grande]).
+// Con esto la app pide la imagen correcta a la primera en vez de probar direcciones que fallan.
+const rutaImagenes = path.join(here, 'imagenes.json');
+if (fs.existsSync(rutaImagenes)) {
+  const img = JSON.parse(fs.readFileSync(rutaImagenes, 'utf8'));
+  const cartasPorId = new Map(catalogo.cards.map(c => [c.id, c]));
+  let setsImg = 0, cartasOtra = 0, marcas = 0;
+  for (const s of catalogo.sets) {
+    const r = img.sets && img.sets[s.id];
+    if (!r) continue;
+    setsImg++;
+    delete s.ien; delete s.ies; delete s.ija;
+    if (s.rg === 'ja') {
+      if (r.ja) { if (!r.ja.existe) s.ija = 0; else if (r.ja.sin.length) s.ija = r.ja.sin; }
+    } else {
+      if (r.en) { if (!r.en.existe) s.ien = 0; else if (r.en.sin.length) s.ien = r.en.sin; }
+      if (r.es && r.es.existe) s.ies = r.es.sin.length ? r.es.sin : 1;
+    }
+  }
+  for (const c of catalogo.cards) delete c.im;
+  for (const [id, im] of Object.entries(img.cartas || {})) { const c = cartasPorId.get(id); if (c) { c.im = im; cartasOtra++; } }
+  for (const id of img.yaEnTcgdex || []) { const c = cartasPorId.get(id); if (c && c.sinTcgdex) { delete c.sinTcgdex; marcas++; } }
+  console.log(`Imágenes (${img.generado ? img.generado.slice(0, 10) : '?'}): ${setsImg} colecciones con datos, ${cartasOtra} cartas con imagen de otra fuente, ${marcas} completadas a mano que ya están en TCGdex.`);
+} else {
+  console.log('Sin tools/imagenes.json: el catálogo sale sin datos de imágenes (ejecuta tools/validar-imagenes.mjs).');
+}
 
 fs.mkdirSync(path.join(raiz, 'public', 'data'), { recursive: true });
 fs.writeFileSync(path.join(raiz, 'public', 'data', 'catalogo.json'), JSON.stringify(catalogo));

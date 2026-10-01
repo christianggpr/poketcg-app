@@ -1,0 +1,66 @@
+name: Imágenes del catálogo
+
+# Comprueba en qué fuente pública existe la imagen de cada carta (TCGdex, pokemontcg.io, Limitless),
+# escribe tools/imagenes.json + tools/informe-imagenes.txt y regenera el catálogo con esa información
+# (public/data/catalogo.json). Lo que cambie se sube al repositorio y Vercel lo publica solo.
+# Se ejecuta a mano desde la pestaña Actions → "Imágenes del catálogo" → "Run workflow".
+# Tarda unos 10–15 minutos. No necesita secretos.
+
+on:
+  workflow_dispatch:
+    inputs:
+      regenerar:
+        description: 'Regenerar el catálogo con el resultado'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: imagenes-catalogo
+  cancel-in-progress: false
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Comprobar las imágenes
+        run: node tools/validar-imagenes.mjs
+
+      - name: Regenerar el catálogo
+        if: ${{ inputs.regenerar }}
+        run: |
+          node tools/generar-catalogo.mjs
+          node tools/validar-catalogo.mjs
+
+      - name: Resumen
+        run: head -8 tools/informe-imagenes.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: informe-imagenes
+          path: |
+            tools/informe-imagenes.txt
+            tools/imagenes.json
+
+      - name: Subir el resultado al repositorio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tools/imagenes.json tools/informe-imagenes.txt
+          git add public/data/catalogo.json public/data/version.json src/lib/catalogo-version.ts tools/informe-huecos.txt 2>/dev/null || true
+          if git diff --cached --quiet; then echo "Sin cambios"; exit 0; fi
+          PCT=$(node -e 'const r=require("./tools/imagenes.json").resumen; console.log(r.conFuentePublica.pct)')
+          git commit -m "Imágenes del catálogo: $PCT % con imagen en colecciones con fuente pública [actions]"
+          git pull --rebase origin main
+          git push origin HEAD:main
