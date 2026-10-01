@@ -68,7 +68,7 @@ export function Ajustes() {
 
       <div className="panel">
         <h3>Apariencia</h3>
-        <p className="small muted">Modo oscuro para ver la colección de noche. «Automático» sigue el ajuste de tu celular o computadora.</p>
+        <p className="small muted">«Claro» es el diseño de la app (viene por defecto). «Oscuro» para ver la colección de noche. «Automático» sigue el ajuste de tu celular o computadora. Se guarda para tu usuario en este dispositivo.</p>
         <SelectorTema />
       </div>
 

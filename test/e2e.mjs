@@ -1260,9 +1260,13 @@ try {
   if (num(`select count(*) from public.favoritos where usuario_id = '${CHRIS}'`) !== 0) throw new Error('quitar de la lista no borró el favorito');
   log('favoritos: ❤️ en la carta → aviso "está en venta" cuando la vendedora publica (S/ 12.00) → lista de deseos en el Mercado → quitar');
 
-  // modo oscuro: se elige en Ajustes, se guarda en el dispositivo y se aplica antes de pintar al recargar
+  // modo oscuro: se elige en Ajustes, se guarda por usuario en el dispositivo y se aplica antes de pintar al recargar
+  // Ajustes de layout · 8: por defecto claro aunque el sistema esté en oscuro
+  await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto(APP + '/app/ajustes');
   await page.waitForSelector('[data-testid=selector-tema]');
+  if ((await page.evaluate(() => document.documentElement.getAttribute('data-theme'))) !== 'light' || !(await page.$('[data-testid=tema-claro].active'))) throw new Error('sin elección guardada la app debía abrir en claro aunque el sistema esté en oscuro');
+  if ((await page.evaluate(() => getComputedStyle(document.body).backgroundColor)) !== 'rgb(255, 246, 229)') throw new Error('el fondo por defecto debía ser crema: ' + await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
   await page.click('[data-testid=tema-oscuro]');
   if ((await page.evaluate(() => document.documentElement.getAttribute('data-theme'))) !== 'dark') throw new Error('el tema oscuro no se aplicó');
   await page.reload();
@@ -1271,7 +1275,10 @@ try {
   await foto(page, 'modo-oscuro');
   await page.click('[data-testid=tema-auto]');
   if ((await page.evaluate(() => document.documentElement.getAttribute('data-theme'))) !== null) throw new Error('el tema automático no quitó el atributo');
-  log('modo oscuro: Ajustes → Oscuro se conserva al recargar; Automático vuelve al del sistema');
+  if ((await page.evaluate(() => getComputedStyle(document.body).backgroundColor)) === 'rgb(255, 246, 229)') throw new Error('en Automático con el sistema en oscuro debía verse oscuro');
+  await page.click('[data-testid=tema-claro]');
+  await page.emulateMedia({ colorScheme: 'light' });
+  log('modo claro por defecto (aunque el sistema esté en oscuro); Ajustes → Oscuro se conserva al recargar; Automático sigue al sistema');
 
   // ---------- Mejoras 1 · A1: desplazamiento hasta el final en todas las páginas principales (PC y celular), también tras abrir y cerrar una hoja
   const cajaChris = sql(`select id from public.cajas where usuario_id = '${CHRIS}' order by orden limit 1`);
