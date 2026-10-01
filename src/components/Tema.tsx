@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { Icono } from './Icono';
 
 export type Tema = 'auto' | 'claro' | 'oscuro';
 const CLAVE = 'tema';
@@ -11,7 +12,7 @@ export function aplicarTema(t: Tema) {
   else if (t === 'oscuro') html.setAttribute('data-theme', 'dark');
   else html.removeAttribute('data-theme');
   const oscuro = t === 'oscuro' || (t === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', oscuro ? '#0f1526' : '#f3f5fa'));
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', oscuro ? '#141A2E' : '#FFF6E5'));
 }
 export function temaGuardado(): Tema {
   try { const t = localStorage.getItem(CLAVE); return t === 'claro' || t === 'oscuro' ? t : 'auto'; } catch { return 'auto'; }
@@ -28,7 +29,7 @@ export function SelectorTema() {
   }
   return (
     <div className="seg" data-testid="selector-tema">
-      {([['auto', '🌗 Automático'], ['claro', '☀️ Claro'], ['oscuro', '🌙 Oscuro']] as const).map(([v, txt]) => <button key={v} className={tema === v ? 'active' : ''} onClick={() => elegir(v)} data-testid={`tema-${v}`}>{txt}</button>)}
+      {([['auto', 'Automático', 'tema_auto'], ['claro', 'Claro', 'sol'], ['oscuro', 'Oscuro', 'luna']] as const).map(([v, txt, ico]) => <button key={v} className={tema === v ? 'active' : ''} onClick={() => elegir(v)} data-testid={`tema-${v}`}><Icono n={ico} /> {txt}</button>)}
     </div>
   );
 }

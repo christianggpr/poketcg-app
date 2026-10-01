@@ -1,7 +1,8 @@
 'use client';
+import { Icono, PuntoEnergia } from '../Icono';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { cardTypeIcon, cardTypeLabel, nombreCarta, nombreColeccion, numLabel, rarezaLabel, urlImagenGrande } from '@/lib/catalogo';
+import { cardTypeKey, cardTypeLabel, nombreCarta, nombreColeccion, numLabel, rarezaLabel, urlImagenGrande } from '@/lib/catalogo';
 import type { Entrada } from '@/lib/coleccion';
 import { fmtPen, fmtUsd } from '@/lib/precios-core';
 import { useCatalogo } from '../CatalogoProvider';
@@ -32,7 +33,7 @@ export function CartaDetalle({ id }: { id: string }) {
   const [editar, setEditar] = useState<Entrada | null>(null);
   const carta = cat.carta(id);
   useEffect(() => { if (carta && !carta.sd) precios.pedir([carta.id]); }, [carta, precios]);
-  if (!carta) return <div className="empty"><div className="big">🫥</div>Esa carta no está en el catálogo. <Link href="/app/buscar">Volver a buscar</Link></div>;
+  if (!carta) return <div className="empty"><div className="big"><Icono n="buscar" tam={44} grosor={1.5} /></div>Esa carta no está en el catálogo. <Link href="/app/buscar">Volver a buscar</Link></div>;
   const set = cat.setOf(carta);
   const idioma = perfil.idioma_nombres;
   const propias = col.entradas.filter(e => e.carta_id === carta.id);
@@ -45,7 +46,7 @@ export function CartaDetalle({ id }: { id: string }) {
   const cartaId = carta.id;
   const favorita = mercado.esFavorita(cartaId);
   async function alternarFavorita() {
-    try { const ahora = await mercado.alternarFavorita(cartaId); toast(ahora ? '❤️ En tu lista de deseos: te avisamos cuando alguien la publique' : 'Quitada de tu lista de deseos', ahora ? 'ok' : undefined, 3500); }
+    try { const ahora = await mercado.alternarFavorita(cartaId); toast(ahora ? 'En tu lista de deseos: te avisamos cuando alguien la publique' : 'Quitada de tu lista de deseos', ahora ? 'ok' : undefined, 3500); }
     catch (e) { toast((e as Error).message || 'No se pudo guardar', 'danger'); }
   }
   async function compartir() {
@@ -69,8 +70,8 @@ export function CartaDetalle({ id }: { id: string }) {
           <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
             <h2 style={{ marginTop: 0 }}>{nombreCarta(carta, idioma)}{carta.sd ? <> <span className="badge-sd">sin datos</span></> : null}</h2>
             {!carta.sd ? <div className="row" style={{ gap: 4, flex: 'none' }}>
-              <button className={`btn sm ${favorita ? 'primary' : ''}`} onClick={alternarFavorita} title={favorita ? 'Quitar de mi lista de deseos' : 'Agregar a mi lista de deseos'} aria-pressed={favorita} data-testid="btn-favorito">{favorita ? '❤️' : '🤍'}</button>
-              <button className="btn sm" onClick={compartir} title="Compartir la ficha pública" data-testid="btn-compartir">🔗</button>
+              <button className={`btn sm icon ${favorita ? 'primary' : ''}`} onClick={alternarFavorita} title={favorita ? 'Quitar de mi lista de deseos' : 'Agregar a mi lista de deseos'} aria-label={favorita ? 'Quitar de mi lista de deseos' : 'Agregar a mi lista de deseos'} aria-pressed={favorita} data-testid="btn-favorito"><Icono n="corazon" tam={20} relleno={favorita} /></button>
+              <button className="btn sm icon" onClick={compartir} title="Compartir la ficha pública" aria-label="Compartir la ficha pública" data-testid="btn-compartir"><Icono n="compartir" tam={20} /></button>
             </div> : null}
           </div>
           <p className="muted">{[carta.n, carta.ns, carta.nj].filter((x, i, a) => x && a.indexOf(x) === i && x !== nombreCarta(carta, idioma)).join(' · ')}</p>
@@ -78,7 +79,7 @@ export function CartaDetalle({ id }: { id: string }) {
             <dt>Colección</dt><dd><SimboloSet setId={carta.s} /> {nombreColeccion(set, idioma, true)}{set?.ab ? <span className="faint"> ({set.ab})</span> : null}</dd>
             <dt>Número</dt><dd>{numLabel(carta, set)}</dd>
             {carta.r ? <><dt>Rareza</dt><dd>{rarezaLabel(carta.r)}</dd></> : null}
-            {carta.c !== '?' ? <><dt>Tipo</dt><dd>{cardTypeIcon(carta)} {cardTypeLabel(carta)}{carta.hp ? ` · ${carta.hp} PS` : ''}</dd></> : null}
+            {carta.c !== '?' ? <><dt>Tipo</dt><dd>{carta.c === 'P' ? <PuntoEnergia tipo={cardTypeKey(carta)} /> : null} {cardTypeLabel(carta)}{carta.hp ? ` · ${carta.hp} PS` : ''}</dd></> : null}
             {especie ? <><dt>Pokédex</dt><dd>N.º {especie[0]} {especie[2]}{especie[3] ? <span className="faint"> · {especie[3]}</span> : null}</dd></> : null}
             {carta.il ? <><dt>Ilustración</dt><dd>{carta.il}</dd></> : null}
             {carta.rm ? <><dt>Regulación</dt><dd>{carta.rm}</dd></> : null}

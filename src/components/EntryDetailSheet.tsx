@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from './Icono';
 import { useState } from 'react';
 import Link from 'next/link';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
@@ -64,7 +65,7 @@ export function EntryDetailSheet({ entrada, onClose }: { entrada: Entrada; onClo
         {carta && !carta.sd ? (
           <div className={`notice ${pub ? (pub.estado === 'activa' ? 'ok' : 'warn') : 'info'} small`} style={{ marginTop: 10 }} data-testid="mercado-entrada">
             {pub ? <><EstadoPub pub={pub} /> {pub.cantidad} {pub.cantidad === 1 ? 'copia' : 'copias'} · {pub.tipo_precio === 'manual' ? 'precio manual' : 'precio por defecto'}{pub.estado === 'pausada' && pub.motivo_pausa === 'foto' ? ' · falta la foto (precio mayor a S/ 50)' : ''} </> : <>No está en venta. </>}
-            <button className={`btn sm ${pub ? '' : 'primary'}`} style={{ marginLeft: 4 }} onClick={() => setVender(true)}>{pub ? 'Ver o editar publicación' : '🏷️ Vender en el mercado'}</button>
+            <button className={`btn sm ${pub ? '' : 'primary'}`} style={{ marginLeft: 4 }} onClick={() => setVender(true)}>{pub ? 'Ver o editar publicación' : <><Icono n="ventas" /> Vender en el mercado</>}</button>
           </div>
         ) : null}
         <div className="row wrap" style={{ marginTop: 12 }}>
@@ -77,7 +78,7 @@ export function EntryDetailSheet({ entrada, onClose }: { entrada: Entrada; onClo
           <div className="field grow"><label>Nota</label><input className="input" value={d.nota} onChange={e => setD(x => ({ ...x, nota: e.target.value }))} /></div>
         </div>
         <div className="row wrap">
-          <Campo label="Ubicación">{id => <select id={id} className="input" value={ubic} onChange={e => { setUbic(e.target.value); setD(x => ({ ...x, caja_id: e.target.value && e.target.value !== 'album' ? e.target.value : null })); }} data-testid="select-ubicacion"><option value="">Sin ubicación</option>{carta ? <option value="album">📒 Álbum {nombreColeccion(set, perfil.idioma_nombres, true)} {d.idioma || (set?.rg === 'ja' ? 'JP' : 'EN')}</option> : null}{cajasOrdenadas(col.cajas).map(c => <option key={c.id} value={c.id}>📦 {c.nombre}</option>)}</select>}</Campo>
+          <Campo label="Ubicación">{id => <select id={id} className="input" value={ubic} onChange={e => { setUbic(e.target.value); setD(x => ({ ...x, caja_id: e.target.value && e.target.value !== 'album' ? e.target.value : null })); }} data-testid="select-ubicacion"><option value="">Sin ubicación</option>{carta ? <option value="album">Álbum {nombreColeccion(set, perfil.idioma_nombres, true)} {d.idioma || (set?.rg === 'ja' ? 'JP' : 'EN')}</option> : null}{cajasOrdenadas(col.cajas).map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select>}</Campo>
           {caja && caja.modo === 'manual' ? <div className="field"><label>Posición (orden manual)</label><input className="input" type="number" min={1} value={d.posicion || ''} onChange={e => setD(x => ({ ...x, posicion: parseInt(e.target.value, 10) || null }))} /></div> : null}
         </div>
       </Sheet>

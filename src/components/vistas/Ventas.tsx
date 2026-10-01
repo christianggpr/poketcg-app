@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { fechaHora, urlVoucher } from '@/lib/compras';
@@ -70,8 +71,8 @@ export function Ventas() {
   return (
     <div>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <h2 style={{ margin: 0 }}>🏷️ Mis ventas</h2>
-        <div className="row" style={{ gap: 6 }}><Link href="/app/ventas/ordenes" className="btn sm primary" data-testid="btn-ordenes-venta">📦 Órdenes de venta</Link><Link href="/app/bulk" className="btn sm ghost">📦 Bulk</Link></div>
+        <h2 style={{ margin: 0 }}>Mis ventas</h2>
+        <div className="row" style={{ gap: 6 }}><Link href="/app/ventas/ordenes" className="btn sm primary" data-testid="btn-ordenes-venta"><Icono n="paquete_ok" /> Órdenes de venta</Link><Link href="/app/bulk" className="btn sm ghost"><Icono n="bulk" /> Bulk</Link></div>
       </div>
       <p className="small muted">Lo que tienes publicado en el mercado. Los compradores solo ven tu nombre de usuario (@{perfil.username}); nunca tu DNI, teléfono ni nombre real. La comisión es del {Math.round(comision * 100)} % sobre el precio de venta.</p>
       <MiReputacion />
@@ -81,7 +82,7 @@ export function Ventas() {
         <div className="box"><b>{fmtPen(resumen.valor)}</b><span>en venta (recibirías {fmtPen(netoVendedor(resumen.valor, comision))})</span></div>
         <div className="box"><b>{resumen.pausadas}</b><span>pausadas{resumen.reservadas ? ` · ${resumen.reservadas} reservadas` : ''}</span></div>
       </div>
-      {resumen.sinFoto ? <div className="notice warn small" style={{ marginBottom: 10 }} data-testid="aviso-fotos">⚠️ {resumen.sinFoto} {resumen.sinFoto === 1 ? 'publicación está pausada' : 'publicaciones están pausadas'} porque el precio supera S/ 50 y no tienen foto real. Ábrelas y agrega la foto para activarlas.</div> : null}
+      {resumen.sinFoto ? <div className="notice warn small" style={{ marginBottom: 10 }} data-testid="aviso-fotos"><Icono n="camara" tam={15} /> {resumen.sinFoto} {resumen.sinFoto === 1 ? 'publicación está pausada' : 'publicaciones están pausadas'} porque el precio supera S/ 50 y no tienen foto real. Ábrelas y agrega la foto para activarlas.</div> : null}
       <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <div className="seg">
           <button className={filtro === 'todas' ? 'active' : ''} onClick={() => setFiltro('todas')}>Todas</button>
@@ -102,7 +103,7 @@ export function Ventas() {
         </div>
       ) : null}
       {!col.publicaciones.length ? (
-        <div className="empty"><div className="big">🏷️</div><p><b>Todavía no tienes nada en venta.</b></p><p className="muted">Activa «Bulk en venta» en un Bulk, elige cartas sueltas desde el Bulk, o abre una carta de tu colección y pulsa «Vender en el mercado».</p></div>
+        <div className="empty"><div className="big"><Icono n="ventas" tam={44} grosor={1.5} /></div><p><b>Todavía no tienes nada en venta.</b></p><p className="muted">Activa «Bulk en venta» en un Bulk, elige cartas sueltas desde el Bulk, o abre una carta de tu colección y pulsa «Vender en el mercado».</p></div>
       ) : !filas.length ? <div className="empty muted">Nada en este estado.</div> : null}
       <div className="card-list" style={{ marginTop: 10 }}>
         {filas.map(({ pub, entrada }) => {
@@ -116,9 +117,9 @@ export function Ventas() {
                 <div className="card-name">{carta ? nombreCarta(carta, perfil.idioma_nombres) : 'Carta'} <EstadoPub pub={pub} conPrecio={false} /></div>
                 <div className="card-set">{nombreColeccion(set, perfil.idioma_nombres)} {carta ? <span className="num">{numLabel(carta, set)}</span> : null}{pub.acabado ? <span className="pill">{pub.acabado}</span> : null}{pub.idioma ? <span className="pill">{pub.idioma}</span> : null}{pub.condicion ? <span className="pill">{pub.condicion}</span> : null}</div>
                 <div className="small">{pub.cantidad} {pub.cantidad === 1 ? 'copia' : 'copias'} a <b>{fmtPen(pub.precio_pen)}</b> <span className="muted">({pub.tipo_precio === 'manual' ? 'manual' : 'por defecto'}; recibes {fmtPen(netoVendedor(pub.precio_pen, comision))} c/u)</span>{entrada ? <> · <LocChip loc={ubicador.ubicacion(entrada)} corto /></> : null}</div>
-                {pub.aviso ? <div className="small" style={{ color: 'var(--warn)' }}>{pub.aviso}</div> : null}
+                {pub.aviso ? <div className="small" style={{ color: 'var(--aviso-texto)' }}>{pub.aviso}</div> : null}
               </div>
-              <div className="card-side">{(pub.fotos || []).length ? <span className="pill">📷 {pub.fotos.length}</span> : null}</div>
+              <div className="card-side">{(pub.fotos || []).length ? <span className="pill"><Icono n="camara" tam={12} /> {pub.fotos.length}</span> : null}</div>
             </div>
           );
         })}
@@ -150,7 +151,7 @@ function MiSaldo() {
   if (!saldo || (!saldo.ordenes_vendidas && !saldo.en_curso && !saldo.por_pagar)) return null;
   return (
     <div className="panel" data-testid="mi-saldo">
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}><h3 style={{ margin: 0 }}>💰 Mi saldo</h3><button className="btn sm ghost" onClick={() => setAbrir(a => !a)}>{abrir ? 'Ocultar' : 'Ver movimientos'}</button></div>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}><h3 style={{ margin: 0 }}>Mi saldo</h3><button className="btn sm ghost" onClick={() => setAbrir(a => !a)}>{abrir ? 'Ocultar' : 'Ver movimientos'}</button></div>
       <div className="stat" style={{ marginTop: 8 }}>
         <div className="box"><b>{fmtPen(saldo.en_curso + saldo.por_liberar)}</b><span>ventas en curso</span></div>
         <div className="box"><b>{fmtPen(saldo.por_pagar)}</b><span>por pagarte{saldo.sin_datos ? ' · faltan datos de cobro' : ''}</span></div>
@@ -186,7 +187,7 @@ function MiReputacion() {
   return (
     <div className="panel" data-testid="mi-reputacion">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <h3 style={{ margin: 0 }}>⭐ Tu reputación</h3>
+        <h3 style={{ margin: 0 }}>Tu reputación</h3>
         <div className="row" style={{ gap: 6 }}><Link href={`/u/${encodeURIComponent(perfil.username)}`} className="btn sm ghost" target="_blank">Ver mi perfil público</Link><button className="btn sm ghost" onClick={() => setAbrir(a => !a)}>{abrir ? 'Ocultar reseñas' : 'Ver reseñas'}</button></div>
       </div>
       {perfil.estado === 'suspendido' ? <div className="notice danger small" style={{ marginTop: 8 }}>Tu cuenta está suspendida{perfil.suspendido_motivo ? `: ${perfil.suspendido_motivo}` : ''}. No puedes vender ni comprar hasta que el administrador la reactive.</div> : null}

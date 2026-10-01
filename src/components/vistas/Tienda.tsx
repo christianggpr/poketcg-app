@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
@@ -54,7 +55,7 @@ export function Tienda() {
     return () => { sb.removeChannel(ch); };
   }, [perfil.id, cargar]);
 
-  if (!esTienda) return <div className="empty"><div className="big">🏪</div>Esta página es para las cuentas de tienda. <Link href="/app/album">Volver</Link></div>;
+  if (!esTienda) return <div className="empty"><div className="big"><Icono n="tienda" tam={44} grosor={1.5} /></div>Esta página es para las cuentas de tienda. <Link href="/app/album">Volver</Link></div>;
 
   async function recibido(o: Orden, file?: File) {
     setOcupado(true);
@@ -85,7 +86,7 @@ export function Tienda() {
   const grupos: [string, string, string][] = [['pago_confirmado', 'Por llegar', 'El vendedor las traerá hasta la fecha límite.'], ['en_tienda', 'Por retirar', 'Pide el código de retiro de 6 dígitos al comprador. Si el comprador revisa y no está conforme, registra el reclamo y guarda el sobre.'], ['disputa', 'En reclamo', 'Guarda el sobre hasta que el administrador resuelva.'], ['devolver', 'Devolver al vendedor', 'El reclamo se resolvió a favor del comprador: el vendedor pasará a recoger su sobre.'], ['entregada', 'Entregadas', '']];
   return (
     <div>
-      <h2 style={{ marginTop: 0 }}>🏪 {tienda ? tienda.nombre : 'Tienda'}</h2>
+      <h2 style={{ marginTop: 0 }}>{tienda ? tienda.nombre : 'Tienda'}</h2>
       <p className="small muted">{tienda ? `${tienda.direccion}${tienda.horario ? ' · ' + tienda.horario : ''}` : perfil.rol === 'admin' ? 'Vista de administrador: todas las tiendas.' : 'Tu cuenta no tiene sede asignada.'} Aquí solo se ven nombres de usuario, cartas y códigos.</p>
       {!ordenes ? <p className="small muted"><span className="spinner" /> Cargando…</p> : null}
       {grupos.map(([estado, titulo, ayuda]) => {
@@ -104,8 +105,8 @@ export function Tienda() {
                   <div className="row wrap" style={{ gap: 6, marginTop: 4 }}>
                     {items.filter(i => i.orden_id === o.id).map(i => { const c = cat.carta(i.carta_id); const set = c ? cat.setOf(c) : undefined; return <span key={i.id} className="row" style={{ gap: 6, alignItems: 'center' }}><Thumb carta={c} set={set} /><span className="small">{i.cantidad}× {c ? nombreCarta(c, perfil.idioma_nombres) : i.carta_id} <span className="muted">{nombreColeccion(set, perfil.idioma_nombres)} {c ? numLabel(c, set) : ''}{i.idioma ? ' · ' + i.idioma : ''}{i.acabado ? ' · ' + i.acabado : ''}</span></span></span>; })}
                   </div>
-                  {o.estado === 'pago_confirmado' ? <div className="row" style={{ gap: 6, marginTop: 8 }}><button className="btn sm primary" disabled={ocupado} onClick={() => setRecibir(o)} data-testid="btn-recibido">📥 Recibido en tienda</button></div> : null}
-                  {o.estado === 'en_tienda' ? <div className="row" style={{ gap: 6, marginTop: 8 }}><button className="btn sm primary" disabled={ocupado} onClick={() => { setRetirar(o); setCodigo(''); }} data-testid="btn-retirado">✅ Retirado por el comprador</button><button className="btn sm" disabled={ocupado} onClick={() => setReclamar(o)} data-testid="btn-reclamo-tienda">⚠️ El comprador no está conforme</button>{o.foto_entrega_url ? <a className="btn sm ghost" href={o.foto_entrega_url} target="_blank" rel="noreferrer">Foto</a> : null}</div> : null}
+                  {o.estado === 'pago_confirmado' ? <div className="row" style={{ gap: 6, marginTop: 8 }}><button className="btn sm primary" disabled={ocupado} onClick={() => setRecibir(o)} data-testid="btn-recibido"><Icono n="entrada" /> Recibido en tienda</button></div> : null}
+                  {o.estado === 'en_tienda' ? <div className="row" style={{ gap: 6, marginTop: 8 }}><button className="btn sm primary" disabled={ocupado} onClick={() => { setRetirar(o); setCodigo(''); }} data-testid="btn-retirado"><Icono n="ok" /> Retirado por el comprador</button><button className="btn sm" disabled={ocupado} onClick={() => setReclamar(o)} data-testid="btn-reclamo-tienda"><Icono n="alerta" /> El comprador no está conforme</button>{o.foto_entrega_url ? <a className="btn sm ghost" href={o.foto_entrega_url} target="_blank" rel="noreferrer">Foto</a> : null}</div> : null}
                   {o.estado === 'disputa' || (o.estado === 'cancelada' && o.motivo) ? <div className="small muted" style={{ marginTop: 6 }}>{o.motivo}</div> : null}
                 </div>
               </div>
@@ -115,7 +116,7 @@ export function Tienda() {
       })}
       {reclamar ? <ReclamoSheet orden={reclamar} porTienda onClose={() => setReclamar(null)} onListo={() => { setReclamar(null); cargar(); }} /> : null}
       {recibir ? (
-        <Sheet titulo={`Recibir orden #${recibir.numero}`} onClose={() => setRecibir(null)} pie={<><button className="btn" onClick={() => setRecibir(null)}>Cancelar</button><button className="btn" disabled={ocupado} onClick={() => input.current?.click()}>📷 Con foto</button><button className="btn primary" disabled={ocupado} onClick={() => recibido(recibir)} data-testid="btn-recibido-sin-foto">Marcar recibida</button></>}>
+        <Sheet titulo={`Recibir orden #${recibir.numero}`} onClose={() => setRecibir(null)} pie={<><button className="btn" onClick={() => setRecibir(null)}>Cancelar</button><button className="btn" disabled={ocupado} onClick={() => input.current?.click()}><Icono n="camara" /> Con foto</button><button className="btn primary" disabled={ocupado} onClick={() => recibido(recibir)} data-testid="btn-recibido-sin-foto">Marcar recibida</button></>}>
           <p className="small muted">Revisa que las cartas coincidan con la orden. Si puedes, toma una foto de las cartas en el mostrador: quedará en el registro.</p>
           <input ref={input} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = e.target.files?.[0]; if (f && recibir) recibido(recibir, f); e.target.value = ''; }} />
         </Sheet>

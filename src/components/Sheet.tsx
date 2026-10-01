@@ -1,8 +1,9 @@
 'use client';
 import { useEffect } from 'react';
+import { Icono } from './Icono';
 
-/** Hoja inferior (modal). Se cierra con el fondo, la X o Escape. */
-export function Sheet({ titulo, onClose, children, pie }: { titulo?: string; onClose: () => void; children: React.ReactNode; pie?: React.ReactNode }) {
+/** Hoja inferior (celular) / ventana centrada (PC). Se cierra con el fondo, la X o Escape. */
+export function Sheet({ titulo, sobre, onClose, children, pie, className = '' }: { titulo?: string; sobre?: React.ReactNode; onClose: () => void; children: React.ReactNode; pie?: React.ReactNode; className?: string }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
@@ -12,15 +13,23 @@ export function Sheet({ titulo, onClose, children, pie }: { titulo?: string; onC
   }, [onClose]);
   return (
     <div className="sheet-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="sheet" role="dialog" aria-modal="true">
+      <div className={`sheet ${className}`} role="dialog" aria-modal="true" aria-label={titulo}>
         <div className="grabber" />
-        {titulo ? <div className="sheet-head"><h3>{titulo}</h3><button className="btn sm ghost" onClick={onClose} aria-label="Cerrar">✕</button></div> : null}
+        {titulo || sobre ? (
+          <div className="sheet-head">
+            <div className="grow">{sobre ? <div className="small sheet-sobre">{sobre}</div> : null}{titulo ? <h3>{titulo}</h3> : null}</div>
+            <button className="cerrar" onClick={onClose} aria-label="Cerrar" type="button"><Icono n="cerrar" tam={20} /></button>
+          </div>
+        ) : null}
         {children}
         {pie ? <div className="sheet-foot">{pie}</div> : null}
       </div>
     </div>
   );
 }
+/** Nombres del layout v2: la misma hoja es "HojaInferior" en celular y "Ventana" en PC (≥ 860 px). */
+export const HojaInferior = Sheet;
+export const Ventana = Sheet;
 
 export function Confirmar({ titulo, texto, okLabel = 'Aceptar', peligro, onOk, onClose }: { titulo: string; texto: string; okLabel?: string; peligro?: boolean; onOk: () => void; onClose: () => void }) {
   return (

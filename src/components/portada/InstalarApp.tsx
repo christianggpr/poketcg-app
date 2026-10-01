@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import { useEffect, useState } from 'react';
 import type { AppAndroid } from '@/lib/descargas';
 
@@ -33,18 +34,18 @@ export function InstalarApp({ apk, compacto }: { apk: AppAndroid | null; compact
     setPrompt(null);
   }
 
-  if (instalada) return <div className="descarga-app" data-testid="instalar-app"><div className="ico">✅</div><div><b>Ya tienes PokéTCG instalada como app.</b><span className="small muted"> Ábrela desde tu pantalla de inicio.</span></div></div>;
+  if (instalada) return <div className="descarga-app" data-testid="instalar-app"><div className="ico"><Icono n="ok_circulo" tam={28} /></div><div><b>Ya tienes PokéTCG instalada como app.</b><span className="small muted"> Ábrela desde tu pantalla de inicio.</span></div></div>;
 
   return (
     <div className="descarga-app" data-testid="instalar-app">
-      <div className="ico">📱</div>
+      <div className="ico"><Icono n="celular" tam={28} /></div>
       <div className="grow">
         <b>Lleva {compacto ? 'la app' : 'PokéTCG'} en tu celular</b>
         <p className="small muted" style={{ margin: '4px 0 10px' }}>Icono en tu pantalla, pantalla completa y tu colección siempre a la mano. Es la misma app: se actualiza sola.</p>
         <div className="row wrap" style={{ gap: 8 }}>
-          {apk ? <a className="btn primary btn-apk" href={apk.url} download="poketcg.apk" data-testid="btn-apk"><span>🤖 Descargar app para Android</span><span className="small" style={{ opacity: 0.85, fontWeight: 500 }}>.apk · {apk.tamano} · versión {apk.version}</span></a> : <span className="btn" aria-disabled="true" style={{ opacity: 0.6 }}>🤖 App para Android: muy pronto</span>}
-          {prompt ? <button className="btn" onClick={instalar} data-testid="btn-instalar-pwa">⬇️ Instalar desde el navegador</button> : null}
-          {so === 'ios' ? <span className="small muted">En iPhone: toca <b>Compartir</b> ▵ y luego <b>Añadir a pantalla de inicio</b>.</span> : null}
+          {apk ? <a className="btn primary btn-apk" href={apk.url} download="poketcg.apk" data-testid="btn-apk"><span><Icono n="robot" /> Descargar app para Android</span><span className="small" style={{ opacity: 0.85, fontWeight: 500 }}>.apk · {apk.tamano} · versión {apk.version}</span></a> : <span className="btn" aria-disabled="true" style={{ opacity: 0.6 }}><Icono n="robot" /> App para Android: muy pronto</span>}
+          {prompt ? <button className="btn" onClick={instalar} data-testid="btn-instalar-pwa"><Icono n="descargar" /> Instalar desde el navegador</button> : null}
+          {so === 'ios' ? <span className="small muted">En iPhone: toca <b>Compartir</b> y luego <b>Añadir a pantalla de inicio</b>.</span> : null}
         </div>
         {apk ? (
           <div className="small" style={{ marginTop: 8 }}>

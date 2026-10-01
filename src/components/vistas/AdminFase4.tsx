@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ETIQUETA_RESOLUCION, fechaHora, MOTIVOS_RECLAMO, type Reclamo } from '@/lib/compras';
@@ -45,10 +46,10 @@ export function AdminUsuarios() {
       {(lista || []).map(u => { const r = u.reputacion || {}; return (
         <div key={u.id} className="card-row" style={{ cursor: 'default', marginTop: 8 }} data-testid="admin-usuario">
           <div className="card-main">
-            <div className="card-name"><Link href={`/u/${encodeURIComponent(u.username)}`} target="_blank">@{u.username}</Link> <span className="small muted">{u.nombres} {u.apellidos} · {u.email}{u.dni ? ` · DNI ${u.dni}` : ''}{u.telefono ? ` · ${u.telefono}${u.celular_verificado_en ? ' ✔' : ''}` : ''}</span> {u.rol !== 'usuario' ? <span className="pill primary">{u.rol}</span> : null} {u.estado === 'suspendido' ? <span className="pill danger" data-testid="pill-suspendido">suspendido</span> : null}</div>
-            <div className="card-set">{r.puntaje != null ? `★ ${Number(r.puntaje).toFixed(1)} (${r.resenas})` : 'sin calificaciones'} · {r.ventas || 0} ventas · {r.faltas || 0} {r.faltas === 1 ? 'orden vencida' : 'órdenes vencidas'}{r.faltas_90 ? ` (${r.faltas_90} en 90 días)` : ''} · registrado {fechaHora(u.creado_en)}</div>
+            <div className="card-name"><Link href={`/u/${encodeURIComponent(u.username)}`} target="_blank">@{u.username}</Link> <span className="small muted">{u.nombres} {u.apellidos} · {u.email}{u.dni ? ` · DNI ${u.dni}` : ''}{u.telefono ? ` · ${u.telefono}${u.celular_verificado_en ? ' (verificado)' : ''}` : ''}</span> {u.rol !== 'usuario' ? <span className="pill primary">{u.rol}</span> : null} {u.estado === 'suspendido' ? <span className="pill danger" data-testid="pill-suspendido">suspendido</span> : null}</div>
+            <div className="card-set">{r.puntaje != null ? `${Number(r.puntaje).toFixed(1)} estrellas (${r.resenas})` : 'sin calificaciones'} · {r.ventas || 0} ventas · {r.faltas || 0} {r.faltas === 1 ? 'orden vencida' : 'órdenes vencidas'}{r.faltas_90 ? ` (${r.faltas_90} en 90 días)` : ''} · registrado {fechaHora(u.creado_en)}</div>
             <div style={{ marginTop: 4 }}><Insignias reputacion={r} /></div>
-            {u.estado === 'suspendido' ? <div className="small" style={{ color: 'var(--danger)', marginTop: 4 }}>Suspendido {u.suspendido_en ? fechaHora(u.suspendido_en) : ''}{u.suspendido_motivo ? `: ${u.suspendido_motivo}` : ''}</div> : null}
+            {u.estado === 'suspendido' ? <div className="small" style={{ color: 'var(--peligro-texto)', marginTop: 4 }}>Suspendido {u.suspendido_en ? fechaHora(u.suspendido_en) : ''}{u.suspendido_motivo ? `: ${u.suspendido_motivo}` : ''}</div> : null}
           </div>
           <div className="card-side">
             {u.rol === 'admin' ? null : u.estado === 'suspendido'
@@ -105,7 +106,7 @@ export function AdminReclamos() {
             <div className="card-set">{MOTIVOS_RECLAMO[r.motivo]} · abierto por {r.abierto_por} · comprador @{r.comprador} · vendedor @{r.vendedor} · {fechaHora(r.creado)}</div>
             {r.detalle ? <div className="small" style={{ marginTop: 4 }}>«{r.detalle}»</div> : null}
             <div className="small muted" style={{ marginTop: 4 }}>{r.items.map((i, k) => <span key={k}>{i.cantidad}× {i.carta_id}{i.idioma ? ' · ' + i.idioma : ''}{i.condicion ? ' · ' + i.condicion : ''} ({fmtPen(i.precio_pen)}){k < r.items.length - 1 ? '; ' : ''}</span>)}</div>
-            {r.fotos_url.length ? <div className="row wrap" style={{ gap: 6, marginTop: 6 }}>{r.fotos_url.map((u, k) => <a key={k} href={u} target="_blank" rel="noreferrer"><img src={u} alt={`Foto ${k + 1}`} style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)' }} /></a>)}</div> : null}
+            {r.fotos_url.length ? <div className="row wrap" style={{ gap: 6, marginTop: 6 }}>{r.fotos_url.map((u, k) => <a key={k} href={u} target="_blank" rel="noreferrer"><img src={u} alt={`Foto ${k + 1}`} style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--linea)' }} /></a>)}</div> : null}
             {r.estado === 'resuelto' ? <div className="small" style={{ marginTop: 4 }}>{r.monto_devuelto ? `Devuelto ${fmtPen(r.monto_devuelto)} al saldo del comprador. ` : ''}{r.nota_admin ? `Nota: ${r.nota_admin}` : ''}</div> : null}
           </div>
           {r.estado === 'abierto' ? <div className="card-side"><button className="btn sm primary" onClick={() => { setResolver(r); setResolucion('devolver'); setMonto(''); setNota(''); }} data-testid="btn-resolver-reclamo">Resolver</button></div> : null}
@@ -115,7 +116,7 @@ export function AdminReclamos() {
         <Sheet titulo={`Resolver reclamo #${resolver.numero} (orden #${resolver.orden?.numero})`} onClose={() => setResolver(null)} pie={<><button className="btn" onClick={() => setResolver(null)}>Cancelar</button><button className="btn primary" disabled={ocupado || (resolucion === 'parcial' && !(Number(monto) > 0))} onClick={enviar} data-testid="btn-confirmar-resolucion">{ocupado ? 'Guardando…' : 'Confirmar'}</button></>}>
           <div className="stack" style={{ gap: 8 }}>
             {([['devolver', `Devolver todo al comprador (${fmtPen(resolver.orden?.subtotal || 0)} a su saldo). La orden se anula, las cartas vuelven al vendedor (las recoge en la tienda) y le cuenta como falta.`], ['parcial', 'Devolución parcial: el comprador se queda con las cartas y recibe un monto a su saldo; el vendedor cobra el resto.'], ['entregar', 'No procede: la orden se entrega tal cual y el vendedor cobra.']] as const).map(([v, texto]) => (
-              <label key={v} className="check" style={{ padding: 8, border: '1px solid var(--line)', borderRadius: 10 }} data-testid={`resolucion-${v}`}><input type="radio" name="resolucion" checked={resolucion === v} onChange={() => setResolucion(v)} /><span>{texto}</span></label>
+              <label key={v} className="check" style={{ padding: 8, border: '1px solid var(--linea)', borderRadius: 10 }} data-testid={`resolucion-${v}`}><input type="radio" name="resolucion" checked={resolucion === v} onChange={() => setResolucion(v)} /><span>{texto}</span></label>
             ))}
             {resolucion === 'parcial' ? <label className="small">Monto a devolver (menor que {fmtPen(resolver.orden?.subtotal || 0)}): <input className="input" inputMode="decimal" style={{ maxWidth: 140 }} value={monto} onChange={e => setMonto(e.target.value)} data-testid="input-monto-parcial" /></label> : null}
             <label className="small">Nota para las dos partes (opcional): <input className="input" value={nota} onChange={e => setNota(e.target.value.slice(0, 500))} data-testid="input-nota-resolucion" /></label>
@@ -165,7 +166,7 @@ export function AdminReportes() {
     <div className="panel" data-testid="admin-reportes">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
         <h3 style={{ margin: 0 }}>Reportes de ventas</h3>
-        <a className="btn sm" href={'/api/admin/reportes/excel?' + consulta} data-testid="btn-excel-reporte">⬇️ Excel</a>
+        <a className="btn sm" href={'/api/admin/reportes/excel?' + consulta} data-testid="btn-excel-reporte"><Icono n="descargar" /> Excel</a>
       </div>
       <div className="row wrap" style={{ gap: 6, marginTop: 8, alignItems: 'center' }}>
         <div className="seg">
@@ -207,7 +208,7 @@ export function AdminReportes() {
             <div>
               <h4 style={{ margin: '0 0 6px' }}>Vendedores con más ventas</h4>
               {!rep.vendedores.length ? <p className="small muted">—</p> : null}
-              <table className="tabla small"><tbody>{rep.vendedores.slice(0, 10).map(v => <tr key={v.id} data-testid="reporte-vendedor"><td><Link href={'/u/' + v.username} target="_blank">@{v.username}</Link>{v.faltas && Number(v.faltas) > 0 ? <span className="pill warn" style={{ marginLeft: 4 }}>{v.faltas} faltas</span> : null}</td><td className="num">{v.ordenes}</td><td className="num">{fmtPen(v.monto)}</td><td className="num muted">{v.puntaje ? '★ ' + Number(v.puntaje).toFixed(1) : '—'}</td></tr>)}</tbody></table>
+              <table className="tabla small"><tbody>{rep.vendedores.slice(0, 10).map(v => <tr key={v.id} data-testid="reporte-vendedor"><td><Link href={'/u/' + v.username} target="_blank">@{v.username}</Link>{v.faltas && Number(v.faltas) > 0 ? <span className="pill warn" style={{ marginLeft: 4 }}>{v.faltas} faltas</span> : null}</td><td className="num">{v.ordenes}</td><td className="num">{fmtPen(v.monto)}</td><td className="num muted">{v.puntaje ? Number(v.puntaje).toFixed(1) + ' estrellas' : '—'}</td></tr>)}</tbody></table>
             </div>
             <div>
               <h4 style={{ margin: '0 0 6px' }}>Cartas más vendidas</h4>

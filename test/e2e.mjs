@@ -205,7 +205,7 @@ try {
   // editar entrada: mover a Caja 2
   await page.click('.entry-row >> nth=0');
   await page.waitForSelector('.sheet');
-  await page.selectOption('.sheet select >> nth=-1', { label: '📦 Bulk 2' });
+  await page.selectOption('.sheet select >> nth=-1', { label: 'Bulk 2' });
   await page.click('text=Guardar cambios');
   await page.waitForSelector('.toast');
   await page.waitForFunction(() => document.querySelectorAll('.entry-row').length === 2);
@@ -460,11 +460,11 @@ try {
   await page.click('[data-testid=linea-carrito] button:has-text("Quitar")');
   await page.waitForSelector('text=Tu carrito está vacío');
   if (num(`select reservadas from public.publicaciones where usuario_id = '${LUCIA}' and carta_id = 'sv03.5-001'`) !== 0) throw new Error('quitar del carrito no liberó las copias');
-  // álbum: las que faltan y están en venta muestran "🛒 precio"
+  // álbum: las que faltan y están en venta muestran "En mercado · precio"
   await page.goto(APP + '/app/album/sv03.5');
   await page.waitForSelector('.album-red', { timeout: 20000 });
   const enRed = await page.$$eval('.album-red', els => els.map(e => e.textContent.trim()));
-  if (enRed.length !== 2 || !enRed.every(t => /🛒 S\/ /.test(t))) throw new Error('las casillas que faltan no muestran el mercado: ' + enRed.join(' | '));   // Bulbasaur y Caterpie (Charmander la tengo)
+  if (enRed.length !== 2 || !enRed.every(t => /En mercado · S\/ /.test(t))) throw new Error('las casillas que faltan no muestran el mercado: ' + enRed.join(' | '));   // Bulbasaur y Caterpie (Charmander la tengo)
   if (!/2 en venta/.test(await page.textContent('[data-testid=faltan-mercado]'))) throw new Error('el botón "las que faltan" no cuenta las ofertas');
   await foto(page, 'album-mercado');
   log('carrito vaciado (copias liberadas); álbum 151 marca 2 faltantes en venta');
@@ -502,7 +502,7 @@ try {
   await page.waitForSelector('[data-testid=mazos-estado]:has-text("0 arquetipos")');
   if (!(await page.$('[data-testid=admin-mazos] .notice.warn'))) throw new Error('con menos de 15 arquetipos debía avisar');
   await page.click('[data-testid=btn-actualizar-mazos]');
-  await page.waitForSelector('[data-testid=mazos-progreso]:has-text("✔")', { timeout: 60000 });
+  await page.waitForSelector('[data-testid=mazos-progreso]:has-text("listo")', { timeout: 60000 });
   if (!/Arquetipo 3 de 3/.test(await page.textContent('[data-testid=mazos-progreso]'))) throw new Error('el progreso no llegó a 3 de 3: ' + await page.textContent('[data-testid=mazos-progreso]'));
   await page.waitForSelector('[data-testid=mazos-estado]:has-text("3 arquetipos")');
   if (num('select count(*) from public.mazos_listas') !== 5 || num('select count(*) from public.mazos_variantes') !== 4) throw new Error('el botón no recargó los mazos completos');
@@ -579,7 +579,7 @@ try {
   await page.click('[data-testid=btn-enviar-comprobante]');
   await page.waitForSelector('text=Recibimos tu comprobante', { timeout: 20000 });
   if (sql(`select estado || ':' || n_operacion from public.pagos where id = '${pagoId}'`) !== 'revision:0001234') throw new Error('el comprobante no dejó el pago en revisión');
-  await page.waitForFunction(() => /🔔 \d/.test(document.querySelector('[data-testid=chip-notificaciones]')?.textContent || ''), null, { timeout: 15000 });
+  await page.waitForFunction(() => /\d/.test(document.querySelector('[data-testid=chip-notificaciones] .cuenta')?.textContent || ''), null, { timeout: 15000 });
   const correosPago = (await correos()).filter(c => /Pago por confirmar/.test(c.subject));
   if (!correosPago.length || !/0001234/.test(correosPago[correosPago.length - 1].text || correosPago[correosPago.length - 1].html)) throw new Error('el administrador no recibió el correo del pago');
   log('comprobante enviado: pago en revisión, correo al administrador con la operación 0001234, campana con avisos');
@@ -616,7 +616,7 @@ try {
   await page.waitForSelector('[data-testid=fila-compra]:has-text("Pago confirmado")');
   await page.goto(APP + '/app/notificaciones');
   await page.waitForSelector('[data-testid=notificacion]:has-text("Pago confirmado")');
-  await page.waitForFunction(() => !/🔔 \d/.test(document.querySelector('[data-testid=chip-notificaciones]')?.textContent || ''), null, { timeout: 15000 });
+  await page.waitForFunction(() => !document.querySelector('[data-testid=chip-notificaciones] .cuenta'), null, { timeout: 15000 });
   await foto(page, 'notificaciones');
   log('comprador: Mis compras y notificaciones al día (leídas al abrir la bandeja)');
 
@@ -633,7 +633,7 @@ try {
   await page.waitForSelector('.toast:has-text("Celular verificado")');
   if (!sql("select celular_verificado_en from public.perfiles where username = 'chris_tcg'")) throw new Error('el celular no quedó verificado');
   await page.goto(APP + '/app/ajustes');
-  await page.waitForSelector('[data-testid=verificacion-celular]:has-text("verificado ✔")');
+  await page.waitForSelector('[data-testid=verificacion-celular]:has-text("verificado")');
   log('celular verificado por WhatsApp: código', codigo, '→ confirmado en /admin');
 
   // ---------- Fase 3 · B: vendedora (fecha de entrega, datos de cobro), cuenta de tienda (recibido / retirado con código), entrega y carta a la colección
@@ -739,7 +739,7 @@ try {
   await page.waitForSelector('[data-testid=recibidas]:has-text("(6)")');
   if ((await page.$$('[data-testid=carta-recibida]')).length !== 3) throw new Error('"Recibidas" debía listar las 3 cartas compradas');
   const sugCharmander = await page.textContent('[data-testid=carta-recibida]:has-text("Charmander") [data-testid=sugerencia]');
-  if (!/Sugerencia: Álbum 151 EN · casilla 004/.test(sugCharmander) || !/Porque coleccionas 151 en inglés/.test(sugCharmander)) throw new Error('sugerencia inesperada para Charmander: ' + sugCharmander);
+  if (!/Sugerido.*Álbum 151 EN · casilla 004/.test(sugCharmander) || !/Porque coleccionas 151 en inglés/.test(sugCharmander)) throw new Error('sugerencia inesperada para Charmander: ' + sugCharmander);
   const sugBulbasaur = await page.textContent('[data-testid=carta-recibida]:has-text("Bulbasaur") [data-testid=sugerencia]');
   if (!/Álbum 151 EN/.test(sugBulbasaur) || !/está en inglés y esta carta es en español/.test(sugBulbasaur)) throw new Error('la carta en español debía sugerir el álbum EN con aviso de idioma: ' + sugBulbasaur);
   await foto(page, 'recibidas');
@@ -765,7 +765,7 @@ try {
   await page.goto(APP + '/app/bulk');
   await page.waitForSelector('[data-testid=por-colocar]:has-text("Por colocar (3)")');
   if ((await page.$$('[data-testid=carta-por-colocar]')).length !== 1 || !/orden #\d+ a @vendedora_lima/.test(await page.textContent('[data-testid=por-colocar]'))) throw new Error('la sección "Por colocar" debía mostrar solo Bulbasaur');
-  await page.selectOption('[data-testid=select-caja-colocar]', { label: '📦 Bulk 2' });
+  await page.selectOption('[data-testid=select-caja-colocar]', { label: 'Bulk 2' });
   await page.click('[data-testid=carta-por-colocar]:has-text("Bulbasaur") [data-testid=btn-colocar]');
   await page.waitForSelector('[data-testid=colocacion] .placement .where:has-text("Bulk 2")');
   await foto(page, 'por-colocar');

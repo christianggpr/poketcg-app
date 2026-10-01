@@ -1,5 +1,6 @@
 'use client';
-import { SORT_LABELS, TYPE_ES, TYPE_ICON, TYPE_ORDER, type ModoOrden } from '@/lib/catalogo';
+import { SORT_LABELS, TYPE_ES, TYPE_ORDER, type ModoOrden } from '@/lib/catalogo';
+import { PuntoEnergia } from './Icono';
 
 export type Filtro = { sort: ModoOrden; type: string; lang: string };
 
@@ -24,7 +25,7 @@ export function FilterBar({ f, onChange, sorts, langs, extra }: { f: Filtro; onC
       <div className="chips typechips" style={{ marginTop: 6 }}>
         {types.map(t => (
           <button key={t} className={`chipbtn ${(f.type || '') === t ? 'active' : ''}`} onClick={() => onChange({ ...f, type: t })} title={t ? TYPE_ES[t] : 'Todos los tipos'}>
-            {t ? TYPE_ICON[t] + (t === 'Trainer' || t === 'Energy' ? ' ' + TYPE_ES[t] : '') : 'Todos'}
+            {t ? <>{t === 'Trainer' || t === 'Energy' ? null : <PuntoEnergia tipo={t} />}{t === 'Trainer' || t === 'Energy' ? TYPE_ES[t] : TYPE_ES[t]}</> : 'Todos'}
           </button>
         ))}
       </div>

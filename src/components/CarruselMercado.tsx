@@ -7,13 +7,14 @@ import { fmtPen } from '@/lib/precios-core';
 import { useCatalogo } from './CatalogoProvider';
 import { usePerfil } from './PerfilProvider';
 import { Thumb } from './Thumb';
+import { Icono, type NombreIcono } from './Icono';
 
 /**
  * Carrusel en loop (Mejoras 1 · D): se desplaza solo y de forma continua, también con el dedo o el mouse;
  * se pausa al tocar o pasar el mouse y respeta "reducir movimiento" del sistema (entonces no se mueve solo).
  * Las tarjetas se duplican para que el final enlace con el principio sin saltos.
  */
-export function CarruselMercado({ titulo, icono, items, testid, vacio }: { titulo: string; icono: string; items: Destacada[]; testid: string; vacio: string }) {
+export function CarruselMercado({ titulo, icono, items, testid, vacio }: { titulo: string; icono: NombreIcono; items: Destacada[]; testid: string; vacio: string }) {
   const cat = useCatalogo();
   const { perfil } = usePerfil();
   const router = useRouter();
@@ -53,7 +54,7 @@ export function CarruselMercado({ titulo, icono, items, testid, vacio }: { titul
   const lista = enLoop ? [...tarjetas, ...tarjetas] : tarjetas;
   return (
     <section className="carrusel" data-testid={testid} data-loop={enLoop ? '1' : '0'} data-pausado={pausado ? '1' : '0'}>
-      <h3>{icono} {titulo}</h3>
+      <h3><Icono n={icono} /> {titulo}</h3>
       {!tarjetas.length ? <p className="small muted">{vacio}</p> : (
         <div className="pista" ref={pista} onPointerEnter={() => setPausado(true)} onPointerLeave={() => setPausado(false)} onTouchStart={() => setPausado(true)} onTouchEnd={() => setTimeout(() => setPausado(false), 1500)} onFocus={() => setPausado(true)} onBlur={() => setPausado(false)}>
           {lista.map(({ d, c }, i) => { const set = cat.setOf(c); return (
@@ -62,7 +63,7 @@ export function CarruselMercado({ titulo, icono, items, testid, vacio }: { titul
               <span className="nombre">{nombreCarta(c, idioma)}</span>
               <span className="set small muted">{set?.ab || nombreColeccion(set, idioma, true)} {c.l}</span>
               <span className="precio">{d.copias > 1 && d.hasta && d.hasta !== d.desde ? 'desde ' : ''}{fmtPen(d.desde)}</span>
-              <span className="small muted">{d.copias} {d.copias === 1 ? 'copia' : 'copias'}{d.vendidas ? ` · ${d.vendidas} ${d.vendidas === 1 ? 'vendida' : 'vendidas'}` : d.deseadas ? ` · ${d.deseadas} ❤️` : ''}</span>
+              <span className="small muted">{d.copias} {d.copias === 1 ? 'copia' : 'copias'}{d.vendidas ? ` · ${d.vendidas} ${d.vendidas === 1 ? 'vendida' : 'vendidas'}` : d.deseadas ? ` · ${d.deseadas} en listas de deseos` : ''}</span>
             </button>
           ); })}
         </div>

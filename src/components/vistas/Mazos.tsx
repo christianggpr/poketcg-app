@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import type { Carta } from '@/lib/catalogo';
@@ -73,13 +74,13 @@ export function Mazos() {
   return (
     <div>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <h2 style={{ margin: 0 }}>🃏 Mazos meta</h2>
-        <div className="row" style={{ gap: 6 }}><Link href="/app/mercado" className="btn sm ghost">🛒 Mercado</Link><Link href="/app/carrito" className="btn sm ghost">Carrito</Link></div>
+        <h2 style={{ margin: 0 }}>Mazos del meta</h2>
+        <div className="row" style={{ gap: 6 }}><Link href="/app/mercado" className="btn sm ghost"><Icono n="tienda" /> Mercado</Link><Link href="/app/carrito" className="btn sm ghost">Carrito</Link></div>
       </div>
       <p className="small muted">Los mazos que más ganan en torneos (formato estándar, últimos 3 meses, según Limitless) y cuánto tienes de cada uno con tus cartas. Se actualizan cada día.{datos?.actualizado ? ` Última actualización: ${new Date(datos.actualizado).toLocaleDateString('es-PE')}.` : ''}</p>
       {error ? <Aviso tipo="danger">No se pudieron cargar los mazos: {error}</Aviso> : null}
       {!datos && !error ? <p className="muted small"><span className="spinner" /> Cargando mazos…</p> : null}
-      {datos && !datos.arquetipos.length ? <div className="empty"><div className="big">🃏</div><p><b>Todavía no hay mazos.</b></p><p className="muted">La tarea diaria los descarga de Limitless a medianoche (o el administrador puede ejecutarla ahora desde /admin).</p></div> : null}
+      {datos && !datos.arquetipos.length ? <div className="empty"><div className="big"><Icono n="mazos" tam={44} grosor={1.5} /></div><p><b>Todavía no hay mazos.</b></p><p className="muted">La tarea diaria los descarga de Limitless a medianoche (o el administrador puede ejecutarla ahora desde /admin).</p></div> : null}
       {sugeridos.length ? (
         <div className="notice ok" style={{ margin: '10px 0' }} data-testid="sugerencia-mazos">
           <b>¡Ya vas por buen camino!</b> {sugeridos.map(a => { const m = mejores.get(a.id)!; return <span key={a.id} style={{ display: 'block' }}>Con <b>{a.nombre}</b> ({m.variante.nombre}) tienes el <b>{m.a.pct} %</b>: te faltan {m.a.faltan} cartas. <Link href={`/app/mazos/${a.id}`}>Ver qué falta</Link></span>; })}
@@ -92,7 +93,7 @@ export function Mazos() {
           const nVar = analisis.get(a.id)?.length || 0;
           return (
             <Link key={a.id} href={`/app/mazos/${a.id}`} className="card-row" style={{ textDecoration: 'none', color: 'inherit' }} data-testid="fila-mazo">
-              <div style={{ width: 34, textAlign: 'center', fontWeight: 800, color: 'var(--fg-muted)' }}>{a.orden}</div>
+              <div style={{ width: 34, textAlign: 'center', fontWeight: 800, color: 'var(--texto-2)' }}>{a.orden}</div>
               <Iconos iconos={a.iconos} />
               <div className="card-main">
                 <div className="card-name">{a.nombre}</div>
@@ -184,7 +185,7 @@ export function MazoDetalle({ id }: { id: number }) {
       <h3 style={{ marginBottom: 6 }}>Variantes</h3>
       <div className="card-list">
         {variantes.map(({ variante: v, a }) => (
-          <div key={v.id} className={`card-row ${actual.variante.id === v.id ? 'activa' : ''}`} role="button" tabIndex={0} onClick={() => setSel(v.id)} style={{ outline: actual.variante.id === v.id ? '2px solid var(--primary)' : undefined }} data-testid="variante">
+          <div key={v.id} className={`card-row ${actual.variante.id === v.id ? 'activa' : ''}`} role="button" tabIndex={0} onClick={() => setSel(v.id)} style={{ outline: actual.variante.id === v.id ? '2px solid var(--primario)' : undefined }} data-testid="variante">
             <div className="card-main">
               <div className="card-name">{v.nombre}{v.id === mejor.variante.id ? <span className="pill ok" style={{ marginLeft: 6 }}>la más completa para ti</span> : null}</div>
               <div className="card-set">{v.n_listas} {v.n_listas === 1 ? 'lista' : 'listas'}{v.mejor_puesto ? ` · mejor puesto ${v.mejor_puesto}º` : ''}{v.jugador ? ` · ${v.jugador}` : ''}</div>
@@ -205,7 +206,7 @@ export function MazoDetalle({ id }: { id: number }) {
         {actual.a.pct >= 50 && actual.a.faltan ? <Aviso tipo="ok">Ya tienes más de la mitad: con {actual.a.faltan} cartas más (≈ {fmtPen(costo.pen)}) completas esta variante.</Aviso> : null}
         {faltantes.length ? (
           <div className="row" style={{ gap: 8, alignItems: 'center', marginTop: 8, flexWrap: 'wrap' }}>
-            <button className="btn primary" disabled={comprando || !enVenta.length} onClick={comprarFaltantes} data-testid="btn-comprar-faltantes">{comprando ? 'Reservando…' : `🛒 Comprar lo que me falta (${enVenta.length} de ${faltantes.length} en venta)`}</button>
+            <button className="btn primary" disabled={comprando || !enVenta.length} onClick={comprarFaltantes} data-testid="btn-comprar-faltantes">{comprando ? 'Reservando…' : `Comprar lo que me falta (${enVenta.length} de ${faltantes.length} en venta)`}</button>
             {resultado ? <span className="small" data-testid="resultado-compra">{resultado} · <Link href="/app/carrito">Ver carrito</Link></span> : null}
           </div>
         ) : <Aviso tipo="ok">¡Tienes todas las cartas de esta variante!</Aviso>}
@@ -229,7 +230,7 @@ export function MazoDetalle({ id }: { id: number }) {
                     <div className="card-main">
                       <div className="card-name">{c.necesarias}× {ref ? nombreCarta(ref, perfil.idioma_nombres) : c.carta.nombre} <span className="muted small">{c.carta.set} {c.carta.num}</span></div>
                       <div className="card-set">{ref ? <>{nombreColeccion(set, perfil.idioma_nombres)} <span className="num">{numLabel(ref, set)}</span></> : <span className="faint">no está en el catálogo</span>}{c.usadas.filter(u => u.carta !== c.misma).length ? <span className="faint"> · usas {c.usadas.filter(u => u.carta !== c.misma).map(u => `${u.n} de ${nombreColeccion(cat.setOf(u.carta), perfil.idioma_nombres)}`).join(', ')}</span> : null}</div>
-                      <div className="small" style={{ marginTop: 2 }}>{c.faltan ? <><span className="pill warn">te faltan {c.faltan}</span> {red ? <span className="pill ok">🛒 {red.copias} en la red desde {fmtPen(red.min)}</span> : <span className="faint">nadie la vende ahora</span>}</> : <span className="pill ok">✓ tienes {c.tengo}</span>}</div>
+                      <div className="small" style={{ marginTop: 2 }}>{c.faltan ? <><span className="pill warn">te faltan {c.faltan}</span> {red ? <span className="pill ok">{red.copias} en la red desde {fmtPen(red.min)}</span> : <span className="faint">nadie la vende ahora</span>}</> : <span className="pill ok"><Icono n="ok" tam={12} /> tienes {c.tengo}</span>}</div>
                     </div>
                   </div>
                 );

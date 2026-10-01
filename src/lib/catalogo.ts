@@ -73,7 +73,6 @@ export function numNorm(l: string): string {
 
 export const TYPE_ORDER = ['Grass', 'Fire', 'Water', 'Lightning', 'Psychic', 'Fighting', 'Darkness', 'Metal', 'Dragon', 'Fairy', 'Colorless'];
 export const TYPE_ES: Record<string, string> = { Grass: 'Planta', Fire: 'Fuego', Water: 'Agua', Lightning: 'Rayo', Psychic: 'Psíquico', Fighting: 'Lucha', Darkness: 'Oscuridad', Metal: 'Metal', Dragon: 'Dragón', Fairy: 'Hada', Colorless: 'Incolora', Trainer: 'Entrenador', Energy: 'Energía' };
-export const TYPE_ICON: Record<string, string> = { Grass: '🌿', Fire: '🔥', Water: '💧', Lightning: '⚡', Psychic: '🔮', Fighting: '👊', Darkness: '🌑', Metal: '⚙️', Dragon: '🐉', Fairy: '🧚', Colorless: '⭐', Trainer: '🎒', Energy: '🔋' };
 export const RARITY_ES: Record<string, string> = {
   Common: 'Común', Uncommon: 'Poco común', Rare: 'Rara', 'Holo Rare': 'Rara holo', 'Rare Holo': 'Rara holo',
   'Ultra Rare': 'Ultra rara', 'Secret Rare': 'Secreta', 'Double rare': 'Doble rara', 'Illustration rare': 'Ilustración rara',
@@ -87,7 +86,6 @@ export function cardTypeKey(c: Carta | null | undefined): string {
   return !c ? '' : c.c === 'T' ? 'Trainer' : c.c === 'E' ? 'Energy' : c.c === '?' ? '' : (c.t && c.t[0]) || 'Colorless';
 }
 export const cardTypeLabel = (c: Carta): string => { const k = cardTypeKey(c); return k ? TYPE_ES[k] || k : ''; };
-export const cardTypeIcon = (c: Carta): string => TYPE_ICON[cardTypeKey(c)] || '';
 export const dexOf = (c: Carta | null | undefined): number => (c && c.dex && c.dex.length ? c.dex[0] : 0);
 
 /** Índices del catálogo listos para usar. */

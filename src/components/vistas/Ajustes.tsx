@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { APP_NAME, APP_VERSION, IDIOMAS_CARTA } from '@/lib/config';
@@ -62,7 +63,7 @@ export function Ajustes() {
       <div className="panel">
         <h3>Mercado</h3>
         <p className="small muted">Tus publicaciones, precios, fotos y estados se administran desde «Mis ventas». Los compradores solo ven tu nombre de usuario (@{perfil.username}).</p>
-        <Link href="/app/ventas" className="btn sm">🏷️ Ir a Mis ventas{col.publicaciones.length ? ` (${col.publicaciones.length})` : ''}</Link>
+        <Link href="/app/ventas" className="btn sm"><Icono n="ventas" /> Ir a Mis ventas{col.publicaciones.length ? ` (${col.publicaciones.length})` : ''}</Link>
       </div>
 
       <div className="panel">
@@ -74,7 +75,7 @@ export function Ajustes() {
       <div className="panel">
         <h3>App en el celular</h3>
         <p className="small muted">Instala PokéTCG como app (Android .apk o desde el navegador) para tenerla con icono y a pantalla completa.</p>
-        <Link href="/instalar" className="btn sm" target="_blank">📱 Instalar la app</Link>
+        <Link href="/instalar" className="btn sm" target="_blank"><Icono n="celular" /> Instalar la app</Link>
       </div>
 
       <Reconocimiento />
@@ -87,8 +88,8 @@ export function Ajustes() {
         <h3>Ayuda y contacto</h3>
         <p className="small muted">Preguntas frecuentes sobre compras, ventas, entregas y reclamos; tiendas de entrega y textos legales.</p>
         <div className="row wrap" style={{ gap: 6 }}>
-          <Link href="/ayuda" className="btn sm" target="_blank" data-testid="btn-ayuda">❓ Centro de ayuda</Link>
-          <Link href="/tiendas" className="btn sm ghost" target="_blank">🏪 Tiendas de entrega</Link>
+          <Link href="/ayuda" className="btn sm" target="_blank" data-testid="btn-ayuda"><Icono n="ayuda" /> Centro de ayuda</Link>
+          <Link href="/tiendas" className="btn sm ghost" target="_blank"><Icono n="tienda" /> Tiendas de entrega</Link>
           <Link href="/terminos" className="btn sm ghost" target="_blank">Términos</Link>
           <Link href="/privacidad" className="btn sm ghost" target="_blank">Privacidad</Link>
         </div>
@@ -194,9 +195,9 @@ function Respaldo() {
       <h3>Respaldo e importación</h3>
       <p className="small muted">Tu colección se guarda en la nube y se sincroniza entre tus dispositivos. Aun así, exporta un respaldo de vez en cuando ({total} cartas).</p>
       <div className="row wrap" style={{ gap: 8 }}>
-        <button className="btn primary sm" onClick={exportarJson}>⬇️ Exportar respaldo (.json)</button>
-        <button className="btn sm" onClick={exportarCsv}>⬇️ Exportar listado (.csv)</button>
-        <button className="btn sm" onClick={() => archivo.current?.click()}>⬆️ Importar respaldo de PokéBóveda v1</button>
+        <button className="btn primary sm" onClick={exportarJson}><Icono n="descargar" /> Exportar respaldo (.json)</button>
+        <button className="btn sm" onClick={exportarCsv}><Icono n="descargar" /> Exportar listado (.csv)</button>
+        <button className="btn sm" onClick={() => archivo.current?.click()}><Icono n="subir" /> Importar respaldo de PokéBóveda v1</button>
         <input ref={archivo} type="file" accept="application/json,.json" hidden onChange={e => { const f = e.target.files?.[0]; if (f) leer(f); e.target.value = ''; }} />
       </div>
       {progreso ? <p className="small"><span className="spinner" /> {progreso}</p> : null}
@@ -240,12 +241,12 @@ function VerificacionCelular() {
   }
   return (
     <div className="panel" data-testid="verificacion-celular">
-      <h3>Celular {verificado ? <span className="pill ok">verificado ✔</span> : <span className="pill warn">sin verificar</span>}</h3>
+      <h3>Celular {verificado ? <span className="pill ok"><Icono n="ok" tam={12} /> verificado</span> : <span className="pill warn">sin verificar</span>}</h3>
       {verificado ? <p className="small muted">Tu número {perfil.telefono} está verificado. Si lo cambias, tendrás que verificarlo de nuevo.</p> : (
         <>
           <p className="small muted">Para pagarte tus ventas necesitamos confirmar que el celular {perfil.telefono || '(regístralo arriba)'} es tuyo. Es gratis y por WhatsApp: pulsa el botón, se abre WhatsApp con tu código ya escrito, lo envías y listo. El administrador lo confirma en el día.</p>
           <div className="row wrap" style={{ gap: 8, alignItems: 'center' }}>
-            <button className="btn primary sm" disabled={ocupado || !perfil.telefono} onClick={pedir} data-testid="btn-verificar-wsp">{datos ? '📲 Volver a abrir WhatsApp' : '📲 Verificar por WhatsApp'}</button>
+            <button className="btn primary sm" disabled={ocupado || !perfil.telefono} onClick={pedir} data-testid="btn-verificar-wsp"><Icono n="celular" /> {datos ? 'Volver a abrir WhatsApp' : 'Verificar por WhatsApp'}</button>
             {datos?.codigo ? <span className="small">Tu código: <b style={{ fontSize: 18, letterSpacing: 2 }} data-testid="codigo-verificacion">{datos.codigo}</b> → envíalo al WhatsApp <b>{datos.whatsapp}</b> desde tu número {perfil.telefono}.</span> : null}
           </div>
           {datos?.url ? <p className="small" style={{ marginTop: 6 }}>Si no se abrió WhatsApp: <a href={datos.url} target="_blank" rel="noreferrer">toca aquí</a> o escribe «{datos.texto}» al {datos.whatsapp}.</p> : null}

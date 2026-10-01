@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from './Icono';
 import { useState } from 'react';
 import type { Carta } from '@/lib/catalogo';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
@@ -123,7 +124,7 @@ export function AddEntrySheet({ carta, personalizada, idiomaInicial, cajaInicial
               </div>
             ) : cajaRes.en_venta ? null
             : cajaRes.preguntar_venta !== false ? <PreguntaVenta ocupado={ocupado} onTodas={todas} soloEsta={soloEsta} onNo={noPorAhora} />
-            : <div className="row" style={{ marginTop: 12 }}><button className="btn sm" onClick={() => setVender(true)}>🏷️ Vender esta carta en el mercado</button></div>
+            : <div className="row" style={{ marginTop: 12 }}><button className="btn sm" onClick={() => setVender(true)}><Icono n="ventas" /> Vender esta carta en el mercado</button></div>
           ) : null}
         </Sheet>
         {vender ? <PublicarSheet entrada={entradaRes} onClose={() => setVender(false)} /> : null}
@@ -144,19 +145,19 @@ export function AddEntrySheet({ carta, personalizada, idiomaInicial, cajaInicial
       {sugerencia ? (
         <div className="sugerencia small" style={{ marginTop: 10 }} data-testid="sugerencia-guardar">
           <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span><b>✨ Sugerencia: {sugerencia.etiqueta}</b>{sugerencia.tipo === 'bulk' ? ` · posición #${sugerencia.posicion}` : sugerencia.tipo === 'album' ? ` · bolsillo ${sugerencia.indice + 1}` : carta ? ` · casilla ${carta.l}` : ''}</span>
+            <span><span className="rotulo-sug">Sugerido</span><b style={{ display: 'block' }}>{sugerencia.etiqueta}</b>{sugerencia.tipo === 'bulk' ? ` · posición #${sugerencia.posicion}` : sugerencia.tipo === 'album' ? ` · bolsillo ${sugerencia.indice + 1}` : carta ? ` · casilla ${carta.l}` : ''}</span>
             {!sugerenciaUsada ? <button className="btn sm primary" onClick={usarSugerencia} data-testid="btn-usar-sugerencia">Usar</button> : <span className="pill ok">elegida</span>}
           </div>
           <div className="muted">{sugerencia.motivo}</div>
-          {'aviso' in sugerencia && sugerencia.aviso ? <div className="warn">⚠️ {sugerencia.aviso}</div> : null}
+          {'aviso' in sugerencia && sugerencia.aviso ? <div className="warn"><Icono n="alerta" tam={14} /> {sugerencia.aviso}</div> : null}
         </div>
       ) : null}
       <div className="field" style={{ marginTop: 12 }}>
         <label>Dónde</label>
         <div className="chips">
-          {carta && !carta.sd ? <button className={`chipbtn ${destino === 'coleccion' ? 'active' : ''}`} onClick={() => setDestino('coleccion')} data-testid="destino-coleccion">📒 Álbum {nombreColeccion(set, perfil.idioma_nombres, true)} {idioma || (set?.rg === 'ja' ? 'JP' : 'EN')}</button> : null}
-          {col.albumes.map(a => { const i = bolsilloLibre(a.id, a.paginas * a.columnas * a.filas); return <button key={a.id} className={`chipbtn ${destino === 'album' && albumSel?.albumId === a.id ? 'active' : ''}`} disabled={i < 0} onClick={() => { setDestino('album'); setAlbumSel({ albumId: a.id, indice: i }); }} data-testid="destino-album">📒 {a.nombre}{i >= 0 ? ` · bolsillo ${i + 1}` : ' · lleno'}</button>; })}
-          {cajas.map(c => <button key={c.id} className={`chipbtn ${destino === 'bulk' && cajaId === c.id ? 'active' : ''}`} onClick={() => { setDestino('bulk'); setCajaId(c.id); }}>📦 {c.nombre}</button>)}
+          {carta && !carta.sd ? <button className={`chipbtn ${destino === 'coleccion' ? 'active' : ''}`} onClick={() => setDestino('coleccion')} data-testid="destino-coleccion"><Icono n="album" tam={15} /> Álbum {nombreColeccion(set, perfil.idioma_nombres, true)} {idioma || (set?.rg === 'ja' ? 'JP' : 'EN')}</button> : null}
+          {col.albumes.map(a => { const i = bolsilloLibre(a.id, a.paginas * a.columnas * a.filas); return <button key={a.id} className={`chipbtn ${destino === 'album' && albumSel?.albumId === a.id ? 'active' : ''}`} disabled={i < 0} onClick={() => { setDestino('album'); setAlbumSel({ albumId: a.id, indice: i }); }} data-testid="destino-album"><Icono n="album" tam={15} /> {a.nombre}{i >= 0 ? ` · bolsillo ${i + 1}` : ' · lleno'}</button>; })}
+          {cajas.map(c => <button key={c.id} className={`chipbtn ${destino === 'bulk' && cajaId === c.id ? 'active' : ''}`} onClick={() => { setDestino('bulk'); setCajaId(c.id); }}><Icono n="bulk" tam={15} /> {c.nombre}</button>)}
         </div>
         <div className="row" style={{ marginTop: 8, gap: 6 }}>
           <input className="input sm grow" placeholder={cajas.length ? 'Nuevo Bulk…' : 'Nombre de tu primer Bulk (p. ej. Bulk 1)'} value={nuevaCaja} onChange={e => setNuevaCaja(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') crearCaja(); }} />

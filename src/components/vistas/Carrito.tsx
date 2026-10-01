@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -58,9 +59,9 @@ export function Carrito() {
   return (
     <div>
       <p className="small"><Link href="/app/mercado">← Mercado</Link></p>
-      <h2 style={{ marginTop: 0 }}>🛒 Tu carrito</h2>
+      <h2 style={{ marginTop: 0 }}>Tu carrito</h2>
       {!mercado.cargado ? <p className="muted small"><span className="spinner" /> Cargando…</p> : null}
-      {mercado.cargado && !lineas.length ? <div className="empty"><div className="big">🛒</div><p><b>Tu carrito está vacío.</b></p><p className="muted">Busca cartas en el <Link href="/app/mercado">Mercado</Link> y pulsa «Agregar al carrito». Las copias quedan reservadas para ti durante 24 horas.</p></div> : null}
+      {mercado.cargado && !lineas.length ? <div className="empty"><div className="big"><Icono n="carrito" tam={44} grosor={1.5} /></div><p><b>Tu carrito está vacío.</b></p><p className="muted">Busca cartas en el <Link href="/app/mercado">Mercado</Link> y pulsa «Agregar al carrito». Las copias quedan reservadas para ti durante 24 horas.</p></div> : null}
       {conProblema.length ? <Aviso tipo="warn">{conProblema.length === 1 ? 'Una publicación de tu carrito ya no está disponible' : `${conProblema.length} publicaciones de tu carrito ya no están disponibles`} (el vendedor la pausó o retiró). Quítala para seguir.</Aviso> : null}
       <div className="card-list" style={{ marginTop: 10 }}>
         {lineas.map(l => {
@@ -75,7 +76,7 @@ export function Carrito() {
                 <div className="card-name">{carta ? nombreCarta(carta, perfil.idioma_nombres) : 'Carta'}</div>
                 <div className="card-set">{nombreColeccion(set, perfil.idioma_nombres)} {carta ? <span className="num">{numLabel(carta, set)}</span> : null}{l.acabado ? <span className="pill">{l.acabado}</span> : null}{l.idioma ? <span className="pill">{l.idioma}</span> : null}{l.condicion ? <span className="pill">{l.condicion}</span> : null}</div>
                 <div className="small">Vende <VendedorChip username={l.vendedor} reputacion={reputaciones.get(l.vendedor_id)?.reputacion} corto /> · {fmtPen(l.precio_pen)} c/u{cambioPrecio ? <span className="muted"> (ahora {fmtPen(l.precio_actual)})</span> : null} · reservada hasta {hora(l.expira)}</div>
-                {mal ? <div className="small" style={{ color: 'var(--warn)' }}>Ya no está disponible.</div> : null}
+                {mal ? <div className="small" style={{ color: 'var(--aviso-texto)' }}>Ya no está disponible.</div> : null}
                 <div className="row" style={{ gap: 6, marginTop: 6, alignItems: 'center' }}>
                   <div className="stepper"><button disabled={ocupado === l.id} onClick={() => cambiar(l, l.cantidad - 1)}>−</button><input type="number" readOnly value={l.cantidad} aria-label="Cantidad" /><button disabled={ocupado === l.id || l.cantidad >= l.disponibles} onClick={() => cambiar(l, l.cantidad + 1)}>+</button></div>
                   <span className="small muted">de {l.disponibles} disponibles</span>
@@ -126,9 +127,9 @@ function ElegirTienda({ total, usarSaldo, onClose, onListo }: { total: number; u
       {tiendas && !tiendas.length ? <Aviso tipo="warn">Todavía no hay tiendas de entrega configuradas. Escríbenos a info@poketcg.pe.</Aviso> : null}
       <div className="stack" style={{ marginTop: 8 }}>
         {(tiendas || []).map(t => (
-          <label key={t.id} className="check" style={{ padding: 8, border: '1px solid var(--line)', borderRadius: 10 }} data-testid="tienda-opcion">
+          <label key={t.id} className="check" style={{ padding: 8, border: '1px solid var(--linea)', borderRadius: 10 }} data-testid="tienda-opcion">
             <input type="radio" name="tienda" checked={sel === t.id} onChange={() => setSel(t.id)} />
-            <span><b>{t.nombre}</b>{t.distrito ? ` · ${t.distrito}` : ''}<br /><span className="small muted">{t.direccion}{t.referencia ? ` (${t.referencia})` : ''}{t.horario ? ` · ${t.horario}` : ''} · abre: {t.dias_abierto.map(d => DIAS_CORTOS[d]).join(' ')}</span><br /><span className="small">{t.tarifa_recojo && t.tarifa_recojo > 0 ? <span className="warn">💵 la tienda cobra {fmtPen(t.tarifa_recojo)} por recojo</span> : <span className="ok">recojo gratis</span>} · <a href={enlaceMapa(t)} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>cómo llegar</a></span></span>
+            <span><b>{t.nombre}</b>{t.distrito ? ` · ${t.distrito}` : ''}<br /><span className="small muted">{t.direccion}{t.referencia ? ` (${t.referencia})` : ''}{t.horario ? ` · ${t.horario}` : ''} · abre: {t.dias_abierto.map(d => DIAS_CORTOS[d]).join(' ')}</span><br /><span className="small">{t.tarifa_recojo && t.tarifa_recojo > 0 ? <span className="warn">la tienda cobra {fmtPen(t.tarifa_recojo)} por recojo</span> : <span className="ok">recojo gratis</span>} · <a href={enlaceMapa(t)} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>cómo llegar</a></span></span>
           </label>
         ))}
       </div>

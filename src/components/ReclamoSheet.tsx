@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from './Icono';
 import { useRef, useState } from 'react';
 import { abrirReclamo, MOTIVOS_RECLAMO, type Orden, type Reclamo } from '@/lib/compras';
 import { usePerfil } from './PerfilProvider';
@@ -32,7 +33,7 @@ export function ReclamoSheet({ orden, porTienda, onClose, onListo }: { orden: Or
       <div className="field">
         <label>Fotos (hasta 3, opcionales pero recomendadas)</label>
         <div className="row wrap" style={{ gap: 8, alignItems: 'center' }}>
-          <button className="btn sm" onClick={() => input.current?.click()} disabled={fotos.length >= 3}>📷 Agregar foto</button>
+          <button className="btn sm" onClick={() => input.current?.click()} disabled={fotos.length >= 3}><Icono n="camara" /> Agregar foto</button>
           <input ref={input} type="file" accept="image/*" hidden onChange={e => { const f = e.target.files?.[0]; if (f) setFotos(x => [...x, f].slice(0, 3)); e.target.value = ''; }} data-testid="input-foto-reclamo" />
           {fotos.map((f, i) => <span key={i} className="small">{f.name.slice(0, 24)} <button className="btn sm ghost" onClick={() => setFotos(x => x.filter((_, j) => j !== i))}>Quitar</button></span>)}
         </div>

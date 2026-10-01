@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from './Icono';
 import { useMemo, useState } from 'react';
 import type { Carta } from '@/lib/catalogo';
 import { buscarCatalogo } from '@/lib/buscar';
@@ -26,13 +27,13 @@ export function CardPicker({ titulo = 'Buscar carta', soloColeccion, onPick, onC
   return (
     <Sheet titulo={titulo} onClose={onClose}>
       <div className="search-wrap">
-        <span className="ico">🔍</span>
+        <span className="ico"><Icono n="buscar" tam={20} /></span>
         <input className="input" autoFocus placeholder="Nombre, número (025/165), colección…" value={q} onChange={e => setQ(e.target.value)} />
-        {q ? <button className="clear" onClick={() => setQ('')} aria-label="Borrar">✕</button> : null}
+        {q ? <button className="clear" onClick={() => setQ('')} aria-label="Borrar"><Icono n="cerrar" /></button> : null}
       </div>
       <div className="card-list" style={{ marginTop: 10, maxHeight: '55vh', overflow: 'auto' }}>
         {resultados.map(c => <CardRow key={c.id} carta={c} entradas={col.entradas.filter(e => e.carta_id === c.id)} ubicador={ubicador} onClick={() => onPick(c)} />)}
-        {q && !resultados.length ? <div className="empty"><div className="big">🫥</div>No hay resultados{onPersonalizada ? <div style={{ marginTop: 8 }}><button className="btn sm" onClick={onPersonalizada}>Crear carta personalizada</button></div> : null}</div> : null}
+        {q && !resultados.length ? <div className="empty"><div className="big"><Icono n="buscar" tam={44} grosor={1.5} /></div>No hay resultados{onPersonalizada ? <div style={{ marginTop: 8 }}><button className="btn sm" onClick={onPersonalizada}>Crear carta personalizada</button></div> : null}</div> : null}
       </div>
     </Sheet>
   );

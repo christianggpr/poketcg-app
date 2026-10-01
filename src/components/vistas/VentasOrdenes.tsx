@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
@@ -34,11 +35,11 @@ export function OrdenesVendedor() {
   return (
     <div>
       <p className="small"><Link href="/app/ventas">← Mis ventas</Link></p>
-      <h2 style={{ marginTop: 0 }}>📦 Órdenes de venta</h2>
+      <h2 style={{ marginTop: 0 }}>Órdenes de venta</h2>
       <p className="small muted">Cada orden es una venta confirmada: debes dejar las cartas en la tienda indicada antes de la fecha límite. Tu ganancia se paga apenas el comprador la recoja.</p>
       {pendientes.length ? <Aviso tipo="warn">Tienes {pendientes.length} {pendientes.length === 1 ? 'orden por entregar' : 'órdenes por entregar'}.</Aviso> : null}
       {!datos ? <p className="small muted"><span className="spinner" /> Cargando…</p> : null}
-      {datos && !datos.ordenes.length ? <div className="empty"><div className="big">📦</div><p><b>Todavía no vendiste nada.</b></p><p className="muted">Cuando alguien compre una de tus cartas y pague, la verás aquí.</p></div> : null}
+      {datos && !datos.ordenes.length ? <div className="empty"><div className="big"><Icono n="ventas" tam={44} grosor={1.5} /></div><p><b>Todavía no vendiste nada.</b></p><p className="muted">Cuando alguien compre una de tus cartas y pague, la verás aquí.</p></div> : null}
       <div className="card-list">
         {(datos?.ordenes || []).map(o => (
           <Link key={o.id} href={`/app/ventas/ordenes/${o.id}`} className="card-row" style={{ textDecoration: 'none', color: 'inherit' }} data-testid="fila-orden-venta">
@@ -148,7 +149,7 @@ export function OrdenVendedorDetalle({ id }: { id: string }) {
       </div>
 
       {tienda ? <div className="panel"><h3 style={{ marginTop: 0 }}>Tienda de entrega</h3><p style={{ margin: 0 }}><b>{tienda.nombre}</b> · {tienda.distrito}<br /><span className="small">{tienda.direccion}{tienda.referencia ? ` (${tienda.referencia})` : ''}{tienda.horario ? ` · ${tienda.horario}` : ''}</span></p>
-        {orden.estado === 'pago_confirmado' || orden.estado === 'en_tienda' ? <div className="row wrap" style={{ gap: 6, marginTop: 8 }}><button className="btn sm" onClick={() => setRotulo(true)} data-testid="btn-rotulo">🏷️ Rótulo del sobre</button><span className="small muted">Pégalo en el sobre: la tienda ubica la orden al instante.</span></div> : null}
+        {orden.estado === 'pago_confirmado' || orden.estado === 'en_tienda' ? <div className="row wrap" style={{ gap: 6, marginTop: 8 }}><button className="btn sm" onClick={() => setRotulo(true)} data-testid="btn-rotulo"><Icono n="imprimir" /> Rótulo del sobre</button><span className="small muted">Pégalo en el sobre: la tienda ubica la orden al instante.</span></div> : null}
       </div> : null}
       {rotulo ? <RotuloSobre orden={orden} items={items} tienda={tienda} comprador={comprador} vendedor={perfil.username} onClose={() => setRotulo(false)} /> : null}
 
@@ -159,13 +160,13 @@ export function OrdenVendedorDetalle({ id }: { id: string }) {
           <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <select className="input" style={{ maxWidth: 260 }} value={fecha} onChange={e => setFecha(e.target.value)} data-testid="select-fecha">{fechas.map(f => <option key={f} value={f}>{diaNombre(f)}</option>)}</select>
             <button className="btn primary" disabled={ocupado || !fecha || fecha === orden.fecha_entrega} onClick={elegirFecha} data-testid="btn-fecha">{orden.fecha_entrega ? 'Cambiar fecha' : 'Confirmar fecha'}</button>
-            {orden.fecha_entrega ? <span className="small">✔ Programada para el {fechaDia(orden.fecha_entrega)}</span> : null}
+            {orden.fecha_entrega ? <span className="small"><Icono n="ok" tam={14} /> Programada para el {fechaDia(orden.fecha_entrega)}</span> : null}
           </div>
           {conCuenta === false ? (
             <div style={{ marginTop: 12 }}>
               <h3>Ya la dejé en la tienda</h3>
               <p className="small muted">Esta tienda aún no tiene cuenta en la app: sube una foto de la carta entregada (en el mostrador o con el comprobante de la tienda) para avisar al comprador.</p>
-              <button className="btn" disabled={ocupado} onClick={() => input.current?.click()} data-testid="btn-foto-entrega">{ocupado ? 'Subiendo…' : '📷 Subir foto de la entrega'}</button>
+              <button className="btn" disabled={ocupado} onClick={() => input.current?.click()} data-testid="btn-foto-entrega">{ocupado ? 'Subiendo…' : <><Icono n="camara" /> Subir foto de la entrega</>}</button>
               <input ref={input} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = e.target.files?.[0]; if (f) subirEntrega(f); e.target.value = ''; }} data-testid="input-foto-entrega" />
             </div>
           ) : <p className="small muted" style={{ marginTop: 10 }}>Cuando dejes la carta, el encargado de la tienda la registrará y el comprador recibirá su código de retiro.</p>}
@@ -174,7 +175,7 @@ export function OrdenVendedorDetalle({ id }: { id: string }) {
       {orden.estado === 'en_tienda' ? <Aviso tipo="info">La carta está en la tienda desde el {fechaHora(orden.en_tienda_en)}. Cuando el comprador la recoja, tu ganancia queda lista para pagarte.</Aviso> : null}
       {orden.estado === 'entregada' || orden.estado === 'saldo_liberado' ? <Aviso tipo="ok">Entregada el {fechaHora(orden.entregada_en)}. Tu ganancia de {fmtPen(orden.neto_vendedor)} {orden.estado === 'saldo_liberado' ? 'ya fue liberada' : 'se paga en el siguiente día de pago'}; revisa tus datos de cobro en Ajustes.</Aviso> : null}
       {orden.estado === 'vencida' ? <Aviso tipo="danger">{orden.motivo || 'La orden venció.'} Las cartas volvieron a tu colección y el comprador recibió su dinero. Queda registrada como falta en tu reputación.</Aviso> : null}
-      {orden.estado === 'disputa' ? <Aviso tipo="warn" data-testid="venta-disputa">📝 <b>Reclamo del comprador:</b> {orden.motivo || 'en revisión'}. Las cartas quedan en la tienda y tu pago en espera hasta que el administrador lo resuelva; te avisaremos.</Aviso> : null}
+      {orden.estado === 'disputa' ? <Aviso tipo="warn" data-testid="venta-disputa"><Icono n="lista" tam={15} /> <b>Reclamo del comprador:</b> {orden.motivo || 'en revisión'}. Las cartas quedan en la tienda y tu pago en espera hasta que el administrador lo resuelva; te avisaremos.</Aviso> : null}
       {orden.estado === 'cancelada' && /^Reclamo/.test(orden.motivo || '') ? <Aviso tipo="danger">{orden.motivo}. Las cartas volvieron a tu colección y están en la tienda: pasa a recogerlas. Queda registrada como falta en tu reputación.</Aviso> : null}
       {orden.foto_entrega_url ? <p className="small"><a href={orden.foto_entrega_url} target="_blank" rel="noreferrer">Ver foto de la entrega</a></p> : null}
     </div>
@@ -192,7 +193,7 @@ function RotuloSobre({ orden, items, tienda, comprador, vendedor, onClose }: { o
   const texto = [`PokéTCG · ORDEN #${orden.numero}`, `Tienda: ${tienda?.nombre || '—'}${tienda?.distrito ? ' (' + tienda.distrito + ')' : ''}`, `Entrega: ${fecha ? fechaDia(fecha) : '—'}`, `Vendedor: @${vendedor}`, `Comprador: @${comprador}`, 'Cartas:', ...lineas.map(l => ' - ' + l), 'Entregar solo con el código de retiro del comprador (app PokéTCG).'].join('\n');
   async function copiar() { try { await navigator.clipboard.writeText(texto); toast('Rótulo copiado', 'ok'); } catch { toast('No se pudo copiar', 'danger'); } }
   return (
-    <Sheet titulo={`Rótulo · orden #${orden.numero}`} onClose={onClose} pie={<><button className="btn" onClick={onClose}>Cerrar</button><button className="btn" onClick={copiar} data-testid="btn-copiar-rotulo">📋 Copiar texto</button><button className="btn primary" onClick={() => window.print()} data-testid="btn-imprimir-rotulo">🖨️ Imprimir</button></>}>
+    <Sheet titulo={`Rótulo · orden #${orden.numero}`} onClose={onClose} pie={<><button className="btn" onClick={onClose}>Cerrar</button><button className="btn" onClick={copiar} data-testid="btn-copiar-rotulo"><Icono n="copiar" /> Copiar texto</button><button className="btn primary" onClick={() => window.print()} data-testid="btn-imprimir-rotulo"><Icono n="imprimir" /> Imprimir</button></>}>
       <p className="small muted">Imprímelo (o escríbelo a mano con estos datos) y pégalo en el sobre. El comprador igual necesita su código de retiro: nadie más puede llevarse las cartas.</p>
       <div className="rotulo" data-testid="rotulo">
         <div className="small" style={{ letterSpacing: 2, fontWeight: 700 }}>POKÉTCG · ENTREGA EN TIENDA</div>

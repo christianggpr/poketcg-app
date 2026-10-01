@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -82,7 +83,7 @@ export function Albumes() {
         <div className="album-grid">
           {col.albumes.map(a => (
             <Link key={a.id} href={`/app/album/p/${a.id}`} className="album-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-              <div className="album-body"><div className="album-title">📒 {a.nombre}</div><div className="small muted">{a.paginas} páginas de {a.columnas} × {a.filas} · {a.paginas * a.columnas * a.filas} bolsillos{a.descripcion ? ` · ${a.descripcion}` : ''}</div></div>
+              <div className="album-body"><div className="album-title"><Icono n="album" tam={16} /> {a.nombre}</div><div className="small muted">{a.paginas} páginas de {a.columnas} × {a.filas} · {a.paginas * a.columnas * a.filas} bolsillos{a.descripcion ? ` · ${a.descripcion}` : ''}</div></div>
             </Link>
           ))}
         </div>
@@ -90,7 +91,7 @@ export function Albumes() {
 
       <h2 style={{ marginTop: 22 }}>Álbumes por colección</h2>
       <p className="small muted">Se crean solos con cada colección de la que tengas al menos una carta (uno por idioma). Las cartas que faltan se ven en gris oscuro.</p>
-      {!albumes.length ? <div className="empty"><div className="big">📒</div>Cuando guardes cartas aparecerán aquí sus colecciones.</div> : null}
+      {!albumes.length ? <div className="empty"><div className="big"><Icono n="album" tam={44} grosor={1.5} /></div>Cuando guardes cartas aparecerán aquí sus colecciones.</div> : null}
       <div className="album-grid">
         {albumes.map(a => {
           const pct = a.total ? Math.round((a.distintas / a.total) * 100) : 0;
@@ -222,8 +223,8 @@ export function AlbumColeccion({ setId }: { setId: string }) {
         </div>
       ) : null}
       <div className="row" style={{ gap: 6, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        {idsPropias.length ? (sinPublicar.length ? <button className="btn sm" disabled={asignando} onClick={() => setConfirmarVenta(true)}>🏷️ Poner en venta lo que tengo de esta colección ({sinPublicar.length})</button> : <span className="small muted">🏷️ Todo lo que tienes de esta colección está en el mercado.</span>) : null}
-        {idsFaltan.length ? <Link href={`/app/mercado?set=${encodeURIComponent(set.id)}&faltan=1`} className="btn sm ghost" data-testid="faltan-mercado">🛒 Buscar las que faltan en el mercado{(() => { const n = idsFaltan.filter(id => enRed.has(id)).length; return n ? ` (${n} en venta)` : ''; })()}</Link> : null}
+        {idsPropias.length ? (sinPublicar.length ? <button className="btn sm" disabled={asignando} onClick={() => setConfirmarVenta(true)}><Icono n="ventas" /> Poner en venta lo que tengo de esta colección ({sinPublicar.length})</button> : <span className="small muted"><Icono n="ventas" tam={14} /> Todo lo que tienes de esta colección está en el mercado.</span>) : null}
+        {idsFaltan.length ? <Link href={`/app/mercado?set=${encodeURIComponent(set.id)}&faltan=1`} className="btn sm ghost" data-testid="faltan-mercado"><Icono n="carrito" /> Buscar las que faltan en el mercado{(() => { const n = idsFaltan.filter(id => enRed.has(id)).length; return n ? ` (${n} en venta)` : ''; })()}</Link> : null}
       </div>
       <FilterBar f={f} onChange={setF} sorts={['set', 'name', 'type', 'value', 'dex']} extra={<div className="seg"><button className={modo === 'todas' ? 'active' : ''} onClick={() => setModo('todas')}>Todas</button><button className={modo === 'tengo' ? 'active' : ''} onClick={() => setModo('tengo')}>Tengo</button><button className={modo === 'faltan' ? 'active' : ''} onClick={() => setModo('faltan')}>Faltan</button></div>} />
       <div className="album-cells">
@@ -233,10 +234,10 @@ export function AlbumColeccion({ setId }: { setId: string }) {
           const d = c.sd ? null : precios.precioDefecto(c, es[0]?.acabado || '');
           return (
             <div key={c.id} className={`album-cell ${qty ? '' : 'missing'}`} role="button" tabIndex={0} onClick={() => { if (qty) router.push(`/app/carta/${encodeURIComponent(c.id)}`); else setAgregar(c); }}>
-              <div className="album-img"><Thumb carta={c} set={set} className="album" />{qty ? <span className="album-qty">×{qty}</span> : null}{es.some(e => col.publicacionDe(e.id)?.estado === 'activa') ? <span className="album-venta" title="En venta en el mercado">🏷️</span> : null}</div>
+              <div className="album-img"><Thumb carta={c} set={set} className="album" />{qty ? <span className="album-qty">×{qty}</span> : null}{es.some(e => col.publicacionDe(e.id)?.estado === 'activa') ? <span className="album-venta" title="En venta en el mercado"><Icono n="ventas" tam={11} /></span> : null}</div>
               <div className="album-num">{c.l}{c.sd ? ' · sin datos' : ''}</div>
               <div className="album-name">{nombreCarta(c, idioma)}</div>
-              <div className="album-foot">{qty ? <span className="album-loc"><LocChip loc={ubicador.donde(es[0])} corto /></span> : enRed.get(c.id) ? <Link href={`/app/carta/${encodeURIComponent(c.id)}#mercado`} className="album-miss album-red" onClick={e => e.stopPropagation()} title="En venta en la red">🛒 {fmtPen(enRed.get(c.id)!.precio_min)}</Link> : <span className="album-miss">falta</span>}{d ? <span className={`price ${d.origen === 'piso' ? 'piso' : ''}`}>{fmtPen(d.pen)}</span> : null}</div>
+              <div className="album-foot">{qty ? <span className="album-loc"><LocChip loc={ubicador.donde(es[0])} corto /></span> : enRed.get(c.id) ? <Link href={`/app/carta/${encodeURIComponent(c.id)}#mercado`} className="album-miss album-red" onClick={e => e.stopPropagation()} title="En venta en la red">En mercado · {fmtPen(enRed.get(c.id)!.precio_min)}</Link> : <span className="album-miss">falta</span>}{d ? <span className={`price ${d.origen === 'piso' ? 'piso' : ''}`}>{fmtPen(d.pen)}</span> : null}</div>
             </div>
           );
         })}

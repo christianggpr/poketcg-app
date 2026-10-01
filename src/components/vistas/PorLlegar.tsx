@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { nombreCarta, nombreColeccion, numLabel, type Carta } from '@/lib/catalogo';
@@ -39,8 +40,8 @@ export function PorLlegar() {
   return (
     <div className="panel" style={{ marginBottom: 12 }} data-testid="por-llegar">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <h3 style={{ margin: 0 }}>📦 Por llegar <span className="muted">({pendientes.reduce((n, o) => n + datos.items.filter(i => i.orden_id === o.id).reduce((m, i) => m + i.cantidad, 0), 0)})</span></h3>
-        <Link href="/app/compras" className="btn sm ghost">🧾 Mis compras</Link>
+        <h3 style={{ margin: 0 }}><Icono n="bulk" /> Por llegar <span className="muted">({pendientes.reduce((n, o) => n + datos.items.filter(i => i.orden_id === o.id).reduce((m, i) => m + i.cantidad, 0), 0)})</span></h3>
+        <Link href="/app/compras" className="btn sm ghost">Ver compras</Link>
       </div>
       <p className="small muted">Cartas que compraste y todavía no recibes. Cuando recojas la orden y la marques como entregada, aparecerán abajo para guardarlas.</p>
       <div className="card-list">
@@ -88,7 +89,7 @@ export function Recibidas() {
   if (!recibidas.length) return null;
   return (
     <div className="panel" style={{ marginBottom: 12 }} data-testid="recibidas">
-      <h3 style={{ margin: 0 }}>📥 Recibidas: ¿dónde las guardas? <span className="muted">({recibidas.reduce((n, e) => n + e.cantidad, 0)})</span></h3>
+      <h3 style={{ margin: 0 }}><Icono n="entrada" /> Recibidas: ¿dónde las guardas? <span className="muted">({recibidas.reduce((n, e) => n + e.cantidad, 0)})</span></h3>
       <p className="small muted">Ya son tuyas. La app sugiere un lugar mirando cómo coleccionas; tú decides.</p>
       <div className="card-list">
         {recibidas.map(e => { const c = cat.carta(e.carta_id); const set = c ? cat.setOf(c) : undefined; const s = c ? sugerirDestino(ctx, c, e.idioma, e.id) : null; return (
@@ -97,7 +98,7 @@ export function Recibidas() {
             <div className="card-main">
               <div className="card-name">{e.cantidad > 1 ? `${e.cantidad}× ` : ''}{c ? nombreCarta(c, perfil.idioma_nombres) : e.personalizada?.nombre}{e.idioma ? <span className="pill">{e.idioma}</span> : null}{e.acabado ? <span className="pill">{e.acabado}</span> : null}{e.condicion ? <span className="pill">{e.condicion}</span> : null}</div>
               <div className="card-set">{c ? <>{nombreColeccion(set, perfil.idioma_nombres)} <span className="num">{numLabel(c, set)}</span></> : null}{e.nota ? <span className="muted"> · {e.nota}</span> : null}</div>
-              {s ? <div className="sugerencia small" data-testid="sugerencia"><b>✨ Sugerencia: {s.etiqueta}</b>{s.tipo === 'bulk' ? ` · posición #${s.posicion}` : s.tipo === 'album' ? ` · bolsillo ${s.indice + 1}` : c ? ` · casilla ${c.l}` : ''}<div className="muted">{s.motivo}</div>{'aviso' in s && s.aviso ? <div className="warn">⚠️ {s.aviso}</div> : null}</div> : <div className="small muted">Crea un Bulk o un álbum para guardarla.</div>}
+              {s ? <div className="sugerencia small" data-testid="sugerencia"><span className="rotulo-sug">Sugerido</span><b style={{ display: 'block' }}>{s.etiqueta}</b>{s.tipo === 'bulk' ? ` · posición #${s.posicion}` : s.tipo === 'album' ? ` · bolsillo ${s.indice + 1}` : c ? ` · casilla ${c.l}` : ''}<div className="muted">{s.motivo}</div>{'aviso' in s && s.aviso ? <div className="warn"><Icono n="alerta" tam={14} /> {s.aviso}</div> : null}</div> : <div className="small muted">Crea un Bulk o un álbum para guardarla.</div>}
               <div className="row wrap" style={{ gap: 6, marginTop: 8 }}>
                 {s ? <button className="btn sm primary" disabled={ocupado === e.id} onClick={() => aplicar(e, s)} data-testid="btn-guardar-sugerido">{ocupado === e.id ? '…' : `Guardar en ${s.etiqueta}`}</button> : null}
                 <button className="btn sm" onClick={() => setElegir(e)} data-testid="btn-elegir-album">Elegir otro álbum</button>
@@ -138,7 +139,7 @@ export function ElegirDestino({ entrada, onClose, onGuardada }: { entrada: Entra
     <Sheet titulo="¿Dónde la guardas?" onClose={onClose} pie={<button className="btn" onClick={onClose}>Cancelar</button>}>
       {carta ? (
         <>
-          <h4 style={{ margin: '4px 0 6px' }}>📒 Álbum de esta colección</h4>
+          <h4 style={{ margin: '4px 0 6px' }}><Icono n="album" /> Álbum de esta colección</h4>
           <div className="stack">
             <button className="btn" disabled={ocupado} onClick={() => ir(() => col.colocarEnColeccion(entrada.id, carta.s))} data-testid="destino-coleccion">Álbum {nombreColeccion(cat.setOf(carta), perfil.idioma_nombres, true)} {idiomaCarta} · casilla {carta.l}{porColeccion.some(v => v.set === carta.s && v.idioma === idiomaCarta) ? '' : ' (nuevo)'}</button>
           </div>
@@ -147,13 +148,13 @@ export function ElegirDestino({ entrada, onClose, onGuardada }: { entrada: Entra
       ) : null}
       {col.albumes.length ? (
         <>
-          <h4 style={{ margin: '12px 0 6px' }}>📒 Álbum personalizado (siguiente bolsillo libre)</h4>
+          <h4 style={{ margin: '12px 0 6px' }}><Icono n="album" /> Álbum personalizado (siguiente bolsillo libre)</h4>
           <div className="stack">
             {col.albumes.map(a => { const cap = a.paginas * a.columnas * a.filas; const i = bolsilloLibre(a.id, cap); return <button key={a.id} className="btn" disabled={ocupado || i < 0} onClick={() => ir(() => col.colocarEnAlbum(entrada.id, a.id, i))} data-testid="destino-album">{a.nombre}{i >= 0 ? ` · pág. ${Math.floor(i / (a.columnas * a.filas)) + 1}, bolsillo ${(i % (a.columnas * a.filas)) + 1}` : ' · lleno'}</button>; })}
           </div>
         </>
       ) : null}
-      <h4 style={{ margin: '12px 0 6px' }}>📦 Bulk</h4>
+      <h4 style={{ margin: '12px 0 6px' }}><Icono n="bulk" /> Bulk</h4>
       {!col.cajas.length ? <p className="small muted">Todavía no tienes Bulks: créalos en Mi Colección → Bulk.</p> : null}
       <div className="stack">
         {cajasOrdenadas(col.cajas).map(c => <button key={c.id} className="btn" disabled={ocupado} onClick={() => ir(() => col.editarEntrada(entrada.id, { caja_id: c.id }))} data-testid="destino-bulk">{c.nombre}{c.descripcion ? <span className="muted"> · {c.descripcion}</span> : null}</button>)}

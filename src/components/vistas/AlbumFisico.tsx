@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -124,7 +125,7 @@ export function AlbumFisico({ id }: { id: string }) {
     <div>
       <p className="small"><Link href="/app/album">← Álbumes</Link></p>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <div><h2 style={{ margin: 0 }}>📒 {album.nombre}</h2><div className="small muted">{album.paginas} páginas de {album.columnas} × {album.filas}{album.descripcion ? ` · ${album.descripcion}` : ''}</div></div>
+        <div><h2 style={{ margin: 0 }}>{album.nombre}</h2><div className="small muted">{album.paginas} páginas de {album.columnas} × {album.filas}{album.descripcion ? ` · ${album.descripcion}` : ''}</div></div>
         <div className="row" style={{ gap: 6 }}>
           <button className="btn sm" onClick={() => setRellenar(true)}>Rellenar con una colección</button>
           <button className="btn sm" onClick={() => setEditar(true)}>Editar</button>
@@ -137,9 +138,9 @@ export function AlbumFisico({ id }: { id: string }) {
         <div className="box"><b>{fmtPen(stats.falta)}</b><span>para completar</span></div>
       </div>
       <div className="binder-toolbar">
-        <button className="btn sm" onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina <= 1}>◀</button>
+        <button className="btn sm" onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina <= 1} aria-label="Página anterior"><Icono n="izquierda" /></button>
         <select className="input sm" value={pagina} onChange={e => setPagina(parseInt(e.target.value, 10))}>{Array.from({ length: totalPaginas }, (_, i) => <option key={i + 1} value={i + 1}>Página {i + 1}</option>)}</select>
-        <button className="btn sm" onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina >= totalPaginas}>▶</button>
+        <button className="btn sm" onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina >= totalPaginas} aria-label="Página siguiente"><Icono n="derecha" /></button>
         {seleccion != null ? <span className="chip warn">Moviendo el bolsillo {seleccion + 1}: toca el destino <button className="link" onClick={() => setSeleccion(null)}>cancelar</button></span> : <span className="small muted">Toca un bolsillo vacío para asignarle una carta; uno lleno para ver opciones. Arrastra para reordenar.</span>}
       </div>
       <div className="binder-page" style={{ gridTemplateColumns: `repeat(${album.columnas}, 1fr)` }}>
@@ -161,7 +162,7 @@ export function AlbumFisico({ id }: { id: string }) {
                 if (carta) setMenu(indice); else setPicker(indice);
               }}>
               <span className="pocket-n">{indice + 1}</span>
-              {carta ? <><Thumb carta={carta} set={cat.setOf(carta)} /><span className="pocket-have">{tengo ? `✓ ×${es!.reduce((n, e) => n + e.cantidad, 0)}` : 'falta'}</span><span className="pocket-name">{carta.l} · {nombreCarta(carta, idioma)}</span></> : <span className="pocket-plus">+</span>}
+              {carta ? <><Thumb carta={carta} set={cat.setOf(carta)} /><span className="pocket-have">{tengo ? `×${es!.reduce((n, e) => n + e.cantidad, 0)}` : 'falta'}</span><span className="pocket-name">{carta.l} · {nombreCarta(carta, idioma)}</span></> : <span className="pocket-plus">+</span>}
             </div>
           );
         })}

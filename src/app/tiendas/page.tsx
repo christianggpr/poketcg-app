@@ -1,3 +1,4 @@
+import { Icono } from '@/components/Icono';
 import Link from 'next/link';
 import { ADMIN_EMAIL, APP_NAME } from '@/lib/config';
 import { fmtPen } from '@/lib/precios-core';
@@ -36,7 +37,7 @@ export default async function Tiendas() {
           <p className="small muted">{tiendas.length} {tiendas.length === 1 ? 'tienda aliada' : 'tiendas aliadas'} en {porDistrito.size} {porDistrito.size === 1 ? 'distrito' : 'distritos'}. Hoy es {DIAS[hoy].toLowerCase()}.</p>
           {[...porDistrito.entries()].map(([distrito, lista]) => (
             <section key={distrito} style={{ marginTop: 14 }}>
-              <h2 style={{ marginBottom: 6 }}>📍 {distrito}</h2>
+              <h2 style={{ marginBottom: 6 }}><Icono n="lugar" tam={20} /> {distrito}</h2>
               <div className="stack">
                 {lista.map(t => { const abre = t.dias_abierto.includes(hoy); return (
                   <article key={t.id} className="panel" data-testid="tienda-publica">
@@ -47,12 +48,12 @@ export default async function Tiendas() {
                       </div>
                       <span className={`pill ${abre ? 'ok' : 'warn'}`}>{abre ? 'abre hoy' : 'hoy cerrada'}</span>
                     </div>
-                    <div className="small" style={{ marginTop: 6 }}>🕒 {t.horario || 'Horario no indicado'} · abre: {t.dias_abierto.map(d => DIAS[d]).join(' ')}</div>
-                    <div className="small" style={{ marginTop: 4 }}>{t.tarifa_recojo > 0 ? <>💵 La tienda cobra <b>{fmtPen(t.tarifa_recojo)}</b> por recojo (se paga en la tienda).</> : <>💵 <b>Recojo gratis</b>: la tienda no cobra por entregar tus cartas.</>}</div>
+                    <div className="small" style={{ marginTop: 6 }}><Icono n="reloj" tam={14} /> {t.horario || 'Horario no indicado'} · abre: {t.dias_abierto.map(d => DIAS[d]).join(' ')}</div>
+                    <div className="small" style={{ marginTop: 4 }}>{t.tarifa_recojo > 0 ? <><Icono n="billete" tam={14} /> La tienda cobra <b>{fmtPen(t.tarifa_recojo)}</b> por recojo (se paga en la tienda).</> : <><Icono n="billete" tam={14} /> <b>Recojo gratis</b>: la tienda no cobra por entregar tus cartas.</>}</div>
                     <div className="row wrap" style={{ gap: 6, marginTop: 8 }}>
-                      <a className="btn sm primary" href={enlaceMapa(t)} target="_blank" rel="noreferrer">🗺️ Cómo llegar</a>
-                      {t.telefono ? <a className="btn sm" href={`tel:${t.telefono}`}>📞 {t.telefono}</a> : null}
-                      {t.instagram ? <a className="btn sm" href={`https://instagram.com/${t.instagram.replace(/^@/, '')}`} target="_blank" rel="noreferrer">📸 @{t.instagram.replace(/^@/, '')}</a> : null}
+                      <a className="btn sm primary" href={enlaceMapa(t)} target="_blank" rel="noreferrer"><Icono n="mapa" /> Cómo llegar</a>
+                      {t.telefono ? <a className="btn sm" href={`tel:${t.telefono}`}><Icono n="telefono" /> {t.telefono}</a> : null}
+                      {t.instagram ? <a className="btn sm" href={`https://instagram.com/${t.instagram.replace(/^@/, '')}`} target="_blank" rel="noreferrer"><Icono n="camara" /> @{t.instagram.replace(/^@/, '')}</a> : null}
                     </div>
                     <MapaOsm t={t} />
                   </article>

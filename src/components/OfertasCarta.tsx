@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from './Icono';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { Carta } from '@/lib/catalogo';
@@ -46,7 +47,7 @@ export function OfertasCarta({ carta }: { carta: Carta }) {
   return (
     <>
       <h3><span>Disponible en la red</span>{ofertas ? <span className="count">{copias}</span> : null}</h3>
-      {error ? <p className="small" style={{ color: 'var(--danger)' }}>No se pudo consultar el mercado: {error}</p> : null}
+      {error ? <p className="small" style={{ color: 'var(--peligro-texto)' }}>No se pudo consultar el mercado: {error}</p> : null}
       {!ofertas && !error ? <p className="small muted">Consultando…</p> : null}
       {ofertas && !ofertas.length ? <p className="small muted" data-testid="sin-ofertas">Nadie la tiene en venta ahora mismo. Cuando alguien la publique aparecerá aquí.</p> : null}
       {ofertas && ofertas.length ? <p className="small" data-testid="resumen-ofertas"><b>{copias} {copias === 1 ? 'copia' : 'copias'}</b> desde <b>{fmtPen(desde!)}</b> · {new Set(ofertas.map(o => o.vendedor)).size} {new Set(ofertas.map(o => o.vendedor)).size === 1 ? 'vendedor' : 'vendedores'}</p> : null}
@@ -64,7 +65,7 @@ export function OfertasCarta({ carta }: { carta: Carta }) {
                 {mia ? <div className="small muted" style={{ marginTop: 4 }}>No puedes comprar tus propias cartas. <Link href="/app/ventas">Ver en Mis ventas</Link></div> : (
                   <div className="row" style={{ gap: 6, marginTop: 6, alignItems: 'center' }}>
                     {o.disponibles > 1 ? <div className="stepper"><button onClick={() => setCantidades(x => ({ ...x, [o.id]: Math.max(1, n - 1) }))}>−</button><input type="number" readOnly value={n} aria-label="Cantidad" /><button onClick={() => setCantidades(x => ({ ...x, [o.id]: Math.min(o.disponibles, n + 1) }))}>+</button></div> : null}
-                    <button className="btn sm primary" disabled={ocupado === o.id} onClick={() => agregar(o)} data-testid="btn-agregar">{linea ? `🛒 En tu carrito (${linea.cantidad}) · cambiar` : '🛒 Agregar al carrito'}</button>
+                    <button className="btn sm primary" disabled={ocupado === o.id} onClick={() => agregar(o)} data-testid="btn-agregar"><Icono n="carrito" /> {linea ? `En tu carrito (${linea.cantidad}) · cambiar` : 'Agregar al carrito'}</button>
                     {linea ? <Link href="/app/carrito" className="btn sm ghost">Ver carrito</Link> : null}
                   </div>
                 )}

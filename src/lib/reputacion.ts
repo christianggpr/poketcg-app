@@ -5,15 +5,16 @@ import type { Reputacion } from './coleccion';
 export type VendedorPublico = { id: string; username: string; reputacion: Reputacion | null; estado: 'activo' | 'suspendido'; creado_en: string };
 export type ResenaPublica = { id: string; orden_id: string; vendedor_id: string; puntaje: number; comentario: string; respuesta: string | null; respondida_en: string | null; creada: string; comprador: string; orden_numero: number };
 
-export const INSIGNIAS: Record<string, { icono: string; nombre: string; ayuda: string }> = {
-  top: { icono: '🏆', nombre: 'Top vendedor', ayuda: 'Más de 50 ventas con 4.7 estrellas o más.' },
-  rapido: { icono: '⚡', nombre: 'Confirma rápido', ayuda: 'Elige la fecha de entrega en menos de 24 horas en promedio.' },
-  cumple: { icono: '📅', nombre: 'Cumple fechas', ayuda: 'Deja las cartas en la tienda en la fecha prometida o antes (95 % o más).' },
-  sin_faltas: { icono: '✅', nombre: 'Sin faltas', ayuda: 'Ninguna orden vencida en los últimos 90 días (con 5 ventas o más).' },
-  nuevo: { icono: '🌱', nombre: 'Nuevo', ayuda: 'Menos de 3 ventas completadas todavía.' }
+export type IconoInsignia = 'trofeo' | 'rayo' | 'calendario_ok' | 'ok_circulo' | 'brote' | 'alerta';
+export const INSIGNIAS: Record<string, { icono: IconoInsignia; nombre: string; ayuda: string }> = {
+  top: { icono: 'trofeo', nombre: 'Top vendedor', ayuda: 'Más de 50 ventas con 4.7 estrellas o más.' },
+  rapido: { icono: 'rayo', nombre: 'Confirma rápido', ayuda: 'Elige la fecha de entrega en menos de 24 horas en promedio.' },
+  cumple: { icono: 'calendario_ok', nombre: 'Cumple fechas', ayuda: 'Deja las cartas en la tienda en la fecha prometida o antes (95 % o más).' },
+  sin_faltas: { icono: 'ok_circulo', nombre: 'Sin faltas', ayuda: 'Ninguna orden vencida en los últimos 90 días (con 5 ventas o más).' },
+  nuevo: { icono: 'brote', nombre: 'Nuevo', ayuda: 'Menos de 3 ventas completadas todavía.' }
 };
-export const ALERTAS: Record<string, { icono: string; nombre: string; ayuda: string }> = {
-  faltas: { icono: '⚠️', nombre: 'Faltas recientes', ayuda: '2 o más órdenes vencidas sin entregar en los últimos 90 días.' }
+export const ALERTAS: Record<string, { icono: IconoInsignia; nombre: string; ayuda: string }> = {
+  faltas: { icono: 'alerta', nombre: 'Faltas recientes', ayuda: '2 o más órdenes vencidas sin entregar en los últimos 90 días.' }
 };
 
 export const estrellas = (p: number | null | undefined): string => (p == null ? '—' : '★ ' + Number(p).toFixed(1));

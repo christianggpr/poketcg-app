@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { Carta } from '@/lib/catalogo';
@@ -168,15 +169,15 @@ export function Escanear() {
         <canvas className="snap" ref={snap} hidden={!mostrarSnap} />
         {cam.estado === 'lista' ? <div className="guide" ref={guide}><div className="hint">Encuadra la carta dentro del marco</div></div> : null}
         {cam.estado === 'iniciando' ? <div className="cam-status">{cam.msg}</div> : null}
-        {cam.estado === 'foto' ? <div className="cam-off"><div className="big">📷</div><div><b>Toca el botón amarillo para tomar la foto</b><br /><span className="small">Se abre la cámara del celular. Llena el encuadre con la carta, con buena luz y sin reflejos. En la PC puedes subir una foto.</span></div></div> : null}
-        {cam.estado === 'error' ? <div className="cam-off"><div className="big">📷</div><div>{cam.msg}</div><button className="btn" onClick={iniciarCamara}>Reintentar</button></div> : null}
+        {cam.estado === 'foto' ? <div className="cam-off"><div className="big"><Icono n="camara" tam={44} grosor={1.5} /></div><div><b>Toca el botón amarillo para tomar la foto</b><br /><span className="small">Se abre la cámara del celular. Llena el encuadre con la carta, con buena luz y sin reflejos. En la PC puedes subir una foto.</span></div></div> : null}
+        {cam.estado === 'error' ? <div className="cam-off"><div className="big"><Icono n="camara" tam={44} grosor={1.5} /></div><div>{cam.msg}</div><button className="btn" onClick={iniciarCamara}>Reintentar</button></div> : null}
       </div>
       <div className="cam-controls">
-        <label className="btn" htmlFor="fileInput">🖼️ Subir foto</label>
+        <label className="btn" htmlFor="fileInput"><Icono n="imagen" /> Subir foto</label>
         <input id="fileInput" type="file" accept="image/*" hidden onChange={e => { const f = e.target.files?.[0]; if (f) cargarFoto(f); e.target.value = ''; }} />
         <input id="photoInput" type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = e.target.files?.[0]; if (f) cargarFoto(f); e.target.value = ''; }} />
-        <div className="grow" style={{ textAlign: 'center' }}><button className="shutter" title="Capturar" onClick={capturar} disabled={!!identificando}>📸</button></div>
-        <button className="btn" onClick={() => setManual(true)}>⌨️ Buscar a mano</button>
+        <div className="grow" style={{ textAlign: 'center' }}><button className="shutter" title="Capturar" onClick={capturar} disabled={!!identificando} aria-label="Capturar"><Icono n="camara" tam={30} /></button></div>
+        <button className="btn" onClick={() => setManual(true)}><Icono n="teclado" /> Buscar a mano</button>
       </div>
 
       {identificando ? (
@@ -197,9 +198,9 @@ export function Escanear() {
                   {R.visualCount ? ` · ${R.visualCount} candidatas por imagen` : ''}
                 </div>
                 <div className="small muted">{R.list.length ? 'Toca la carta correcta para guardarla. Si no está, usa "Buscar a mano".' : !R.diag.prepared.cards ? 'No hay colecciones preparadas: solo se intentó leer el número. Prepara tus colecciones en Ajustes → Reconocimiento para identificar por imagen.' : 'Prueba con más luz, sin reflejos y la carta llenando el marco, o usa "Buscar a mano".'}</div>
-                {R.list.length && !R.diag.prepared.cards ? <div className="small" style={{ marginTop: 4, color: 'var(--warn)' }}>Sin colecciones preparadas: estas candidatas salen solo del número leído. <Link href="/app/ajustes#reconocimiento">Prepara tus colecciones</Link> para identificar por imagen.</div> : null}
+                {R.list.length && !R.diag.prepared.cards ? <div className="small" style={{ marginTop: 4, color: 'var(--aviso-texto)' }}>Sin colecciones preparadas: estas candidatas salen solo del número leído. <Link href="/app/ajustes#reconocimiento">Prepara tus colecciones</Link> para identificar por imagen.</div> : null}
               </div>
-              <button className="btn sm" onClick={() => { setResultado(null); if (!stream.current && cam.estado !== 'foto') iniciarCamara(); }}>↻</button>
+              <button className="btn sm" onClick={() => { setResultado(null); if (!stream.current && cam.estado !== 'foto') iniciarCamara(); }} aria-label="Volver a escanear"><Icono n="actualizar" /></button>
             </div>
             <details style={{ marginTop: 8 }}>
               <summary className="small muted" style={{ cursor: 'pointer' }}>Detalles técnicos (para diagnóstico)</summary>
@@ -234,13 +235,13 @@ export function Escanear() {
       <div className="row wrap" style={{ marginTop: 6 }}>
         <div className="field grow"><label>Guardar en el Bulk</label>
           <select className="input" value={cajaId || ''} onChange={e => { setCajaId(e.target.value || null); try { localStorage.setItem('poketcg:ultimaCaja', e.target.value); } catch { /* nada */ } }}>
-            {cajas.length ? cajas.map(b => <option key={b.id} value={b.id}>📦 {b.nombre}</option>) : <option value="">— crea un Bulk en la sección Bulk —</option>}
+            {cajas.length ? cajas.map(b => <option key={b.id} value={b.id}>{b.nombre}</option>) : <option value="">— crea un Bulk en la sección Bulk —</option>}
           </select></div>
         <div className="field grow"><label>Limitar a una colección (opcional, mejora el acierto)</label>
           <select className="input" value={scanSet} onChange={e => { setScanSet(e.target.value); prefs.scanSet = e.target.value; }}>
             <option value="">Todas las colecciones preparadas</option>
-            <optgroup label="Internacional">{sets.filter(s => s.rg !== 'ja').map(s => <option key={s.id} value={s.id}>{nombreColeccion(s, idioma)} ({s.cc || s.ct}){rec.prepared.has(s.id) ? ' ✓' : ''}</option>)}</optgroup>
-            <optgroup label="Japón">{sets.filter(s => s.rg === 'ja').map(s => <option key={s.id} value={s.id}>{nombreColeccion(s, idioma)} ({s.cc || s.ct}){rec.prepared.has(s.id) ? ' ✓' : ''}</option>)}</optgroup>
+            <optgroup label="Internacional">{sets.filter(s => s.rg !== 'ja').map(s => <option key={s.id} value={s.id}>{nombreColeccion(s, idioma)} ({s.cc || s.ct}){rec.prepared.has(s.id) ? ' (lista)' : ''}</option>)}</optgroup>
+            <optgroup label="Japón">{sets.filter(s => s.rg === 'ja').map(s => <option key={s.id} value={s.id}>{nombreColeccion(s, idioma)} ({s.cc || s.ct}){rec.prepared.has(s.id) ? ' (lista)' : ''}</option>)}</optgroup>
           </select></div>
       </div>
 

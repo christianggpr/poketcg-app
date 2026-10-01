@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import { useCallback, useEffect, useState } from 'react';
 import { DIAS, DIAS_CORTOS, ETIQUETA_ORDEN, fechaDia, fechaHora, urlVoucher, type Tienda } from '@/lib/compras';
 import { comprimirImagen } from '@/lib/fotos';
@@ -57,8 +58,8 @@ export function AdminPagos() {
       {(pagos || []).map(p => (
         <div key={p.id} className="card-row" style={{ cursor: 'default', alignItems: 'flex-start', marginBottom: 8 }} data-testid="admin-pago">
           <div className="card-main">
-            <div className="card-name">Compra #{p.numero} · <b>{fmtPen(p.monto)}</b> · @{p.comprador?.username}{p.comprador ? <span className="small muted"> ({p.comprador.nombres} {p.comprador.apellidos} · {p.comprador.telefono}{p.comprador.celular_verificado_en ? ' ✔' : ''})</span> : null}</div>
-            <div className="card-set">{fechaHora(p.comprobante_en || p.creado)} · operación <b>{p.n_operacion || '—'}</b>{p.duplicado ? <span className="pill danger" style={{ marginLeft: 6 }}>⚠️ n.º de operación repetido</span> : null} · {p.tienda ? `${p.tienda.nombre}` : 'sin tienda'} · <span className="pill">{p.estado}</span>{p.motivo ? ` · ${p.motivo}` : ''}</div>
+            <div className="card-name">Compra #{p.numero} · <b>{fmtPen(p.monto)}</b> · @{p.comprador?.username}{p.comprador ? <span className="small muted"> ({p.comprador.nombres} {p.comprador.apellidos} · {p.comprador.telefono}{p.comprador.celular_verificado_en ? ' (verificado)' : ''})</span> : null}</div>
+            <div className="card-set">{fechaHora(p.comprobante_en || p.creado)} · operación <b>{p.n_operacion || '—'}</b>{p.duplicado ? <span className="pill danger" style={{ marginLeft: 6 }}><Icono n="alerta" tam={12} /> n.º de operación repetido</span> : null} · {p.tienda ? `${p.tienda.nombre}` : 'sin tienda'} · <span className="pill">{p.estado}</span>{p.motivo ? ` · ${p.motivo}` : ''}</div>
             {p.ordenes.map(o => (
               <div key={o.id} className="small" style={{ marginTop: 4 }}>
                 Orden #{o.numero} · vende @{o.vendedor} · {fmtPen(o.subtotal)} · {ETIQUETA_ORDEN[o.estado as keyof typeof ETIQUETA_ORDEN] || o.estado}{o.fecha_limite ? ` · entrega hasta ${fechaDia(o.fecha_limite)}` : ''}
@@ -67,13 +68,13 @@ export function AdminPagos() {
             ))}
             {p.estado === 'revision' ? (
               <div className="row" style={{ gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-                {p.voucher ? <a className="btn sm" href={p.voucher} target="_blank" rel="noreferrer">🧾 Ver voucher</a> : <span className="small muted">sin voucher</span>}
-                <button className="btn sm primary" disabled={ocupado === p.id} onClick={() => revisar(p, 'confirmar')} data-testid="btn-confirmar-pago">✅ Confirmar pago</button>
+                {p.voucher ? <a className="btn sm" href={p.voucher} target="_blank" rel="noreferrer"><Icono n="recibo" /> Ver voucher</a> : <span className="small muted">sin voucher</span>}
+                <button className="btn sm primary" disabled={ocupado === p.id} onClick={() => revisar(p, 'confirmar')} data-testid="btn-confirmar-pago"><Icono n="ok" /> Confirmar pago</button>
                 <button className="btn sm danger" disabled={ocupado === p.id} onClick={() => { setRechazar(p); setMotivo(''); }}>Rechazar…</button>
               </div>
             ) : p.voucher ? <a className="small" href={p.voucher} target="_blank" rel="noreferrer">Ver voucher</a> : null}
           </div>
-          {p.voucher && p.estado === 'revision' ? /* eslint-disable-next-line @next/next/no-img-element */ <a href={p.voucher} target="_blank" rel="noreferrer"><img src={p.voucher} alt="voucher" style={{ width: 90, height: 120, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)' }} /></a> : null}
+          {p.voucher && p.estado === 'revision' ? /* eslint-disable-next-line @next/next/no-img-element */ <a href={p.voucher} target="_blank" rel="noreferrer"><img src={p.voucher} alt="voucher" style={{ width: 90, height: 120, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--linea)' }} /></a> : null}
         </div>
       ))}
       {rechazar ? (
@@ -113,7 +114,7 @@ export function AdminTiendas() {
       {(tiendas || []).map(t => (
         <div key={t.id} className="card-row" style={{ cursor: 'default', marginBottom: 6 }} data-testid="admin-tienda">
           <div className="card-main">
-            <div className="card-name">🏪 {t.nombre}{!t.activa ? <span className="pill" style={{ marginLeft: 6 }}>inactiva</span> : null}</div>
+            <div className="card-name"><Icono n="tienda" /> {t.nombre}{!t.activa ? <span className="pill" style={{ marginLeft: 6 }}>inactiva</span> : null}</div>
             <div className="card-set">{t.distrito} · {t.direccion}{t.referencia ? ` (${t.referencia})` : ''} · {t.horario} · abre {t.dias_abierto.map(d => DIAS_CORTOS[d]).join(' ')}</div>
             <div className="small">Encargados: {cuentas.filter(c => c.tienda_id === t.id).map(c => '@' + c.username).join(', ') || 'ninguno'} · <button className="link" onClick={() => setCuenta({ tienda: t, username: '' })}>asignar cuenta</button></div>
           </div>
@@ -172,7 +173,7 @@ export function AdminVerificaciones() {
             <div className="card-name">@{u.username} <span className="small muted">({u.nombres} {u.apellidos})</span></div>
             <div className="card-set">Celular <b>{u.telefono}</b> · código <b style={{ letterSpacing: 2 }}>{u.codigo_verificacion}</b> · vence {fechaHora(u.codigo_verificacion_expira)}</div>
           </div>
-          <div className="row" style={{ gap: 6 }}><button className="btn sm primary" onClick={() => decidir(u.id, true)} data-testid="btn-verificar">✔ Verificar</button><button className="btn sm ghost" onClick={() => decidir(u.id, false)}>Rechazar</button></div>
+          <div className="row" style={{ gap: 6 }}><button className="btn sm primary" onClick={() => decidir(u.id, true)} data-testid="btn-verificar"><Icono n="ok" /> Verificar</button><button className="btn sm ghost" onClick={() => decidir(u.id, false)}>Rechazar</button></div>
         </div>
       ))}
     </div>
@@ -198,7 +199,7 @@ export function AdminWhatsApp() {
             <div className="card-name">@{n.username} · {n.telefono || 'sin celular'} <span className="small muted">· {fechaHora(n.creada)}</span></div>
             <div className="small">{n.titulo}: {n.cuerpo}</div>
           </div>
-          <div className="row" style={{ gap: 6 }}>{n.url ? <a className="btn sm primary" href={n.url} target="_blank" rel="noreferrer">📲 Enviar</a> : null}<button className="btn sm" onClick={() => marcar(n.id)}>Enviado ✔</button></div>
+          <div className="row" style={{ gap: 6 }}>{n.url ? <a className="btn sm primary" href={n.url} target="_blank" rel="noreferrer"><Icono n="enviar" /> Enviar</a> : null}<button className="btn sm" onClick={() => marcar(n.id)}><Icono n="ok" /> Enviado</button></div>
         </div>
       ))}
     </div>
@@ -331,7 +332,7 @@ export function AdminRetiros() {
         <h3 style={{ margin: 0 }}>Pagos a vendedores</h3>
         <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
           <div className="seg">{[['pendientes', 'Por pagar'], ['pagado', 'Pagados'], ['todos', 'Todos']].map(([v, l]) => <button key={v} className={estado === v ? 'active' : ''} onClick={() => setEstado(v)}>{l}</button>)}</div>
-          <a className="btn sm" href="/api/admin/retiros/excel" data-testid="btn-excel">⬇️ Excel del día</a>
+          <a className="btn sm" href="/api/admin/retiros/excel" data-testid="btn-excel"><Icono n="descargar" /> Excel del día</a>
           <button className="btn sm ghost" disabled={ocupado} onClick={liberar} title="Normalmente lo hace la tarea diaria">Liberar saldos ahora</button>
         </div>
       </div>
@@ -346,7 +347,7 @@ export function AdminRetiros() {
             <div className="card-name">Pago #{r.numero} · <b>{fmtPen(r.monto)}</b> a @{r.perfil?.username} <span className="small muted">({r.perfil?.nombres} {r.perfil?.apellidos} · DNI {r.perfil?.dni || '—'} · {r.perfil?.telefono})</span> <span className={`pill ${r.estado === 'pagado' ? 'ok' : r.cobro ? 'warn' : 'danger'}`}>{r.estado === 'pagado' ? 'pagado' : r.cobro ? 'por pagar' : 'sin datos de cobro'}</span></div>
             <div className="card-set"><b>{metodo(r.cobro)}</b>{r.cobro ? ` · titular ${r.cobro.titular}` : ''} · órdenes {r.ordenes_numeros.map(n => '#' + n).join(', ')} · bruto {fmtPen(r.bruto)} − comisión {fmtPen(r.comision)}{r.excel_generado_en ? ` · en Excel del ${fechaDia(r.excel_generado_en.slice(0, 10))}` : ''}{r.pagado_en ? ` · pagado ${fechaHora(r.pagado_en)}${r.n_operacion ? ' · op. ' + r.n_operacion : ''}` : ''}</div>
           </div>
-          {r.estado !== 'pagado' && r.cobro ? <div className="card-side"><button className="btn sm primary" disabled={ocupado} onClick={() => { setPagando(r); setComprobante(null); setOperacion(r.n_operacion || ''); }} data-testid="btn-pagado">Pagado ✔</button></div> : null}
+          {r.estado !== 'pagado' && r.cobro ? <div className="card-side"><button className="btn sm primary" disabled={ocupado} onClick={() => { setPagando(r); setComprobante(null); setOperacion(r.n_operacion || ''); }} data-testid="btn-pagado"><Icono n="ok" /> Pagado</button></div> : null}
           {r.estado === 'pagado' && r.comprobante_url ? <div className="card-side"><button className="btn sm ghost" onClick={() => verComprobante(r)}>Comprobante</button></div> : null}
         </div>
       ))}
@@ -357,7 +358,7 @@ export function AdminRetiros() {
           <div className="field">
             <label>Captura del comprobante (opcional)</label>
             <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <label className="btn sm">📷 Elegir imagen<input type="file" accept="image/*" hidden onChange={e => { elegirComprobante(e.target.files?.[0]); e.target.value = ''; }} data-testid="input-comprobante-pago" /></label>
+              <label className="btn sm"><Icono n="camara" /> Elegir imagen<input type="file" accept="image/*" hidden onChange={e => { elegirComprobante(e.target.files?.[0]); e.target.value = ''; }} data-testid="input-comprobante-pago" /></label>
               {comprobante ? <span className="small">{comprobante.nombre} <button className="btn sm ghost" onClick={() => setComprobante(null)}>Quitar</button></span> : <span className="small muted">Solo la verán el vendedor y tú.</span>}
             </div>
             {comprobante ? <img src={comprobante.dataUrl} alt="Comprobante" style={{ maxWidth: '100%', maxHeight: 220, borderRadius: 8, marginTop: 6 }} /> : null}

@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from './Icono';
 import { useEffect, useRef, useState } from 'react';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
 import type { Entrada, Publicacion } from '@/lib/coleccion';
@@ -126,11 +127,11 @@ export function PublicarSheet({ entrada, onClose }: { entrada: Entrada; onClose:
             {(pub?.fotos || []).map(u => (
               <div key={u} style={{ position: 'relative' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={u} alt="" style={{ width: 72, height: 100, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)' }} />
-                <button className="btn sm ghost" style={{ position: 'absolute', top: -6, right: -6 }} onClick={() => quitarFoto(u)} aria-label="Quitar foto">✕</button>
+                <img src={u} alt="" style={{ width: 72, height: 100, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--linea)' }} />
+                <button className="btn sm ghost" style={{ position: 'absolute', top: -6, right: -6 }} onClick={() => quitarFoto(u)} aria-label="Quitar foto"><Icono n="cerrar" tam={14} /></button>
               </div>
             ))}
-            <button className="btn sm" disabled={!pub || subiendo} onClick={() => archivo.current?.click()}>{subiendo ? 'Subiendo…' : '📷 Agregar foto'}</button>
+            <button className="btn sm" disabled={!pub || subiendo} onClick={() => archivo.current?.click()}>{subiendo ? 'Subiendo…' : <><Icono n="camara" /> Agregar foto</>}</button>
             <input ref={archivo} type="file" accept="image/*" capture="environment" hidden onChange={e => { const f = e.target.files?.[0]; if (f) agregarFoto(f); e.target.value = ''; }} />
           </div>
           {!pub ? <div className="small muted">Podrás agregar fotos después de publicar.</div> : null}
@@ -151,9 +152,9 @@ export function PublicarSheet({ entrada, onClose }: { entrada: Entrada; onClose:
 /** Etiqueta con el estado de una publicación (en venta S/ X · pausada · reservada). */
 export function EstadoPub({ pub, conPrecio = true }: { pub: Publicacion | undefined | null; conPrecio?: boolean }) {
   if (!pub) return null;
-  if (pub.estado === 'activa') return <span className="pill ok" title="Publicada en el mercado">🏷️ en venta{conPrecio ? ` ${fmtPen(pub.precio_pen)}` : ''}</span>;
-  if (pub.estado === 'pausada') return <span className="pill warn" title={pub.motivo_pausa === 'foto' ? 'Pausada: falta la foto' : 'Pausada'}>⏸ pausada{pub.motivo_pausa === 'foto' ? ' (falta foto)' : ''}</span>;
-  if (pub.estado === 'reservada') return <span className="pill primary">🔒 reservada</span>;
+  if (pub.estado === 'activa') return <span className="pill ok" title="Publicada en el mercado">en venta{conPrecio ? ` ${fmtPen(pub.precio_pen)}` : ''}</span>;
+  if (pub.estado === 'pausada') return <span className="pill warn" title={pub.motivo_pausa === 'foto' ? 'Pausada: falta la foto' : 'Pausada'}><Icono n="pausa" tam={12} /> pausada{pub.motivo_pausa === 'foto' ? ' (falta foto)' : ''}</span>;
+  if (pub.estado === 'reservada') return <span className="pill primary"><Icono n="candado" tam={12} /> reservada</span>;
   return null;
 }
 

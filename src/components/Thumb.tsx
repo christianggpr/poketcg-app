@@ -3,7 +3,7 @@ import { useState } from 'react';
 import type { Carta, Coleccion } from '@/lib/catalogo';
 import { urlsImagen } from '@/lib/catalogo';
 
-const PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 63 88"><rect width="63" height="88" rx="4" fill="#cfd6e6"/><text x="31.5" y="50" font-size="10" text-anchor="middle" fill="#6b7590" font-family="sans-serif">sin foto</text></svg>');
+const PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 63 88"><rect width="63" height="88" rx="4" fill="#F3E7C8"/><text x="31.5" y="50" font-size="10" text-anchor="middle" fill="#565E7A" font-family="sans-serif">sin foto</text></svg>');
 
 /** Miniatura de una carta con varias URL de respaldo. */
 export function Thumb({ carta, set, className = '', alt = '' }: { carta?: Carta | null; set?: Coleccion; className?: string; alt?: string }) {

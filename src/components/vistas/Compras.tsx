@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -29,13 +30,13 @@ export function Compras() {
   return (
     <div>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <h2 style={{ margin: 0 }}>🧾 Mis compras</h2>
-        <Link href="/app/mercado" className="btn sm ghost">🛒 Mercado</Link>
+        <h2 style={{ margin: 0 }}>Mis compras</h2>
+        <Link href="/app/mercado" className="btn sm ghost"><Icono n="tienda" /> Mercado</Link>
       </div>
       <SaldoPanel />
       {error ? <Aviso tipo="danger">{error}</Aviso> : null}
       {!pagos && !error ? <p className="muted small"><span className="spinner" /> Cargando…</p> : null}
-      {pagos && !pagos.length ? <div className="empty"><div className="big">🧾</div><p><b>Todavía no has comprado.</b></p><p className="muted">Arma tu carrito en el Mercado y pulsa «Comprar».</p></div> : null}
+      {pagos && !pagos.length ? <div className="empty"><div className="big"><Icono n="compras" tam={44} grosor={1.5} /></div><p><b>Todavía no has comprado.</b></p><p className="muted">Arma tu carrito en el Mercado y pulsa «Comprar».</p></div> : null}
       <div className="card-list" style={{ marginTop: 10 }}>
         {(pagos || []).map(p => (
           <Link key={p.id} href={`/app/compras/${p.id}`} className="card-row" style={{ textDecoration: 'none', color: 'inherit' }} data-testid="fila-compra">
@@ -70,14 +71,14 @@ function SaldoPanel() {
   return (
     <div className="panel" style={{ marginTop: 10 }} data-testid="saldo-comprador">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <div><b>💳 Tu saldo: <span data-testid="saldo-monto">{fmtPen(saldo.saldo)}</span></b>{saldo.retiro_pendiente > 0 ? <span className="small muted"> · {fmtPen(saldo.retiro_pendiente)} en camino a tu Yape</span> : null}</div>
+        <div><b><Icono n="cartera" /> Tu saldo: <span data-testid="saldo-monto">{fmtPen(saldo.saldo)}</span></b>{saldo.retiro_pendiente > 0 ? <span className="small muted"> · {fmtPen(saldo.retiro_pendiente)} en camino a tu Yape</span> : null}</div>
         <div className="row" style={{ gap: 6 }}>
           {saldo.saldo > 0 ? <button className="btn sm" disabled={ocupado} onClick={() => setConfirmar(true)} data-testid="btn-retirar-saldo">Retirar a mi Yape/Plin</button> : null}
           <button className="btn sm ghost" onClick={() => setAbrir(a => !a)}>{abrir ? 'Ocultar' : 'Movimientos'}</button>
         </div>
       </div>
       <p className="small muted" style={{ margin: '4px 0 0' }}>Las devoluciones caen aquí al instante. Se descuenta solo en tu siguiente compra, o lo retiras y te lo pagamos en el siguiente día de pago a tus datos de cobro.</p>
-      {abrir ? <div className="card-list" style={{ marginTop: 8 }}>{saldo.movimientos.map(m => <div key={m.id} className="card-row" style={{ cursor: 'default' }}><div className="card-main"><div className="card-name">{TIPO[m.tipo] || m.tipo} · <span style={{ color: m.monto >= 0 ? 'var(--ok)' : 'inherit' }}>{m.monto >= 0 ? '+' : ''}{fmtPen(m.monto)}</span></div><div className="card-set">{m.detalle} · {fechaHora(m.creado)}</div></div></div>)}{!saldo.movimientos.length ? <p className="small muted">Sin movimientos.</p> : null}</div> : null}
+      {abrir ? <div className="card-list" style={{ marginTop: 8 }}>{saldo.movimientos.map(m => <div key={m.id} className="card-row" style={{ cursor: 'default' }}><div className="card-main"><div className="card-name">{TIPO[m.tipo] || m.tipo} · <span style={{ color: m.monto >= 0 ? 'var(--ok-texto)' : 'inherit' }}>{m.monto >= 0 ? '+' : ''}{fmtPen(m.monto)}</span></div><div className="card-set">{m.detalle} · {fechaHora(m.creado)}</div></div></div>)}{!saldo.movimientos.length ? <p className="small muted">Sin movimientos.</p> : null}</div> : null}
       {confirmar ? <Confirmar titulo="Retirar tu saldo" texto={`Te pagaremos ${fmtPen(saldo.saldo)} a tus datos de cobro (Ajustes) en el siguiente día de pago. Si prefieres, puedes dejarlo y se descuenta solo en tu próxima compra.`} okLabel="Sí, retirar" onOk={() => { setConfirmar(false); retirar(); }} onClose={() => setConfirmar(false)} /> : null}
     </div>
   );
@@ -178,10 +179,10 @@ export function CompraDetalle({ id }: { id: string }) {
         <div className="panel" data-testid="instrucciones-pago">
           <h3 style={{ marginTop: 0 }}>1. Paga por {metodos}</h3>
           <p>Envía <b data-testid="monto-yape">{fmtPen(pago.monto_yape ?? pago.monto)}</b> al número <b style={{ fontSize: 20 }}>{pagosAj?.yape_numero || '949114582'}</b>{pagosAj?.yape_nombre ? <> a nombre de <b>{pagosAj.yape_nombre}</b></> : null}.{(pago.monto_saldo || 0) > 0 ? <span className="small muted"> (El total es {fmtPen(pago.monto)}: {fmtPen(pago.monto_saldo || 0)} se descontaron de tu saldo.)</span> : null}</p>
-          <p className="small" style={{ color: 'var(--warn)' }}>⏱️ Tienes <b>{minutos} min {String(segundos).padStart(2, '0')} s</b> para enviar el comprobante; si no, la reserva se libera y las cartas vuelven al mercado.</p>
+          <p className="small" style={{ color: 'var(--aviso-texto)' }}><Icono n="temporizador" tam={15} /> Tienes <b>{minutos} min {String(segundos).padStart(2, '0')} s</b> para enviar el comprobante; si no, la reserva se libera y las cartas vuelven al mercado.</p>
           <h3>2. Sube la captura y el número de operación</h3>
           <div className="row wrap" style={{ gap: 8, alignItems: 'center' }}>
-            <button className="btn" onClick={() => input.current?.click()}>{archivo ? '📎 ' + archivo.name.slice(0, 28) : '📷 Elegir captura del comprobante'}</button>
+            <button className="btn" onClick={() => input.current?.click()}>{archivo ? <><Icono n="documento" /> {archivo.name.slice(0, 28)}</> : <><Icono n="camara" /> Elegir captura del comprobante</>}</button>
             <input ref={input} type="file" accept="image/*" hidden onChange={e => { setArchivo(e.target.files?.[0] || null); e.target.value = ''; }} data-testid="input-voucher" />
             <input className="input" style={{ maxWidth: 220 }} placeholder="N.º de operación" value={operacion} onChange={e => setOperacion(e.target.value)} data-testid="input-operacion" />
             <button className="btn primary" disabled={enviando} onClick={enviar} data-testid="btn-enviar-comprobante">{enviando ? 'Enviando…' : 'Enviar comprobante'}</button>
@@ -204,19 +205,19 @@ export function CompraDetalle({ id }: { id: string }) {
             <span className="pill primary">{ETIQUETA_ORDEN[o.estado]}</span>
           </div>
           {o.estado === 'pago_confirmado' ? <div className="small muted" style={{ marginTop: 4 }}>El vendedor debe dejarla en la tienda hasta el <b>{fechaDia(o.fecha_limite)}</b>{o.fecha_entrega ? <> (eligió el {fechaDia(o.fecha_entrega)})</> : <> (tiene {pagosAj?.plazo_fecha_horas ?? 48} h para elegir la fecha)</>}.</div> : null}
-          {o.estado === 'pago_confirmado' && puedeAnular(o, pagosAj?.plazo_fecha_horas ?? 48) ? <div className="notice warn small" style={{ marginTop: 6 }}>⏰ El vendedor {o.fecha_entrega ? 'no entregó en la fecha prometida' : 'no eligió fecha de entrega a tiempo'}. Puedes esperar o <button className="link" onClick={() => setAnular(o)} data-testid="btn-anular-orden">anular y recuperar tu dinero</button> (vuelve a tu saldo al instante).</div> : null}
+          {o.estado === 'pago_confirmado' && puedeAnular(o, pagosAj?.plazo_fecha_horas ?? 48) ? <div className="notice warn small" style={{ marginTop: 6 }}><Icono n="reloj" tam={15} /> El vendedor {o.fecha_entrega ? 'no entregó en la fecha prometida' : 'no eligió fecha de entrega a tiempo'}. Puedes esperar o <button className="link" onClick={() => setAnular(o)} data-testid="btn-anular-orden">anular y recuperar tu dinero</button> (vuelve a tu saldo al instante).</div> : null}
           {o.estado === 'en_tienda' ? <div className="small muted" style={{ marginTop: 6 }}>Revisa las cartas en la tienda antes de llevártelas. ¿Algo no está bien? <button className="link" onClick={() => setReclamar(o)} data-testid="btn-reclamar">Abrir un reclamo</button> (déjalas en la tienda).</div> : null}
-          {o.estado === 'disputa' && reclamos.get(o.id) ? <div className="notice info small" style={{ marginTop: 6 }} data-testid="orden-disputa">📝 <b>Reclamo #{reclamos.get(o.id)!.numero} en revisión</b> · {MOTIVOS_RECLAMO[reclamos.get(o.id)!.motivo]}. Deja las cartas en la tienda; te avisamos cuando el administrador lo resuelva.</div> : null}
-          {o.estado !== 'disputa' && reclamos.get(o.id)?.estado === 'resuelto' ? <div className="small" style={{ marginTop: 4 }} data-testid="orden-reclamo-resuelto">📝 Reclamo #{reclamos.get(o.id)!.numero} resuelto: {ETIQUETA_RESOLUCION[reclamos.get(o.id)!.resolucion!]}{reclamos.get(o.id)!.monto_devuelto ? ` (${fmtPen(reclamos.get(o.id)!.monto_devuelto!)} a tu saldo)` : ''}{reclamos.get(o.id)!.nota_admin ? ` · ${reclamos.get(o.id)!.nota_admin}` : ''}.</div> : null}
-          {o.estado === 'en_tienda' ? <div className="notice ok" style={{ marginTop: 6 }}>🏪 <b>Ya está en la tienda.</b> Muestra este código para recogerla: <b style={{ fontSize: 22, letterSpacing: 2 }} data-testid="codigo-retiro">{o.codigo_retiro}</b><div style={{ marginTop: 6 }}><button className="btn sm primary" onClick={() => setConfirmarEntrega(o)} data-testid="btn-entregado">✅ Ya la recogí (Entregado)</button></div></div> : null}
+          {o.estado === 'disputa' && reclamos.get(o.id) ? <div className="notice info small" style={{ marginTop: 6 }} data-testid="orden-disputa"><Icono n="lista" tam={15} /> <b>Reclamo #{reclamos.get(o.id)!.numero} en revisión</b> · {MOTIVOS_RECLAMO[reclamos.get(o.id)!.motivo]}. Deja las cartas en la tienda; te avisamos cuando el administrador lo resuelva.</div> : null}
+          {o.estado !== 'disputa' && reclamos.get(o.id)?.estado === 'resuelto' ? <div className="small" style={{ marginTop: 4 }} data-testid="orden-reclamo-resuelto"><Icono n="lista" tam={15} /> Reclamo #{reclamos.get(o.id)!.numero} resuelto: {ETIQUETA_RESOLUCION[reclamos.get(o.id)!.resolucion!]}{reclamos.get(o.id)!.monto_devuelto ? ` (${fmtPen(reclamos.get(o.id)!.monto_devuelto!)} a tu saldo)` : ''}{reclamos.get(o.id)!.nota_admin ? ` · ${reclamos.get(o.id)!.nota_admin}` : ''}.</div> : null}
+          {o.estado === 'en_tienda' ? <div className="notice ok" style={{ marginTop: 6 }}><Icono n="tienda" tam={15} /> <b>Ya está en la tienda.</b> Muestra este código para recogerla: <b style={{ fontSize: 22, letterSpacing: 2 }} data-testid="codigo-retiro">{o.codigo_retiro}</b><div style={{ marginTop: 6 }}><button className="btn sm primary" onClick={() => setConfirmarEntrega(o)} data-testid="btn-entregado"><Icono n="ok" /> Ya la recogí (Entregado)</button></div></div> : null}
           {o.estado === 'pago_confirmado' ? <div className="small muted" style={{ marginTop: 4 }}>¿Ya tienes la carta en la mano? <button className="link" onClick={() => setConfirmarEntrega(o)}>Marcar como entregada</button></div> : null}
-          {o.estado === 'entregada' || o.estado === 'saldo_liberado' ? <div className="small" style={{ marginTop: 4 }} data-testid="orden-entregada">✅ Entregada el {fechaHora(o.entregada_en)}. Las cartas ya están en tu colección: <Link href="/app/album">dinos dónde las guardas</Link> (Álbumes → Recibidas).</div> : null}
+          {o.estado === 'entregada' || o.estado === 'saldo_liberado' ? <div className="small" style={{ marginTop: 4 }} data-testid="orden-entregada"><Icono n="ok_circulo" tam={15} /> Entregada el {fechaHora(o.entregada_en)}. Las cartas ya están en tu colección: <Link href="/app/album">dinos dónde las guardas</Link> (Álbumes → Recibidas).</div> : null}
           {o.estado === 'entregada' || o.estado === 'saldo_liberado' ? (
             resenas.get(o.id)
               ? <div className="small" style={{ marginTop: 6 }} data-testid="mi-resena">Tu calificación: <Estrellas valor={resenas.get(o.id)!.puntaje} tam={18} />{resenas.get(o.id)!.comentario ? <> «{resenas.get(o.id)!.comentario}»</> : null}{Date.now() - Date.parse(resenas.get(o.id)!.creada) < 7 * 86400000 ? <> · <button className="link" onClick={() => setCalificar(o)}>cambiar</button></> : null}</div>
-              : <div className="row" style={{ gap: 8, alignItems: 'center', marginTop: 6 }}><span className="small">¿Qué tal el vendedor?</span><button className="btn sm primary" onClick={() => setCalificar(o)} data-testid="btn-calificar">★ Calificar</button></div>
+              : <div className="row" style={{ gap: 8, alignItems: 'center', marginTop: 6 }}><span className="small">¿Qué tal el vendedor?</span><button className="btn sm primary" onClick={() => setCalificar(o)} data-testid="btn-calificar"><Icono n="estrella" /> Calificar</button></div>
           ) : null}
-          {o.motivo && ['cancelada', 'vencida', 'pago_rechazado', 'disputa'].includes(o.estado) ? <div className="small" style={{ marginTop: 4, color: 'var(--warn)' }}>{o.motivo}</div> : null}
+          {o.motivo && ['cancelada', 'vencida', 'pago_rechazado', 'disputa'].includes(o.estado) ? <div className="small" style={{ marginTop: 4, color: 'var(--aviso-texto)' }}>{o.motivo}</div> : null}
           <div className="card-list" style={{ marginTop: 8 }}>
             {items.filter(i => i.orden_id === o.id).map(i => { const c = cat.carta(i.carta_id); const set = c ? cat.setOf(c) : undefined; return (
               <div key={i.id} className="card-row" style={{ cursor: 'default' }}>

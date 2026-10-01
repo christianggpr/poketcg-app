@@ -1,3 +1,4 @@
+import { Icono } from '@/components/Icono';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
@@ -68,7 +69,7 @@ export default async function FichaCarta({ params }: { params: Promise<{ id: str
           <p className="small"><Link href={user ? '/app/mercado' : '/'}>← {user ? 'Mercado' : APP_NAME}</Link>{user ? <> · <Link href={enlaceApp}>Ver en la app</Link></> : null}</p>
           <div className="detail-grid">
             <div>
-              {carta.imagen_grande ? /* eslint-disable-next-line @next/next/no-img-element */ <img className="thumb xl" src={carta.imagen_grande} alt={`${carta.nombre} ${carta.numero}${carta.total}`} style={{ width: '100%', height: 'auto', maxWidth: 320 }} /> : <div className="thumb xl" style={{ maxWidth: 320, display: 'grid', placeItems: 'center' }}>🃏</div>}
+              {carta.imagen_grande ? /* eslint-disable-next-line @next/next/no-img-element */ <img className="thumb xl" src={carta.imagen_grande} alt={`${carta.nombre} ${carta.numero}${carta.total}`} style={{ width: '100%', height: 'auto', maxWidth: 320 }} /> : <div className="thumb xl" style={{ maxWidth: 320, display: 'grid', placeItems: 'center' }}><Icono n="imagen" tam={40} grosor={1.5} /></div>}
             </div>
             <div>
               <h1 style={{ marginTop: 0, fontSize: 26 }} data-testid="ficha-nombre">{carta.nombre}</h1>
@@ -96,7 +97,7 @@ export default async function FichaCarta({ params }: { params: Promise<{ id: str
                       {ofertas.map(o => { const v = vendedores.get(o.vendedor_id); const rep = v?.reputacion || {}; return (
                         <div key={o.id} className="card-row" style={{ cursor: 'default' }} data-testid="ficha-oferta">
                           <div className="card-main">
-                            <div className="card-name">{fmtPen(o.precio_pen)} <span className="small muted">× {o.disponibles}</span> {o.condicion ? <span className="pill" title={ETIQUETA_CONDICION[o.condicion] || ''}>{o.condicion}</span> : null}{o.idioma ? <span className="pill">{o.idioma}</span> : null}{o.acabado ? <span className="pill">{o.acabado}</span> : null}{o.fotos.length ? <span className="pill ok">📷 foto real</span> : null}</div>
+                            <div className="card-name">{fmtPen(o.precio_pen)} <span className="small muted">× {o.disponibles}</span> {o.condicion ? <span className="pill" title={ETIQUETA_CONDICION[o.condicion] || ''}>{o.condicion}</span> : null}{o.idioma ? <span className="pill">{o.idioma}</span> : null}{o.acabado ? <span className="pill">{o.acabado}</span> : null}{o.fotos.length ? <span className="pill ok"><Icono n="camara" tam={12} /> Con foto real</span> : null}</div>
                             <div className="card-set"><Link href={`/u/${encodeURIComponent(o.vendedor)}`}>@{o.vendedor}</Link>{rep.puntaje != null ? <> · <Estrellas valor={Math.round(Number(rep.puntaje))} tam={12} /> {Number(rep.puntaje).toFixed(1)}</> : null}{rep.ventas ? ` · ${rep.ventas} ventas` : ' · vendedor nuevo'}</div>
                           </div>
                           <div className="card-side"><Link className="btn sm primary" href={comprar}>Comprar</Link></div>

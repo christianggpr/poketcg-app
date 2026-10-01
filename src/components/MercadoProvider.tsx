@@ -19,7 +19,7 @@ type Ctx = {
   suscribir: (cb: (cartaId: string | null) => void) => () => void;
   /** Cambia con cada aviso del mercado: sirve de dependencia para volver a consultar. */
   version: number;
-  /** Lista de deseos: ids de carta marcadas con ❤️ (más reciente primero). */
+  /** Lista de deseos: ids de carta marcadas como favoritas (más reciente primero). */
   favoritos: string[];
   esFavorita: (cartaId: string) => boolean;
   /** Marca o desmarca una carta; devuelve el estado nuevo. */

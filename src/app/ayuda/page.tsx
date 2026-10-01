@@ -1,3 +1,4 @@
+import { Icono } from '@/components/Icono';
 import Link from 'next/link';
 import { ADMIN_EMAIL, APP_NAME } from '@/lib/config';
 import { datosLegales } from '@/lib/legal';
@@ -33,8 +34,8 @@ export default async function Ayuda() {
           <div className="panel" style={{ marginTop: 20 }} id="contacto" data-testid="ayuda-contacto">
             <h3 style={{ marginTop: 0 }}>¿Todavía tienes dudas?</h3>
             <div className="row wrap" style={{ gap: 8 }}>
-              {wa ? <a className="btn primary sm" href={wa} target="_blank" rel="noreferrer">💬 WhatsApp {datos.pagos.whatsapp}</a> : null}
-              <a className="btn sm" href={`mailto:${ADMIN_EMAIL}`}>✉️ {ADMIN_EMAIL}</a>
+              {wa ? <a className="btn primary sm" href={wa} target="_blank" rel="noreferrer"><Icono n="mensaje" /> WhatsApp {datos.pagos.whatsapp}</a> : null}
+              <a className="btn sm" href={`mailto:${ADMIN_EMAIL}`}><Icono n="correo" /> {ADMIN_EMAIL}</a>
             </div>
             <p className="small muted" style={{ margin: '8px 0 0' }}>Atención: {datos.pagos.atencion}. Respondemos todos los mensajes, normalmente el mismo día. Libro de Reclamaciones disponible a pedido en el mismo correo.</p>
           </div>

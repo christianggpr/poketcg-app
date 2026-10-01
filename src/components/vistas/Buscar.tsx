@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -34,11 +35,11 @@ export function Buscar() {
     <div>
       <div className="row" style={{ gap: 8, alignItems: 'stretch' }}>
         <div className="search-wrap" style={{ flex: 1 }}>
-          <span className="ico">🔍</span>
+          <span className="ico"><Icono n="buscar" tam={20} /></span>
           <input className="input" placeholder="Nombre en cualquier idioma, número (025/165), colección (151, obsidian, sv2a)…" value={q} onChange={e => setQ(e.target.value)} />
-          {q ? <button className="clear" onClick={() => setQ('')} aria-label="Borrar">✕</button> : null}
+          {q ? <button className="clear" onClick={() => setQ('')} aria-label="Borrar"><Icono n="cerrar" /></button> : null}
         </div>
-        <Link href="/app/escanear" className="btn" title="Identificar una carta con la cámara" data-testid="btn-escanear" style={{ flex: 'none' }}>📷 Escanear</Link>
+        <Link href="/app/escanear" className="btn" title="Identificar una carta con la cámara" data-testid="btn-escanear" style={{ flex: 'none' }}><Icono n="camara" /> Escanear</Link>
       </div>
       {qLenta.trim() ? (
         <div className="card-list" style={{ marginTop: 10 }}>
@@ -46,7 +47,7 @@ export function Buscar() {
             <CardRow key={r.card.id} carta={r.card} entradas={col.entradas.filter(e => e.carta_id === r.card.id)} ubicador={ubicador}
               extra={<div style={{ marginTop: 4 }}><button className="btn sm" onClick={e => { e.stopPropagation(); setAgregar(r.card); }}>+ Guardar en mi colección</button></div>} />
           ))}
-          {!resultados.length ? <div className="empty"><div className="big">🫥</div>No encontré esa carta. Prueba con el nombre en inglés, el número con el total (025/165) o el código de la colección.</div> : null}
+          {!resultados.length ? <div className="empty"><div className="big"><Icono n="buscar" tam={44} grosor={1.5} /></div>No encontré esa carta. Prueba con el nombre en inglés, el número con el total (025/165) o el código de la colección.</div> : null}
           <p className="small muted">Busca por nombre en español, inglés o japonés, por número ("25", "025/165", "TG12"), por colección ("151", "obsidian", "sv2a", "jp") o combinaciones ("pikachu 151").</p>
         </div>
       ) : (
@@ -91,7 +92,7 @@ function MiColeccion({ onAgregar }: { onAgregar: (c: Carta) => void }) {
   if (!col.entradas.length) {
     return (
       <div className="empty" style={{ marginTop: 20 }}>
-        <div className="big">📦</div>
+        <div className="big"><Icono n="bulk" tam={44} grosor={1.5} /></div>
         <p><b>Tu colección está vacía.</b></p>
         <p className="muted">Busca una carta arriba y guárdala en tu colección (álbum o Bulk), o crea tus Bulks desde la sección Bulk. Si vienes de PokéBóveda (versión anterior), importa tu respaldo en Ajustes.</p>
       </div>
@@ -116,7 +117,7 @@ function MiColeccion({ onAgregar }: { onAgregar: (c: Carta) => void }) {
         return (
           <div className="bloque" key={g.key}>
             <h3 style={{ cursor: 'pointer' }} onClick={() => setAbiertos(a => ({ ...a, [g.key]: !abierto }))}>
-              <span>{abierto ? '▾' : '▸'} {g.set ? <SimboloSet setId={g.set.id} /> : null} {g.nombre}</span>
+              <span><Icono n={abierto ? 'abajo' : 'derecha'} tam={16} /> {g.set ? <SimboloSet setId={g.set.id} /> : null} {g.nombre}</span>
               <span className="count">{unidades} {unidades === 1 ? 'carta' : 'cartas'}{g.set ? ` · ${g.cartas.length}/${cat.cartasDe(g.set.id).filter(c => !c.sd).length}` : ''}</span>
             </h3>
             {abierto ? (

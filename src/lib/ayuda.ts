@@ -3,10 +3,11 @@ import { ADMIN_EMAIL, APP_NAME } from './config';
 import type { DatosLegales } from './legal';
 
 export type Pregunta = { id: string; q: string; a: string };
-export type SeccionAyuda = { id: string; titulo: string; icono: string; para: string; preguntas: Pregunta[] };
+export type SeccionAyuda = { id: string; titulo: string; icono: 'chispas' | 'carrito' | 'ventas' | 'tienda'; para: string; preguntas: Pregunta[] };
 
 const limpio = (s: string) => s.replace(/\s+/g, ' ').trim();
 
+export type IconoAyuda = SeccionAyuda['icono'];
 export function preguntasFrecuentes(d: DatosLegales): SeccionAyuda[] {
   const p = d.pagos;
   const metodos = p.metodos.length ? p.metodos.join(' o ') : 'Yape o Plin';
@@ -14,7 +15,7 @@ export function preguntasFrecuentes(d: DatosLegales): SeccionAyuda[] {
   const contacto = `Escríbenos a ${ADMIN_EMAIL}${p.whatsapp ? ` o por WhatsApp al ${p.whatsapp} (${p.atencion})` : ''}.`;
   return [
     {
-      id: 'general', titulo: 'Lo básico', icono: '✨', para: 'Qué es PokéTCG, cuánto cuesta y qué datos se comparten', preguntas: [
+      id: 'general', titulo: 'Lo básico', icono: 'chispas' as IconoAyuda, para: 'Qué es PokéTCG, cuánto cuesta y qué datos se comparten', preguntas: [
         { id: 'que-es', q: `¿Qué es ${APP_NAME}?`, a: `Una app gratuita para registrar tu colección de cartas Pokémon TCG (en qué álbum o Bulk y posición está cada carta, álbumes por colección e idioma, precio de mercado) y un mercado entre coleccionistas: vendes desde tus cajas y compras con pago por ${metodos}, entrega en una tienda aliada y código de retiro. ${APP_NAME} actúa como intermediario: custodia el pago y lo entrega al vendedor cuando el comprador recoge sus cartas.` },
         { id: 'cuanto-cuesta', q: '¿Cuánto cuesta usarla?', a: `Nada. Registrar y organizar tu colección es gratis. En el mercado, el comprador paga exactamente el precio publicado (sin cargos ni envío) y el vendedor paga una comisión del ${d.comisionPct} % sobre cada carta vendida, que se descuenta de lo que recibe.` },
         { id: 'sin-cuenta', q: '¿Necesito una cuenta para ver las cartas?', a: 'No. Las fichas de carta (precio de referencia, ofertas y últimas ventas), los perfiles de los vendedores y las tiendas de entrega se ven sin cuenta. Para guardar tu colección, comprar o vender sí necesitas registrarte: pedimos nombres, correo, celular y DNI para que el mercado sea seguro (cada compra y venta queda ligada a una persona real).' },
@@ -26,7 +27,7 @@ export function preguntasFrecuentes(d: DatosLegales): SeccionAyuda[] {
       ]
     },
     {
-      id: 'compradores', titulo: 'Para compradores', icono: '🛒', para: 'Cómo pagar, cuándo recoges tus cartas y qué hacer si algo sale mal', preguntas: [
+      id: 'compradores', titulo: 'Para compradores', icono: 'carrito' as IconoAyuda, para: 'Cómo pagar, cuándo recoges tus cartas y qué hacer si algo sale mal', preguntas: [
         { id: 'como-comprar', q: '¿Cómo compro una carta?', a: `Búscala en el Mercado, agrégala al carrito (la copia queda reservada 24 horas) y pulsa Comprar. Eliges la tienda donde la recogerás, pagas por ${metodos} al número de ${APP_NAME} y subes la foto del comprobante dentro de ${p.reserva_min} minutos. El administrador verifica el pago y lo confirma; desde ese momento la venta es firme.` },
         { id: 'tarjeta', q: '¿Puedo pagar con tarjeta o en efectivo?', a: `Por ahora solo por ${metodos} (y con tu saldo de ${APP_NAME}, si tienes). Estamos evaluando pagos con tarjeta.` },
         { id: 'saldo', q: `¿Qué es mi saldo de ${APP_NAME}?`, a: 'Es dinero a tu favor dentro de la app: cada vez que una compra se anula o se te devuelve algo por un reclamo, el monto cae ahí al instante. Lo usas en tu siguiente compra (se descuenta solo) o lo retiras a tu Yape, Plin o cuenta desde Mis compras; se paga el siguiente día de pago.' },
@@ -38,11 +39,11 @@ export function preguntasFrecuentes(d: DatosLegales): SeccionAyuda[] {
         { id: 'calificar', q: '¿Cómo califico al vendedor?', a: 'Al confirmarse la entrega puedes dejarle de 1 a 5 estrellas y un comentario desde Mis compras; puedes corregirlo durante 7 días. Tu reseña aparece en su perfil público con tu nombre de usuario.' },
         { id: 'a-mi-coleccion', q: '¿Qué pasa con las cartas que compro?', a: 'Entran solas a tu colección en Álbumes → Recibidas, con el idioma, acabado y estado de la compra. La app te sugiere el álbum o Bulk donde guardarlas (con el motivo) y con un toque quedan en su casilla o posición.' },
         { id: 'cancelar', q: '¿Puedo cancelar una compra?', a: 'Antes de pagar, sí: quita las cartas del carrito o deja que la reserva venza. Después de que el pago se confirma, solo si el vendedor incumple (ver «¿Y si el vendedor no entrega?»).' },
-        { id: 'favoritos', q: '¿Qué es la lista de deseos?', a: 'Marca una carta con el corazón ❤️ en su ficha. Cuando alguien la publique te avisamos por la app y por correo (máximo un aviso al día por carta). Tus favoritas se ven arriba del Mercado.' }
+        { id: 'favoritos', q: '¿Qué es la lista de deseos?', a: 'Marca una carta con el corazón en su ficha. Cuando alguien la publique te avisamos por la app y por correo (máximo un aviso al día por carta). Tus favoritas se ven arriba del Mercado.' }
       ]
     },
     {
-      id: 'vendedores', titulo: 'Para vendedores', icono: '🏷️', para: 'Cómo publicar, entregar y cobrar; tu reputación', preguntas: [
+      id: 'vendedores', titulo: 'Para vendedores', icono: 'ventas' as IconoAyuda, para: 'Cómo publicar, entregar y cobrar; tu reputación', preguntas: [
         { id: 'como-vender', q: '¿Cómo vendo una carta?', a: 'Primero regístrala en tu colección (álbum o Bulk). Luego, desde la carta, pulsa Vender: eliges cuántas copias, el precio (por defecto a partir del precio de mercado, o manual), el idioma, el acabado y el estado. Las publicaciones de más de S/ 50 necesitan una foto real de la carta.' },
         { id: 'cuanto-cobro', q: '¿Cuánto cobro y cuándo?', a: `Recibes el precio publicado menos la comisión del ${d.comisionPct} %. El dinero queda disponible cuando el comprador recoge las cartas${p.liberacion_dias > 0 ? ` (${p.liberacion_dias} ${p.liberacion_dias === 1 ? 'día' : 'días'} después)` : ''} y se paga a tus datos de cobro (Yape, Plin o cuenta bancaria, en Ajustes) el siguiente día de pago: ${d.diasPagoTexto}. Sin datos de cobro, el pago espera hasta que los registres.` },
         { id: 'me-compraron', q: '¿Qué pasa cuando alguien me compra?', a: `Recibes un aviso con las cartas vendidas y dónde están en tu colección (ya salen de tu álbum o Bulk). Tienes ${p.plazo_fecha_horas} horas para elegir la fecha en que las dejarás en la tienda que eligió el comprador, ${plazo}. Te recordamos el día anterior y el mismo día.` },
@@ -57,7 +58,7 @@ export function preguntasFrecuentes(d: DatosLegales): SeccionAyuda[] {
       ]
     },
     {
-      id: 'tiendas', titulo: 'Tiendas de entrega', icono: '🏪', para: 'Qué hacen las tiendas aliadas y cómo ser una', preguntas: [
+      id: 'tiendas', titulo: 'Tiendas de entrega', icono: 'tienda' as IconoAyuda, para: 'Qué hacen las tiendas aliadas y cómo ser una', preguntas: [
         { id: 'que-hace', q: '¿Qué hace una tienda aliada?', a: 'Recibe el sobre que deja el vendedor, lo guarda y se lo entrega al comprador cuando este muestra su código de retiro. La tienda tiene una cuenta en la app para registrar cada recepción y cada retiro en segundos.' },
         { id: 'cobra', q: '¿La tienda cobra por la entrega?', a: 'Depende de cada tienda: algunas cobran una pequeña tarifa de recojo que se paga en el local. Lo ves en la página de Tiendas y al elegir la tienda al comprar; si no dice nada, el recojo es gratis.' },
         { id: 'registrar', q: '¿Cómo registra la tienda una entrega?', a: 'En la pestaña Tienda: «Recibido en tienda» cuando llega el sobre (con foto opcional) y «Retirado por el comprador» escribiendo el código de retiro. Si una tienda aún no tiene cuenta, el vendedor sube una foto de la entrega y el comprador confirma al recoger.' },

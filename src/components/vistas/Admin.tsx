@@ -8,7 +8,7 @@ import { AdminMercado } from './AdminMercado';
 import { AdminAjustesPagos, AdminOrdenes, AdminPagos, AdminRetiros, AdminTiendas, AdminVerificaciones, AdminWhatsApp } from './AdminFase3';
 import { AdminReclamos, AdminReportes, AdminUsuarios } from './AdminFase4';
 
-const PESTANAS: [string, string][] = [['pagos', '🧾 Pagos'], ['ordenes', '📦 Órdenes'], ['reclamos', '📝 Reclamos'], ['retiros', '💰 Pagos a vendedores'], ['tiendas', '🏪 Tiendas'], ['usuarios', '👥 Usuarios'], ['verificaciones', '📱 Celulares'], ['whatsapp', '📲 WhatsApp'], ['cobros', '💳 Cobros y pagos'], ['reportes', '📊 Reportes'], ['mercado', '📈 Precios y tareas'], ['catalogo', '🗂️ Catálogo']];
+const PESTANAS: [string, string][] = [['pagos', 'Pagos'], ['ordenes', 'Órdenes'], ['reclamos', 'Reclamos'], ['retiros', 'Pagos a vendedores'], ['tiendas', 'Tiendas'], ['usuarios', 'Usuarios'], ['verificaciones', 'Celulares'], ['whatsapp', 'WhatsApp'], ['cobros', 'Cobros y pagos'], ['reportes', 'Reportes'], ['mercado', 'Precios y tareas'], ['catalogo', 'Catálogo']];
 
 type Resumen = { colecciones: number; cartas: number; usuarios: number };
 
@@ -50,12 +50,12 @@ export function AdminPanel() {
       }
       if (!ok) { setError(`Falló el lote ${hecho + 1}: ${msg}. Puedes volver a pulsar "Cargar catálogo": continúa donde quedó (los lotes ya cargados solo se actualizan).`); setProgreso(null); return; }
       hecho++;
-      setLog(l => [...l.slice(-8), `✓ lote ${hecho}/${lotes.length}`]);
+      setLog(l => [...l.slice(-8), `Listo: lote ${hecho}/${lotes.length}`]);
     }
     try {
       const rr = await fetch('/api/admin/catalogo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ limpiar: true, conservar: datos.cards.filter(c => c.sd).map(c => c.id) }) });
       const j = await rr.json().catch(() => ({}));
-      if (j.ok && j.borradas) setLog(l => [...l, `✓ ${j.borradas} casillas "sin datos" antiguas eliminadas`]);
+      if (j.ok && j.borradas) setLog(l => [...l, `Listo: ${j.borradas} casillas "sin datos" antiguas eliminadas`]);
     } catch { /* la limpieza es opcional */ }
     setProgreso(null);
     setLog(l => [...l, `Catálogo ${datos.version} cargado: ${datos.sets.length} colecciones, ${datos.cards.length} cartas.`]);

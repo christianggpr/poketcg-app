@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -54,8 +55,8 @@ function PorColocar({ entradas }: { entradas: Entrada[] }) {
   return (
     <div className="panel" style={{ marginTop: 12 }} data-testid="por-colocar">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <h3 style={{ margin: 0 }}>📥 Por colocar <span className="muted">({totalCartas(entradas)})</span></h3>
-        {cajas.length ? <label className="small row" style={{ gap: 6, alignItems: 'center' }}>Colocar en <select className="input" style={{ width: 'auto', minHeight: 34, padding: '5px 10px', fontSize: 13 }} value={cajaDestino} onChange={e => setDestino(e.target.value)} data-testid="select-caja-colocar">{cajas.map(c => <option key={c.id} value={c.id}>📦 {c.nombre}</option>)}</select></label> : null}
+        <h3 style={{ margin: 0 }}><Icono n="entrada" /> Por colocar <span className="muted">({totalCartas(entradas)})</span></h3>
+        {cajas.length ? <label className="small row" style={{ gap: 6, alignItems: 'center' }}>Colocar en <select className="input" style={{ width: 'auto', minHeight: 34, padding: '5px 10px', fontSize: 13 }} value={cajaDestino} onChange={e => setDestino(e.target.value)} data-testid="select-caja-colocar">{cajas.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select></label> : null}
       </div>
       <p className="small muted">Cartas que todavía no tienen lugar. Elige el Bulk y pulsa «Colocar»: la app te dice en qué posición va. Las que compraste en el mercado también aparecen en Álbumes → Recibidas, con una sugerencia de álbum.</p>
       {!cajas.length ? <p className="notice warn small">Crea un Bulk para poder colocarlas.</p> : null}
@@ -66,7 +67,7 @@ function PorColocar({ entradas }: { entradas: Entrada[] }) {
             <div className="card-main">
               <div className="card-name">{e.cantidad > 1 ? `${e.cantidad}× ` : ''}{nombreEntrada(cat, e, perfil.idioma_nombres)}</div>
               <div className="card-set">{coleccionEntrada(cat, e, perfil.idioma_nombres)} <span className="num">{numeroEntrada(cat, e)}</span>{e.idioma ? <span className="pill">{e.idioma}</span> : null}{e.acabado ? <span className="pill">{e.acabado}</span> : null}{e.condicion ? <span className="pill">{e.condicion}</span> : null}</div>
-              {e.compra_orden_id ? <div className="small muted">🛒 {e.nota || 'Comprada en el mercado'}</div> : e.nota ? <div className="small muted">{e.nota}</div> : null}
+              {e.compra_orden_id ? <div className="small muted"><Icono n="carrito" tam={14} /> {e.nota || 'Comprada en el mercado'}</div> : e.nota ? <div className="small muted">{e.nota}</div> : null}
             </div>
             <div className="card-side"><button className="btn sm primary" disabled={!cajas.length || ocupado === e.id} onClick={() => colocar(e)} data-testid="btn-colocar">{ocupado === e.id ? '…' : 'Colocar'}</button><button className="btn sm ghost" style={{ marginTop: 4 }} onClick={() => setDetalle(e)}>Editar</button></div>
           </div>
@@ -110,7 +111,7 @@ export function EditorCaja({ caja, onClose }: { caja?: Caja | null; onClose: (gu
     };
     return (
       <Sheet titulo="Bulk creado" onClose={() => onClose(creada)} pie={<button className="btn block" onClick={() => onClose(creada)}>Cerrar</button>}>
-        <p style={{ margin: 0 }}>📦 <b>{creada.nombre}</b> ya está lista para guardar cartas.</p>
+        <p style={{ margin: 0 }}><b>{creada.nombre}</b> ya está lista para guardar cartas.</p>
         <PreguntaVenta ocupado={guardando}
           detalle="«Sí, todas»: cada carta que guardes en este Bulk se publicará sola con el precio por defecto (el mayor entre el piso y el precio de mercado). «Elegir cuáles»: te lo preguntaremos carta por carta. Podrás cambiar precios, pausar o retirar cuando quieras; los compradores solo ven tu nombre de usuario."
           onTodas={() => responder({ en_venta: true }, 'Bulk en venta: lo que guardes aquí se publicará solo')}
@@ -161,12 +162,12 @@ export function Cajas() {
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
         <h2 style={{ margin: 0 }}>Bulk</h2>
         <div className="row" style={{ gap: 6 }}>
-          <Link href="/app/ventas" className="btn sm">🏷️ Mis ventas{col.publicaciones.length ? ` (${col.publicaciones.length})` : ''}</Link>
+          <Link href="/app/ventas" className="btn sm"><Icono n="ventas" /> Mis ventas{col.publicaciones.length ? ` (${col.publicaciones.length})` : ''}</Link>
           <button className="btn primary sm" onClick={() => setEditor({ abierto: true, caja: null })}>+ Nuevo Bulk</button>
         </div>
       </div>
-      <p className="small muted">Un Bulk es una caja o fila donde guardas cartas en orden. El orden de los Bulks es el físico, de izquierda a derecha; usa ◀ ▶ para moverlos. Total: {totalCartas(col.entradas).toLocaleString('es-PE')} cartas.</p>
-      {!cajas.length ? <div className="empty"><div className="big">📦</div><p><b>Aún no tienes Bulks.</b></p><p className="muted">Crea tus Bulks con la identificación que usas (Bulk 1, Bulk A, Rojo…). Luego, al guardar una carta, la app te dirá en qué posición va.</p></div> : null}
+      <p className="small muted">Un Bulk es una caja o fila donde guardas cartas en orden. El orden de los Bulks es el físico, de izquierda a derecha; usa las flechas para moverlos. Total: {totalCartas(col.entradas).toLocaleString('es-PE')} cartas.</p>
+      {!cajas.length ? <div className="empty"><div className="big"><Icono n="bulk" tam={44} grosor={1.5} /></div><p><b>Aún no tienes Bulks.</b></p><p className="muted">Crea tus Bulks con la identificación que usas (Bulk 1, Bulk A, Rojo…). Luego, al guardar una carta, la app te dirá en qué posición va.</p></div> : null}
       <div className="box-grid">
         {cajas.map((c, i) => {
           const r = resumen.get(c.id);
@@ -175,13 +176,13 @@ export function Cajas() {
             <div className="box-card" key={c.id}>
               <Link href={`/app/bulk/${c.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div className="order">{i + 1}ª</div>
-                <div className="box-name"><span className="ico">📦</span>{c.nombre}</div>
-                <div className="box-meta">{r ? `${r.n} ${r.n === 1 ? 'carta' : 'cartas'}` : 'vacía'} · {c.modo === 'manual' ? 'orden manual' : 'por colección y nº'}{c.descripcion ? ` · ${c.descripcion}` : ''}{c.en_venta ? <> · <span className="pill ok">🏷️ en venta</span></> : null}</div>
+                <div className="box-name"><Icono n="bulk" tam={22} />{c.nombre}</div>
+                <div className="box-meta">{r ? `${r.n} ${r.n === 1 ? 'carta' : 'cartas'}` : 'vacía'} · {c.modo === 'manual' ? 'orden manual' : 'por colección y nº'}{c.descripcion ? ` · ${c.descripcion}` : ''}{c.en_venta ? <> · <span className="pill ok"><Icono n="ventas" tam={12} /> en venta</span></> : null}</div>
                 {sets.length ? <div className="box-sets">{sets.slice(0, 4).map(([n, q]) => <span className="chip" key={n}>{n} · {q}</span>)}{sets.length > 4 ? <span className="chip">+{sets.length - 4}</span> : null}</div> : null}
               </Link>
               <div className="row" style={{ marginTop: 8, gap: 6 }}>
-                <button className="btn sm ghost" onClick={() => col.moverCaja(c.id, -1)} disabled={i === 0} title="Mover a la izquierda">◀</button>
-                <button className="btn sm ghost" onClick={() => col.moverCaja(c.id, 1)} disabled={i === cajas.length - 1} title="Mover a la derecha">▶</button>
+                <button className="btn sm ghost" onClick={() => col.moverCaja(c.id, -1)} disabled={i === 0} title="Mover a la izquierda" aria-label="Mover a la izquierda"><Icono n="izquierda" /></button>
+                <button className="btn sm ghost" onClick={() => col.moverCaja(c.id, 1)} disabled={i === cajas.length - 1} title="Mover a la derecha" aria-label="Mover a la derecha"><Icono n="derecha" /></button>
                 <span className="grow" />
                 <button className="btn sm ghost" onClick={() => setEditor({ abierto: true, caja: c })}>Editar</button>
               </div>
@@ -218,7 +219,7 @@ export function CajaDetalle({ id }: { id: string }) {
   const [personalizada, setPersonalizada] = useState<Personalizada | null>(null);
   const [editarEntrada, setEditarEntrada] = useState<Entrada | null>(null);
   const [pNombre, setPNombre] = useState(''); const [pCol, setPCol] = useState(''); const [pNum, setPNum] = useState('');
-  if (!caja) return <div className="empty"><div className="big">📦</div>Ese Bulk no existe. <Link href="/app/bulk">Volver a Bulk</Link></div>;
+  if (!caja) return <div className="empty"><div className="big"><Icono n="bulk" tam={44} grosor={1.5} /></div>Ese Bulk no existe. <Link href="/app/bulk">Volver a Bulk</Link></div>;
   const pos = ubicador.posiciones(caja);
   const idioma = perfil.idioma_nombres;
   const entradasCaja = pos.lista.map(p => p.entrada);
@@ -256,7 +257,7 @@ export function CajaDetalle({ id }: { id: string }) {
     <div>
       <p className="small"><Link href="/app/bulk">← Bulk</Link></p>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <div><h2 style={{ margin: 0 }}>📦 {caja.nombre}</h2><div className="small muted">Bulk {ubicador.ordinal(caja)}º de izquierda a derecha · {pos.total} {pos.total === 1 ? 'posición' : 'posiciones'} · {caja.modo === 'manual' ? 'orden manual' : `por colección y nº (${caja.orden_colecciones === 'desc' ? 'nuevas primero' : 'antiguas primero'})`}{caja.descripcion ? ` · ${caja.descripcion}` : ''}{pubsCaja.length ? ` · ${pubsCaja.length} en el mercado` : ''}</div></div>
+        <div><h2 style={{ margin: 0 }}>{caja.nombre}</h2><div className="small muted">Bulk {ubicador.ordinal(caja)}º de izquierda a derecha · {pos.total} {pos.total === 1 ? 'posición' : 'posiciones'} · {caja.modo === 'manual' ? 'orden manual' : `por colección y nº (${caja.orden_colecciones === 'desc' ? 'nuevas primero' : 'antiguas primero'})`}{caja.descripcion ? ` · ${caja.descripcion}` : ''}{pubsCaja.length ? ` · ${pubsCaja.length} en el mercado` : ''}</div></div>
         <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
           <button className="btn primary sm" onClick={() => setPicker(true)}>+ Añadir carta</button>
           <button className="btn sm" onClick={() => setEditar(true)}>Editar</button>
@@ -269,8 +270,8 @@ export function CajaDetalle({ id }: { id: string }) {
           <span><b>Bulk en venta</b> <span className="small muted">{caja.en_venta ? '· cada carta que guardes aquí se publica sola' : '· sus cartas solo se publican si tú lo eliges'}</span></span>
         </label>
         <span className="grow" />
-        {!elegir && publicables.length ? <button className="btn sm" onClick={() => setElegir(true)}>☑️ Elegir cuáles vender</button> : null}
-        <Link href="/app/ventas" className="btn sm ghost">🏷️ Mis ventas</Link>
+        {!elegir && publicables.length ? <button className="btn sm" onClick={() => setElegir(true)}><Icono n="ok" /> Elegir cuáles vender</button> : null}
+        <Link href="/app/ventas" className="btn sm ghost"><Icono n="ventas" /> Mis ventas</Link>
       </div>
       {elegir ? (
         <div className="barra-seleccion" data-testid="barra-seleccion">
@@ -308,7 +309,7 @@ export function CajaDetalle({ id }: { id: string }) {
             </div>
           );
         })}
-        {!pos.total ? <div className="empty"><div className="big">🫙</div>Este Bulk está vacío. Pulsa "Añadir carta".</div> : null}
+        {!pos.total ? <div className="empty"><div className="big"><Icono n="bulk" tam={44} grosor={1.5} /></div>Este Bulk está vacío. Pulsa "Añadir carta".</div> : null}
       </div>
       {picker ? <CardPicker onPick={c => { setPicker(false); setAgregar(c); }} onClose={() => setPicker(false)} onPersonalizada={() => { setPicker(false); setFormPersonalizada(true); }} /> : null}
       {agregar ? <AddEntrySheet carta={agregar} cajaInicial={caja.id} onClose={() => setAgregar(null)} /> : null}

@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -72,9 +73,9 @@ export function Mercado() {
   return (
     <div>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <h2 style={{ margin: 0 }}>🔎 Buscar en el mercado</h2>
+        <h2 style={{ margin: 0 }}>Buscar en el mercado</h2>
         <div className="row" style={{ gap: 6 }}>
-          <Link href="/app/carrito" className="btn sm" data-testid="btn-carrito">🛒 Carrito{mercado.unidades ? ` (${mercado.unidades})` : ''}</Link>
+          <Link href="/app/carrito" className="btn sm" data-testid="btn-carrito"><Icono n="carrito" /> Carrito{mercado.unidades ? ` (${mercado.unidades})` : ''}</Link>
         </div>
       </div>
       <p className="small muted">Cartas que otros coleccionistas tienen en venta. El precio que ves es el que pagas por copia (la comisión la paga el vendedor): pagas por Yape/Plin o con tu saldo y recoges en una tienda aliada con tu código de retiro. Las copias del carrito quedan reservadas 24 h.</p>
@@ -85,8 +86,8 @@ export function Mercado() {
       <div className="row wrap" style={{ gap: 6, marginTop: 8, alignItems: 'center' }}>
         <div className="seg">
           <button className={orden === 'novedad' ? 'active' : ''} onClick={() => setOrden('novedad')}>Novedad</button>
-          <button className={orden === 'precio' ? 'active' : ''} onClick={() => setOrden('precio')}>Precio ↑</button>
-          <button className={orden === 'valor' ? 'active' : ''} onClick={() => setOrden('valor')}>Precio ↓</button>
+          <button className={orden === 'precio' ? 'active' : ''} onClick={() => setOrden('precio')}>Menor precio</button>
+          <button className={orden === 'valor' ? 'active' : ''} onClick={() => setOrden('valor')}>Mayor precio</button>
         </div>
         <button className={`btn sm ${mas || set || idioma || acabado || condicion || min || max ? 'primary' : ''}`} onClick={() => setMas(m => !m)}>Filtros{[set, idioma, acabado, condicion, min || max].filter(Boolean).length ? ` (${[set, idioma, acabado, condicion, min || max].filter(Boolean).length})` : ''}</button>
         <label className="check small" style={{ alignItems: 'center' }}><input type="checkbox" checked={soloFaltan} onChange={e => setSoloFaltan(e.target.checked)} /> Solo las que me faltan</label>
@@ -106,7 +107,7 @@ export function Mercado() {
       {error ? <Aviso tipo="danger">No se pudo consultar el mercado: {error}</Aviso> : null}
       {filas === null && !error ? <p className="muted small" style={{ marginTop: 12 }}><span className="spinner" /> Consultando el mercado…</p> : null}
       {filas && !lista.length ? (
-        <div className="empty"><div className="big">🛒</div><p><b>{q || set || idioma || acabado || condicion || min || max || soloFaltan ? 'Nada en venta con esos filtros.' : 'Todavía no hay cartas en venta.'}</b></p><p className="muted">Cuando alguien publique una carta aparecerá aquí al instante. ¿Tienes repetidas? Ponlas en venta desde tus cajas.</p></div>
+        <div className="empty"><div className="big"><Icono n="buscar" tam={44} grosor={1.5} /></div><p><b>{q || set || idioma || acabado || condicion || min || max || soloFaltan ? 'Nada en venta con esos filtros.' : 'Todavía no hay cartas en venta.'}</b></p><p className="muted">Cuando alguien publique una carta aparecerá aquí al instante. ¿Tienes repetidas? Ponlas en venta desde tus cajas.</p></div>
       ) : null}
       <div className="card-list" style={{ marginTop: 10 }}>
         {lista.map(f => {
@@ -125,7 +126,7 @@ export function Mercado() {
   );
 }
 
-/** Lista de deseos: las cartas marcadas con ❤️, con la mejor oferta actual o "sin ofertas" (la app avisa cuando aparece una). */
+/** Lista de deseos: las cartas marcadas con el corazón, con la mejor oferta actual o "sin ofertas" (la app avisa cuando aparece una). */
 export function ListaDeseos({ abiertaAlInicio = false }: { abiertaAlInicio?: boolean }) {
   const cat = useCatalogo();
   const { perfil } = usePerfil();
@@ -142,7 +143,7 @@ export function ListaDeseos({ abiertaAlInicio = false }: { abiertaAlInicio?: boo
   const enVenta = ids.filter(id => resumen.has(id)).length;
   return (
     <div className="panel" style={{ marginTop: 8, padding: '8px 12px' }} data-testid="lista-deseos">
-      <button className="link" style={{ fontWeight: 700 }} onClick={() => setAbierta(a => !a)} data-testid="btn-lista-deseos">❤️ Mi lista de deseos ({ids.length}){abierta && enVenta ? ` · ${enVenta} en venta` : ''} {abierta ? '▴' : '▾'}</button>
+      <button className="link" style={{ fontWeight: 700 }} onClick={() => setAbierta(a => !a)} data-testid="btn-lista-deseos"><Icono n="corazon" /> Mi lista de deseos ({ids.length}){abierta && enVenta ? ` · ${enVenta} en venta` : ''} <Icono n={abierta ? 'arriba' : 'abajo'} /></button>
       {abierta ? (
         <div className="card-list" style={{ marginTop: 6 }}>
           {ids.map(id => { const c = cat.carta(id); if (!c) return null; const r = resumen.get(id); const set = cat.setOf(c); return (
@@ -153,7 +154,7 @@ export function ListaDeseos({ abiertaAlInicio = false }: { abiertaAlInicio?: boo
                 <div className="card-set"><SimboloSet setId={c.s} /> {nombreColeccion(set, perfil.idioma_nombres)} <span className="num">{numLabel(c, set)}</span></div>
                 <div className="small" style={{ marginTop: 3 }}>{r ? <><b>{r.copias} {r.copias === 1 ? 'copia' : 'copias'}</b> en venta · {r.vendedores.map(v => '@' + v).join(', ')}</> : <span className="muted">Sin ofertas por ahora: te avisamos cuando alguien la publique.</span>}</div>
               </div>
-              <div className="card-side"><span className="price">{r ? (r.precio_min === r.precio_max ? fmtPen(r.precio_min) : `desde ${fmtPen(r.precio_min)}`) : '—'}</span><button className="btn sm ghost" style={{ marginTop: 4 }} onClick={e => { e.stopPropagation(); mercado.alternarFavorita(id).catch(() => {}); }} title="Quitar de la lista" data-testid="btn-quitar-deseo">✕</button></div>
+              <div className="card-side"><span className="price">{r ? (r.precio_min === r.precio_max ? fmtPen(r.precio_min) : `desde ${fmtPen(r.precio_min)}`) : '—'}</span><button className="btn sm ghost" style={{ marginTop: 4 }} onClick={e => { e.stopPropagation(); mercado.alternarFavorita(id).catch(() => {}); }} title="Quitar de la lista" aria-label="Quitar de la lista" data-testid="btn-quitar-deseo"><Icono n="cerrar" /></button></div>
             </div>
           ); })}
         </div>

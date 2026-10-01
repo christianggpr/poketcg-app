@@ -1,4 +1,5 @@
 'use client';
+import { Icono } from '../Icono';
 import { useMemo, useState } from 'react';
 import type { SeccionAyuda } from '@/lib/ayuda';
 
@@ -18,12 +19,12 @@ export function Faq({ secciones }: { secciones: SeccionAyuda[] }) {
       {filtro ? <p className="small muted" style={{ margin: '6px 0 0' }}>{total ? `${total} ${total === 1 ? 'respuesta' : 'respuestas'}` : 'Nada con esas palabras. Prueba con otra o escríbenos.'}</p> : null}
       {!filtro ? (
         <div className="row wrap" style={{ gap: 6, marginTop: 10 }}>
-          {secciones.map(s => <a key={s.id} className="chip" href={'#' + s.id}>{s.icono} {s.titulo}</a>)}
+          {secciones.map(s => <a key={s.id} className="chip" href={'#' + s.id}><Icono n={s.icono} tam={15} /> {s.titulo}</a>)}
         </div>
       ) : null}
       {visibles.map(s => (
         <section key={s.id} id={s.id} style={{ marginTop: 18 }} data-testid="faq-seccion">
-          <h2 style={{ marginBottom: 2 }}>{s.icono} {s.titulo}</h2>
+          <h2 style={{ marginBottom: 2 }}><Icono n={s.icono} tam={22} /> {s.titulo}</h2>
           <p className="small muted" style={{ marginTop: 0 }}>{s.para}</p>
           <div className="faq-lista">
             {s.preguntas.map(p => (
