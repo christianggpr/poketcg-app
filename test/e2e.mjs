@@ -101,7 +101,7 @@ try {
   // confirmar por el enlace del correo → sesión iniciada
   await page.goto(enlace);
   await page.waitForURL(/\/app\/album/, { timeout: 20000 });   // ?bienvenida=1 llega a Álbumes y se muestra el aviso
-  await page.waitForSelector('text=Cuando guardes cartas aparecerán aquí', { timeout: 60000 });
+  await page.waitForSelector('text=Todavía no tienes álbumes', { timeout: 60000 });
   await foto(page, 'app-vacia');
   if (!(await page.textContent('body')).includes('Bienvenido')) throw new Error('sin mensaje de bienvenida');
   log('correo confirmado, sesión iniciada, catálogo cargado');
@@ -160,7 +160,7 @@ try {
     await page.fill('.search-wrap input', q);
     await page.waitForSelector('.card-row');
     const fila = page.locator('.card-row', { hasText: idCarta.texto }).first();
-    await fila.locator('text=+ Guardar en mi colección').click();
+    await fila.locator('[data-testid=btn-guardar-fila]').click();
     await page.waitForSelector('.sheet');
     if (idCarta.caja) await page.click(`.sheet .chipbtn:has-text("${idCarta.caja}")`);
     if (idCarta.acabado) await page.selectOption('.sheet select >> nth=0', idCarta.acabado);
@@ -228,7 +228,7 @@ try {
   await page.goto(APP + '/app/buscar');
   await page.fill('.search-wrap input', 'bulbasaur 151');
   await page.waitForSelector('.card-row');
-  await page.locator('.card-row', { hasText: '001/165' }).first().locator('text=+ Guardar en mi colección').click();
+  await page.locator('.card-row', { hasText: '001/165' }).first().locator('[data-testid=btn-guardar-fila]').click();
   await page.waitForSelector('.sheet');
   await page.click('.sheet .chipbtn:has-text("Bulk 1")');
   await page.click('.sheet-foot >> text=Guardar');
@@ -244,7 +244,7 @@ try {
   await page.goto(APP + '/app/buscar');
   await page.fill('.search-wrap input', 'charmander 151');
   await page.waitForSelector('.card-row');
-  await page.locator('.card-row', { hasText: '004/165' }).first().locator('text=+ Guardar en mi colección').click();
+  await page.locator('.card-row', { hasText: '004/165' }).first().locator('[data-testid=btn-guardar-fila]').click();
   await page.waitForSelector('.sheet');
   await page.click('.sheet .chipbtn:has-text("Bulk 2")');
   await page.click('.sheet-foot >> text=Guardar');
@@ -422,10 +422,9 @@ try {
   await page.goto(APP + '/app/carrito');
   await page.waitForSelector('[data-testid=linea-carrito]');
   if ((await page.textContent('[data-testid=total-carrito]')) !== 'S/ 30.12') throw new Error('total del carrito incorrecto: ' + await page.textContent('[data-testid=total-carrito]'));
-  await page.click('[data-testid=btn-comprar]');
-  await page.waitForSelector('.sheet:has-text("recoges tus cartas")');   // Fase 3: elegir tienda (se prueba más abajo)
-  await page.click('.sheet-foot >> text=Cancelar');
-  await page.waitForSelector('.sheet', { state: 'detached' });
+  // la tienda de recojo se elige en la misma pantalla (layout v2): con una sola tienda queda elegida; «Continuar al pago» se prueba en la Fase 3 (más abajo)
+  await page.waitForSelector('[data-testid=tiendas-carrito] [data-testid=tienda-opcion]');
+  if (!(await page.$('[data-testid=btn-comprar]'))) throw new Error('el carrito debía mostrar «Continuar al pago»');
   await page.click('[data-testid=linea-carrito] .stepper button >> nth=1');   // 2 → 3
   await page.waitForFunction(() => document.querySelector('[data-testid=total-carrito]')?.textContent === 'S/ 45.18', null, { timeout: 15000 });
   if (sql(`select estado || ':' || reservadas from public.publicaciones where usuario_id = '${LUCIA}' and carta_id = 'sv03.5-001'`) !== 'reservada:3') throw new Error('con todas las copias apartadas debía quedar reservada');
@@ -463,8 +462,14 @@ try {
   // álbum: las que faltan y están en venta muestran "En mercado · precio"
   await page.goto(APP + '/app/album/sv03.5');
   await page.waitForSelector('.album-red', { timeout: 20000 });
-  const enRed = await page.$$eval('.album-red', els => els.map(e => e.textContent.trim()));
-  if (enRed.length !== 2 || !enRed.every(t => /En mercado · S\/ /.test(t))) throw new Error('las casillas que faltan no muestran el mercado: ' + enRed.join(' | '));   // Bulbasaur y Caterpie (Charmander la tengo)
+  // hoja de carpeta: 9 casillas por página; Bulbasaur (001) está en la página 1 y Caterpie (010) en la 2 (Charmander la tengo)
+  const enRed1 = await page.$$eval('.album-red', els => els.map(e => e.textContent.trim()));
+  if (enRed1.length !== 1 || !/En mercado · S\/ /.test(enRed1[0]) || !(await page.$('[data-testid=casilla-falta]:has-text("001") .album-red'))) throw new Error('la casilla de Bulbasaur no muestra el mercado: ' + enRed1.join(' | '));
+  if ((await page.$$('.album-cell')).length !== 9 || !/Página 1 de 23/.test(await page.textContent('[data-testid=pagina-texto]'))) throw new Error('la hoja debía mostrar 9 casillas de 23 páginas');
+  await page.click('[data-testid=pagina-siguiente]');
+  await page.waitForSelector('[data-testid=casilla-falta]:has-text("010") .album-red:has-text("En mercado")');
+  if ((await page.$$('.album-red')).length !== 1) throw new Error('en la página 2 solo Caterpie debía estar en venta');
+  await page.click('[data-testid=pagina-anterior]');
   if (!/2 en venta/.test(await page.textContent('[data-testid=faltan-mercado]'))) throw new Error('el botón "las que faltan" no cuenta las ofertas');
   await foto(page, 'album-mercado');
   log('carrito vaciado (copias liberadas); álbum 151 marca 2 faltantes en venta');
@@ -556,17 +561,15 @@ try {
 
   // comprar el carrito (3 reservas de @vendedora_lima) → elegir tienda → pago pendiente con instrucciones
   await page.goto(APP + '/app/carrito');
-  await page.waitForSelector('[data-testid=btn-comprar]');
-  const totalCarrito = await page.textContent('[data-testid=total-carrito]');
-  await page.click('[data-testid=btn-comprar]');
   await page.waitForSelector('[data-testid=tienda-opcion]');
+  const totalCarrito = await page.textContent('[data-testid=total-carrito]');
   await page.click('[data-testid=tienda-opcion]:has-text("Tienda E2E")');
-  await page.click('[data-testid=btn-confirmar-tienda]');
+  await page.click('[data-testid=btn-comprar]');
   await page.waitForURL(/\/app\/compras\/[0-9a-f-]+/, { timeout: 20000 });
   const pagoId = page.url().split('/').pop();
   await page.waitForSelector('[data-testid=instrucciones-pago]');
   const instrucciones = await page.textContent('[data-testid=instrucciones-pago]');
-  if (!/949114582/.test(instrucciones) || !/CHRISTIAN GABRIEL/.test(instrucciones) || !/Yape o Plin/.test(instrucciones)) throw new Error('instrucciones de pago inesperadas: ' + instrucciones.slice(0, 200));
+  if (!/949\s?114\s?582/.test(instrucciones) || !/CHRISTIAN GABRIEL/.test(instrucciones) || !/Yape o Plin/.test(instrucciones)) throw new Error('instrucciones de pago inesperadas: ' + instrucciones.slice(0, 200));
   if (sql(`select estado || ':' || monto from public.pagos where id = '${pagoId}'`) !== 'pendiente:' + totalCarrito.replace('S/ ', '').replace(',', '')) throw new Error('pago inesperado: ' + sql(`select estado || ':' || monto from public.pagos where id = '${pagoId}'`) + ' vs ' + totalCarrito);
   if (num(`select count(*) from public.ordenes where pago_id = '${pagoId}'`) !== 1 || num(`select count(*) from public.orden_items oi join public.ordenes o on o.id = oi.orden_id where o.pago_id = '${pagoId}'`) !== 3) throw new Error('la compra debía tener 1 orden con 3 ítems');
   if (num(`select count(*) from public.mi_carrito()`) !== 0 && (await page.$('[data-testid=chip-carrito]'))) { /* el carrito queda vacío al pasar a compra */ }
@@ -613,7 +616,7 @@ try {
   await page.waitForSelector('[data-testid=estado-pago]:has-text("Pago confirmado")');
   if (!/en camino a la tienda/.test(await page.textContent('[data-testid=orden]')) || !/hasta el \d{2}\/\d{2}\/\d{4}/.test(await page.textContent('[data-testid=orden]'))) throw new Error('la orden no muestra el estado y la fecha límite');
   await page.goto(APP + '/app/compras');
-  await page.waitForSelector('[data-testid=fila-compra]:has-text("Pago confirmado")');
+  await page.waitForSelector('[data-testid=fila-compra] .paso-av.actual:has-text("Pagado")');
   await page.goto(APP + '/app/notificaciones');
   await page.waitForSelector('[data-testid=notificacion]:has-text("Pago confirmado")');
   await page.waitForFunction(() => !document.querySelector('[data-testid=chip-notificaciones] .cuenta'), null, { timeout: 15000 });
@@ -640,7 +643,7 @@ try {
   sql(`update auth.users set encrypted_password = 'clave-lucia', email_confirmed_at = now() where id = '${LUCIA}'`);
   const TIENDA_USR = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
   sql(`insert into auth.users (id, email, encrypted_password, email_confirmed_at, raw_user_meta_data) values ('${TIENDA_USR}', 'tienda@correo.pe', 'clave-tienda', now(), '{\"username\":\"tienda_lince\",\"nombres\":\"Tienda\",\"apellidos\":\"Lince\",\"telefono\":\"955555555\",\"dni\":\"55555555\",\"acepto_terminos\":true}')`);
-  const entrar = async (pg, usuario, clave) => { await pg.goto(APP + '/ingresar'); await pg.fill('input[autocomplete=username]', usuario); await pg.fill('input[type=password]', clave); await pg.click('button[type=submit]'); await pg.waitForURL(/\/app/, { timeout: 20000 }); await pg.waitForSelector('text=/Álbumes por colección|precio estimado|colección está vacía/', { timeout: 60000 }); };
+  const entrar = async (pg, usuario, clave) => { await pg.goto(APP + '/ingresar'); await pg.fill('input[autocomplete=username]', usuario); await pg.fill('input[type=password]', clave); await pg.click('button[type=submit]'); await pg.waitForURL(/\/app/, { timeout: 20000 }); await pg.waitForSelector('text=/Mis álbumes|precio estimado|colección está vacía/', { timeout: 60000 }); };
   const ctxL = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE' });
   const pageL = await ctxL.newPage();
   await entrar(pageL, 'vendedora_lima', 'clave-lucia');
@@ -743,7 +746,9 @@ try {
   const sugBulbasaur = await page.textContent('[data-testid=carta-recibida]:has-text("Bulbasaur") [data-testid=sugerencia]');
   if (!/Álbum 151 EN/.test(sugBulbasaur) || !/está en inglés y esta carta es en español/.test(sugBulbasaur)) throw new Error('la carta en español debía sugerir el álbum EN con aviso de idioma: ' + sugBulbasaur);
   await foto(page, 'recibidas');
-  await page.click('[data-testid=carta-recibida]:has-text("Charmander") [data-testid=btn-guardar-sugerido]');
+  await page.click('[data-testid=carta-recibida]:has-text("Charmander") [data-testid=btn-recibida-guardar]');
+  await page.waitForSelector('.sheet [data-testid=sugerencia-hoja]:has-text("casilla 004 (está vacía)")');
+  await page.click('.sheet [data-testid=btn-guardar-sugerido]');
   await page.waitForSelector('[data-testid=colocacion] .placement .where:has-text("Álbum 151 EN · casilla 004")');
   await page.click('[data-testid=btn-guardada-listo]');
   await page.waitForSelector('[data-testid=recibidas]:has-text("(5)")');
@@ -754,7 +759,9 @@ try {
   await page.waitForSelector('.card-row:has-text("004/165") .loc.album:has-text("MEW EN")');
   // "Elegir otro álbum" → Bulk 2 a mano para Caterpie
   await page.goto(APP + '/app/album');
-  await page.click('[data-testid=carta-recibida]:has-text("Caterpie") [data-testid=btn-elegir-album]');
+  await page.click('[data-testid=carta-recibida]:has-text("Caterpie") [data-testid=btn-recibida-guardar]');
+  await page.waitForSelector('.sheet [data-testid=btn-decidir-despues]');
+  await page.click('.sheet [data-testid=btn-elegir-album]');
   await page.click('[data-testid=destino-bulk]:has-text("Bulk 2")');
   await page.waitForSelector('[data-testid=colocacion] .placement .where:has-text("Bulk 2")');
   await page.click('[data-testid=btn-guardada-listo]');
@@ -954,10 +961,9 @@ try {
   if (!/"ok": true/.test(rpcComo(CHRIS, `select public.reservar_copia('${pub003}', 1)`))) throw new Error('no se pudo reservar la carta 003');
   await page.goto(APP + '/app/carrito');
   await page.waitForSelector('[data-testid=usar-saldo] input:checked');
-  if (!/tu saldo cubre todo/.test(await page.textContent('[data-testid=usar-saldo]'))) throw new Error('el carrito no anuncia que el saldo cubre la compra');
-  await page.click('[data-testid=btn-comprar]');
+  if (!/tu saldo cubre todo/.test(await page.textContent('[data-testid=resumen-carrito]'))) throw new Error('el carrito no anuncia que el saldo cubre la compra');
   await page.click('[data-testid=tienda-opcion]:has-text("Tienda E2E")');
-  await page.click('[data-testid=btn-confirmar-tienda]');
+  await page.click('[data-testid=btn-comprar]');
   await page.waitForSelector('.toast:has-text("pagada con tu saldo")');
   await page.waitForURL(/\/app\/compras\//, { timeout: 20000 });
   const pagoB2 = page.url().split('/').pop();
@@ -1224,17 +1230,26 @@ try {
   if (!albumes.some(t => t.includes('151'))) throw new Error('no aparece el álbum 151: ' + albumes.join(' | '));
   await page.click('.album-card:has-text("151")');
   await page.waitForSelector('.album-cell');
-  const total = await page.$$eval('.album-cell', els => els.length);
-  const faltan = await page.$$eval('.album-cell.missing', els => els.length);
-  if (total !== 207 || faltan !== 204) throw new Error(`álbum 151: ${total} celdas, ${faltan} faltan`);   // álbum "sin idioma": tengo 025, 006 y 004 (la 001 comprada es ES)
+  // álbum "sin idioma": tengo 025, 006 y 004 (la 001 comprada es ES) → 207 cartas en 23 páginas de 9, 204 faltan
+  const filtros = await page.textContent('[data-testid=filtro-album]');
+  const total = parseInt((/Tengo · (\d+)/.exec(filtros) || [])[1], 10) + parseInt((/Faltan · (\d+)/.exec(filtros) || [])[1], 10);
+  const faltan = parseInt((/Faltan · (\d+)/.exec(filtros) || [])[1], 10);
+  if (total !== 207 || faltan !== 204 || (await page.$$('.album-cell')).length !== 9 || !/de 23/.test(await page.textContent('[data-testid=pagina-texto]'))) throw new Error(`álbum 151: ${total} cartas, ${faltan} faltan (${filtros})`);
+  await page.click('[data-testid=filtro-album] button:has-text("Faltan")');
+  await page.waitForSelector('[data-testid=pagina-texto]:has-text("de 23")');
+  if ((await page.$$('.album-cell.missing')).length !== 9 || (await page.$$('.album-cell.filled')).length) throw new Error('el filtro "Faltan" debía mostrar solo casillas vacías');
+  await page.click('[data-testid=filtro-album] button:has-text("Tengo")');
+  await page.waitForSelector('[data-testid=pagina-texto]:has-text("Página 1 de 1")');
+  if ((await page.$$('.album-cell.filled')).length !== 3) throw new Error('el filtro "Tengo" debía mostrar 3 casillas');
+  await page.click('[data-testid=filtro-album] button:has-text("Todas")');
   await page.click('text=Consultar el precio de las que faltan');
-  await page.waitForFunction(() => /para completar/.test(document.querySelector('.stat')?.textContent || ''));
+  await page.waitForFunction(() => /Para completarlo\s*S\//.test(document.querySelector('[data-testid=progreso-album]')?.textContent || ''));
   await foto(page, 'album-151');
-  log('álbum 151:', total, 'celdas,', faltan, 'faltan');
+  log('álbum 151:', total, 'cartas en 23 páginas,', faltan, 'faltan; filtros Tengo/Faltan y precio para completarlo');
 
   // ---------- álbum físico
   await page.goto(APP + '/app/album');
-  await page.click('text=+ Nuevo álbum');
+  await page.click('[data-testid=btn-nuevo-album]');
   await page.fill('.sheet input.input >> nth=0', 'Carpeta azul');
   await page.fill('.sheet input[type=number] >> nth=0', '2');
   await page.click('.sheet-foot >> text=Crear');
@@ -1283,7 +1298,7 @@ try {
   }
   // ---------- ajustes: perfil e importación v1
   await page.goto(APP + '/app/ajustes');
-  await page.fill('input.input >> nth=0', 'Christian G.');
+  await page.fill('#main input.input >> nth=0', 'Christian G.');
   await page.click('text=Guardar perfil');
   await page.waitForSelector('.toast:has-text("Perfil guardado")');
   const respaldo = { app: 'pokeboveda', v: 1, state: { boxes: [{ id: 'b1', name: 'Bulk 1', order: 1, mode: 'auto' }, { id: 'b2', name: 'Caja vieja', order: 2, mode: 'manual' }], entries: [
@@ -1321,7 +1336,7 @@ try {
   await page.fill('input[type=password]', 'clave12345');
   await page.click('button[type=submit]');
   await page.waitForURL(/\/app\/album/, { timeout: 20000 });   // la app abre en Mi Colección → Álbumes
-  await page.waitForSelector('text=Álbumes por colección', { timeout: 60000 });
+  await page.waitForSelector('text=Mis álbumes', { timeout: 60000 });
   log('ingreso por nombre de usuario OK (y contraseña incorrecta rechazada)');
   await page.goto(APP + '/app/ajustes');
   await page.click('text=Cerrar sesión');

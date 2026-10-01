@@ -14,12 +14,12 @@ import { useCatalogo } from '../CatalogoProvider';
 import { useMercado } from '../MercadoProvider';
 import { usePerfil } from '../PerfilProvider';
 import { usePrecios } from '../PreciosProvider';
-import { Sheet } from '../Sheet';
 import { Thumb } from '../Thumb';
 import { useToast } from '../Toast';
 import { Aviso } from '../ui';
 
-/** Carrito: reservas activas (24 h); "Comprar" elige la tienda de entrega y crea el pago por Yape. */
+/** Carrito (layout v2): líneas con Quitar, reserva, tienda de recojo como opciones grandes, saldo, resumen y «Continuar al pago».
+ *  En PC el resumen va a la derecha (como en PC-Checkout); el pago se hace en la siguiente pantalla (/app/compras/<id>). */
 export function Carrito() {
   const cat = useCatalogo();
   const { perfil } = usePerfil();
@@ -27,11 +27,14 @@ export function Carrito() {
   const precios = usePrecios();
   const toast = useToast();
   const router = useRouter();
-  const [comprar, setComprar] = useState(false);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [saldo, setSaldo] = useState(0);
   const [usarSaldo, setUsarSaldo] = useState(true);
+  const [tiendas, setTiendas] = useState<Tienda[] | null>(null);
+  const [tiendaSel, setTiendaSel] = useState('');
+  const [creando, setCreando] = useState(false);
   useEffect(() => { saldoComprador().then(s => setSaldo(s.saldo)).catch(() => setSaldo(0)); }, []);
+  useEffect(() => { tiendasActivas().then(t => { setTiendas(t); if (t.length === 1) setTiendaSel(t[0].id); }).catch(() => setTiendas([])); }, []);
   const [reputaciones, setReputaciones] = useState<Map<string, VendedorPublico>>(new Map());
   const comision = precios.ajustes.comision;
   const lineas = mercado.carrito;
@@ -40,6 +43,10 @@ export function Carrito() {
   const total = mercado.total;
   const vendedores = [...new Set(lineas.map(l => l.vendedor))];
   const conProblema = lineas.filter(l => l.estado_publicacion !== 'activa' && l.estado_publicacion !== 'reservada');
+  const tienda = (tiendas || []).find(t => t.id === tiendaSel) || null;
+  const saldoUsado = usarSaldo && saldo > 0 ? Math.min(saldo, total) : 0;
+  const aPagar = Math.max(0, Math.round((total - saldoUsado) * 100) / 100);
+  const expiraMin = lineas.length ? lineas.map(l => Date.parse(l.expira)).reduce((a, b) => Math.min(a, b)) : 0;
 
   async function cambiar(l: LineaCarrito, cantidad: number) {
     if (cantidad < 1) return quitar(l);
@@ -54,85 +61,92 @@ export function Carrito() {
     setOcupado(null);
     toast(ok ? 'Quitada del carrito' : 'No se pudo quitar', ok ? 'ok' : 'danger');
   }
-  const hora = (iso: string) => new Date(iso).toLocaleString('es-PE', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+  async function continuar() {
+    if (!tiendaSel) { toast('Elige dónde recoges tus cartas', 'danger'); return; }
+    setCreando(true);
+    const r = await crearPago(tiendaSel, usarSaldo && saldo > 0);
+    setCreando(false);
+    if (!r.ok || !r.pago_id) { toast(r.error || 'No se pudo iniciar la compra', 'danger', 4000); return; }
+    if (r.confirmado) toast('¡Compra pagada con tu saldo y confirmada!', 'ok', 4000);
+    mercado.recargarCarrito();
+    router.push(`/app/compras/${r.pago_id}`);
+  }
+  const hora = (ms: number) => new Date(ms).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+
+  const resumen = lineas.length ? (
+    <div className="panel resumen-carrito" data-testid="resumen-carrito">
+      <h3 style={{ margin: '0 0 8px' }}>Pagar con Yape</h3>
+      <div className="fila-dato"><span className="muted">{mercado.unidades} {mercado.unidades === 1 ? 'carta' : 'cartas'} de {vendedores.length} {vendedores.length === 1 ? 'vendedor' : 'vendedores'}</span><b>{fmtPen(total)}</b></div>
+      <div className="fila-dato"><span className="muted">Recojo en tienda</span><b>{tienda ? (tienda.tarifa_recojo && tienda.tarifa_recojo > 0 ? `${fmtPen(tienda.tarifa_recojo)} (se paga en la tienda)` : 'gratis') : '—'}</b></div>
+      {saldoUsado > 0 ? <div className="fila-dato"><span className="muted">Tu saldo</span><b>− {fmtPen(saldoUsado)}</b></div> : null}
+      <div className="fila-dato total"><span>Total a pagar</span><b data-testid="total-carrito">{fmtPen(total)}</b></div>
+      {saldoUsado > 0 ? <p className="small muted" style={{ margin: '2px 0 0' }}>Por Yape/Plin pagas <b>{fmtPen(aPagar)}</b>{saldo >= total ? ' (nada: tu saldo cubre todo y la compra se confirma al instante)' : ''}.</p> : null}
+      <p className="small muted" style={{ marginTop: 8 }}>El vendedor tiene {textoPlazo(precios.ajustes.pagos)} para dejar las cartas en la tienda. Pagas por Yape al número de la app y subes la captura.</p>
+      <button className="btn primary grande block" style={{ marginTop: 10 }} disabled={!!conProblema.length || creando || !tiendaSel} onClick={continuar} data-testid="btn-comprar">{creando ? 'Reservando…' : 'Continuar al pago'}</button>
+      {!tiendaSel && tiendas && tiendas.length ? <p className="small muted" style={{ marginTop: 6, textAlign: 'center' }}>Elige una tienda de recojo para continuar.</p> : null}
+    </div>
+  ) : null;
 
   return (
-    <div>
-      <p className="small"><Link href="/app/mercado">← Mercado</Link></p>
-      <h2 style={{ marginTop: 0 }}>Tu carrito</h2>
+    <div className="carrito-vista">
+      <div className="cabecera-seccion" style={{ marginBottom: 6 }}>
+        <h1 style={{ margin: 0 }}>{lineas.length ? `${mercado.unidades} ${mercado.unidades === 1 ? 'carta' : 'cartas'}` : 'Carrito'}</h1>
+        {lineas.length && expiraMin ? <span className="small muted">reservadas para ti hasta las <b style={{ color: 'var(--enlace)' }}>{hora(expiraMin)}</b></span> : null}
+      </div>
       {!mercado.cargado ? <p className="muted small"><span className="spinner" /> Cargando…</p> : null}
       {mercado.cargado && !lineas.length ? <div className="empty"><div className="big"><Icono n="carrito" tam={44} grosor={1.5} /></div><p><b>Tu carrito está vacío.</b></p><p className="muted">Busca cartas en el <Link href="/app/mercado">Mercado</Link> y pulsa «Agregar al carrito». Las copias quedan reservadas para ti durante 24 horas.</p></div> : null}
       {conProblema.length ? <Aviso tipo="warn">{conProblema.length === 1 ? 'Una publicación de tu carrito ya no está disponible' : `${conProblema.length} publicaciones de tu carrito ya no están disponibles`} (el vendedor la pausó o retiró). Quítala para seguir.</Aviso> : null}
-      <div className="card-list" style={{ marginTop: 10 }}>
-        {lineas.map(l => {
-          const carta = cat.carta(l.carta_id);
-          const set = carta ? cat.setOf(carta) : undefined;
-          const mal = l.estado_publicacion !== 'activa' && l.estado_publicacion !== 'reservada';
-          const cambioPrecio = Math.abs(l.precio_actual - l.precio_pen) >= 0.01;
-          return (
-            <div key={l.id} className={`card-row ${mal ? 'dim' : ''}`} style={{ cursor: 'default' }} data-testid="linea-carrito">
-              <Link href={carta ? `/app/carta/${encodeURIComponent(carta.id)}` : '#'}><Thumb carta={carta} set={set} /></Link>
-              <div className="card-main">
-                <div className="card-name">{carta ? nombreCarta(carta, perfil.idioma_nombres) : 'Carta'}</div>
-                <div className="card-set">{nombreColeccion(set, perfil.idioma_nombres)} {carta ? <span className="num">{numLabel(carta, set)}</span> : null}{l.acabado ? <span className="pill">{l.acabado}</span> : null}{l.idioma ? <span className="pill">{l.idioma}</span> : null}{l.condicion ? <span className="pill">{l.condicion}</span> : null}</div>
-                <div className="small">Vende <VendedorChip username={l.vendedor} reputacion={reputaciones.get(l.vendedor_id)?.reputacion} corto /> · {fmtPen(l.precio_pen)} c/u{cambioPrecio ? <span className="muted"> (ahora {fmtPen(l.precio_actual)})</span> : null} · reservada hasta {hora(l.expira)}</div>
-                {mal ? <div className="small" style={{ color: 'var(--aviso-texto)' }}>Ya no está disponible.</div> : null}
-                <div className="row" style={{ gap: 6, marginTop: 6, alignItems: 'center' }}>
-                  <div className="stepper"><button disabled={ocupado === l.id} onClick={() => cambiar(l, l.cantidad - 1)}>−</button><input type="number" readOnly value={l.cantidad} aria-label="Cantidad" /><button disabled={ocupado === l.id || l.cantidad >= l.disponibles} onClick={() => cambiar(l, l.cantidad + 1)}>+</button></div>
-                  <span className="small muted">de {l.disponibles} disponibles</span>
-                  <span className="grow" />
-                  <button className="btn sm ghost" disabled={ocupado === l.id} onClick={() => quitar(l)}>Quitar</button>
+      <div className="carrito-cuerpo">
+        <div className="carrito-izquierda">
+          <div className="card-list">
+            {lineas.map(l => {
+              const carta = cat.carta(l.carta_id);
+              const set = carta ? cat.setOf(carta) : undefined;
+              const mal = l.estado_publicacion !== 'activa' && l.estado_publicacion !== 'reservada';
+              const cambioPrecio = Math.abs(l.precio_actual - l.precio_pen) >= 0.01;
+              return (
+                <div key={l.id} className={`card-row linea-carrito ${mal ? 'dim' : ''}`} style={{ cursor: 'default' }} data-testid="linea-carrito">
+                  <Link href={carta ? `/app/carta/${encodeURIComponent(carta.id)}` : '#'}><Thumb carta={carta} set={set} /></Link>
+                  <div className="card-main">
+                    <div className="card-name">{carta ? nombreCarta(carta, perfil.idioma_nombres) : 'Carta'}</div>
+                    <div className="card-set">{set?.ab || nombreColeccion(set, perfil.idioma_nombres)} · {carta ? numLabel(carta, set) : ''}{l.idioma ? ` · ${l.idioma}` : ''}{l.condicion ? ` · ${l.condicion}` : ''}{l.acabado ? ` · ${l.acabado}` : ''} · <VendedorChip username={l.vendedor} reputacion={reputaciones.get(l.vendedor_id)?.reputacion} corto /></div>
+                    {cambioPrecio ? <div className="small warn">El precio cambió: ahora {fmtPen(l.precio_actual)} c/u.</div> : null}
+                    {mal ? <div className="small warn">Ya no está disponible.</div> : null}
+                    <div className="row" style={{ gap: 8, marginTop: 6, alignItems: 'center' }}>
+                      <div className="stepper"><button disabled={ocupado === l.id} onClick={() => cambiar(l, l.cantidad - 1)} aria-label="Una copia menos">−</button><input type="number" readOnly value={l.cantidad} aria-label="Cantidad" /><button disabled={ocupado === l.id || l.cantidad >= l.disponibles} onClick={() => cambiar(l, l.cantidad + 1)} aria-label="Una copia más">+</button></div>
+                      <span className="small muted">× {fmtPen(l.precio_pen)}</span>
+                    </div>
+                  </div>
+                  <div className="card-side"><b className="precio-oferta">{fmtPen(l.precio_pen * l.cantidad)}</b><button className="btn sm icon quitar" disabled={ocupado === l.id} onClick={() => quitar(l)} aria-label="Quitar del carrito" title="Quitar"><Icono n="basura" tam={18} /><span className="sr-only">Quitar</span></button></div>
                 </div>
+              );
+            })}
+          </div>
+          {lineas.length ? (
+            <div className="panel" style={{ marginTop: 12 }} data-testid="tiendas-carrito">
+              <h3 style={{ margin: '0 0 4px' }}>¿Dónde la recoges?</h3>
+              <p className="small muted">El vendedor deja las cartas en la tienda que elijas y tú las recoges con un código de retiro. Sin costo de envío.</p>
+              {tiendas === null ? <p className="small muted"><span className="spinner" /> Cargando tiendas…</p> : null}
+              {tiendas && !tiendas.length ? <Aviso tipo="warn">Todavía no hay tiendas de entrega configuradas. Escríbenos a info@poketcg.pe.</Aviso> : null}
+              <div className="opciones-tienda">
+                {(tiendas || []).map(t => (
+                  <label key={t.id} className={`check grande opcion-tienda ${tiendaSel === t.id ? 'activo' : ''}`} data-testid="tienda-opcion">
+                    <input type="radio" name="tienda" checked={tiendaSel === t.id} onChange={() => setTiendaSel(t.id)} />
+                    <span className="grow"><b>{t.nombre}</b>{t.distrito ? ` · ${t.distrito}` : ''}<br /><span className="small muted">{t.horario ? `${t.horario} · ` : ''}{t.tarifa_recojo && t.tarifa_recojo > 0 ? `recojo ${fmtPen(t.tarifa_recojo)}` : 'recojo gratis'} · abre: {t.dias_abierto.map(d => DIAS_CORTOS[d]).join(' ')}</span><br /><span className="small muted">{t.direccion}{t.referencia ? ` (${t.referencia})` : ''} · <a href={enlaceMapa(t)} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>cómo llegar</a></span></span>
+                  </label>
+                ))}
               </div>
-              <div className="card-side"><span className="price">{fmtPen(l.precio_pen * l.cantidad)}</span></div>
             </div>
-          );
-        })}
-      </div>
-      {lineas.length ? (
-        <div className="panel" style={{ marginTop: 12 }} data-testid="resumen-carrito">
-          <div className="row" style={{ justifyContent: 'space-between' }}><span>{mercado.unidades} {mercado.unidades === 1 ? 'carta' : 'cartas'} de {vendedores.length} {vendedores.length === 1 ? 'vendedor' : 'vendedores'}</span><span>{fmtPen(total)}</span></div>
-          <div className="row small muted" style={{ justifyContent: 'space-between' }}><span>Comisión de PokéTCG ({Math.round(comision * 100)} %, la paga el vendedor)</span><span>{fmtPen(Math.round(total * comision * 100) / 100)}</span></div>
-          <div className="row" style={{ justifyContent: 'space-between', fontWeight: 800, fontSize: 18, marginTop: 6 }}><span>Total</span><span data-testid="total-carrito">{fmtPen(total)}</span></div>
-          {saldo > 0 ? <label className="check small" style={{ marginTop: 6 }} data-testid="usar-saldo"><input type="checkbox" checked={usarSaldo} onChange={e => setUsarSaldo(e.target.checked)} /><span>Usar mi saldo de <b>{fmtPen(saldo)}</b>{usarSaldo ? <> → por Yape/Plin pagas <b>{fmtPen(Math.max(0, Math.round((total - saldo) * 100) / 100))}</b>{saldo >= total ? ' (nada: tu saldo cubre todo y la compra se confirma al instante)' : ''}</> : null}</span></label> : null}
-          <button className="btn primary block" style={{ marginTop: 10 }} disabled={!!conProblema.length} onClick={() => setComprar(true)} data-testid="btn-comprar">Comprar</button>
-          <p className="small muted" style={{ marginTop: 8 }}>Pagas por Yape al número de la app y subes la foto del comprobante. Recoges tus cartas en la tienda que elijas; el vendedor las deja ahí {textoPlazo(precios.ajustes.pagos)}.</p>
+          ) : null}
+          {lineas.length && saldo > 0 ? (
+            <label className="panel check grande saldo-carrito" style={{ marginTop: 12 }} data-testid="usar-saldo">
+              <span className="grow"><b>Usar mi saldo</b><br /><span className="small muted">Tienes {fmtPen(saldo)}</span></span>
+              <input type="checkbox" checked={usarSaldo} onChange={e => setUsarSaldo(e.target.checked)} />
+            </label>
+          ) : null}
         </div>
-      ) : null}
-      {comprar ? <ElegirTienda total={total} usarSaldo={usarSaldo && saldo > 0} onClose={() => setComprar(false)} onListo={id => { mercado.recargarCarrito(); router.push(`/app/compras/${id}`); }} /> : null}
-    </div>
-  );
-}
-
-/** Paso 1 de la compra: elegir la tienda/sede donde recoger. */
-function ElegirTienda({ total, usarSaldo, onClose, onListo }: { total: number; usarSaldo: boolean; onClose: () => void; onListo: (pagoId: string) => void }) {
-  const toast = useToast();
-  const [tiendas, setTiendas] = useState<Tienda[] | null>(null);
-  const [sel, setSel] = useState<string>('');
-  const [ocupado, setOcupado] = useState(false);
-  useEffect(() => { tiendasActivas().then(t => { setTiendas(t); if (t.length === 1) setSel(t[0].id); }).catch(() => setTiendas([])); }, []);
-  async function confirmar() {
-    if (!sel) { toast('Elige una tienda', 'danger'); return; }
-    setOcupado(true);
-    const r = await crearPago(sel, usarSaldo);
-    setOcupado(false);
-    if (!r.ok || !r.pago_id) { toast(r.error || 'No se pudo iniciar la compra', 'danger', 4000); return; }
-    if (r.confirmado) toast('¡Compra pagada con tu saldo y confirmada!', 'ok', 4000);
-    onListo(r.pago_id);
-  }
-  return (
-    <Sheet titulo="¿Dónde recoges tus cartas?" onClose={onClose} pie={<><button className="btn" onClick={onClose}>Cancelar</button><button className="btn primary" disabled={ocupado || !sel} onClick={confirmar} data-testid="btn-confirmar-tienda">{ocupado ? 'Reservando…' : `Continuar al pago (${fmtPen(total)})`}</button></>}>
-      <p className="small muted">El vendedor deja las cartas en la tienda que elijas y tú las recoges con un código de retiro. Sin costo de envío.</p>
-      {tiendas === null ? <p className="small muted"><span className="spinner" /> Cargando tiendas…</p> : null}
-      {tiendas && !tiendas.length ? <Aviso tipo="warn">Todavía no hay tiendas de entrega configuradas. Escríbenos a info@poketcg.pe.</Aviso> : null}
-      <div className="stack" style={{ marginTop: 8 }}>
-        {(tiendas || []).map(t => (
-          <label key={t.id} className="check" style={{ padding: 8, border: '1px solid var(--linea)', borderRadius: 10 }} data-testid="tienda-opcion">
-            <input type="radio" name="tienda" checked={sel === t.id} onChange={() => setSel(t.id)} />
-            <span><b>{t.nombre}</b>{t.distrito ? ` · ${t.distrito}` : ''}<br /><span className="small muted">{t.direccion}{t.referencia ? ` (${t.referencia})` : ''}{t.horario ? ` · ${t.horario}` : ''} · abre: {t.dias_abierto.map(d => DIAS_CORTOS[d]).join(' ')}</span><br /><span className="small">{t.tarifa_recojo && t.tarifa_recojo > 0 ? <span className="warn">la tienda cobra {fmtPen(t.tarifa_recojo)} por recojo</span> : <span className="ok">recojo gratis</span>} · <a href={enlaceMapa(t)} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>cómo llegar</a></span></span>
-          </label>
-        ))}
+        <div className="carrito-derecha">{resumen}</div>
       </div>
-    </Sheet>
+    </div>
   );
 }

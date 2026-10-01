@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { Carta, Coleccion } from '@/lib/catalogo';
-import { matchesType, nombreCarta, nombreColeccion, ordenarCartas } from '@/lib/catalogo';
+import { nombreCarta, nombreColeccion } from '@/lib/catalogo';
 import type { Entrada } from '@/lib/coleccion';
 import { fmtPen } from '@/lib/precios-core';
 import { IDIOMAS_CARTA } from '@/lib/config';
@@ -13,10 +13,8 @@ import { useColeccion } from '../ColeccionProvider';
 import { usePerfil } from '../PerfilProvider';
 import { usePrecios } from '../PreciosProvider';
 import { useUbicador } from '../useUbicador';
-import { SimboloSet } from '../CardRow';
 import { Thumb } from '../Thumb';
 import { LocChip } from '../Ubicacion';
-import { FilterBar, type Filtro } from '../FilterBar';
 import { usePedirPrecios } from '../Precio';
 import { Confirmar } from '../Sheet';
 import { useMercado } from '../MercadoProvider';
@@ -25,7 +23,7 @@ import { AddEntrySheet } from '../AddEntrySheet';
 import { Sheet } from '../Sheet';
 import { useToast } from '../Toast';
 import { PorLlegar, Recibidas } from './PorLlegar';
-import { Campo } from '../ui';
+import { Campo, useEsPC } from '../ui';
 
 /** Idioma de una entrada para agrupar álbumes: JP para colecciones japonesas, el registrado o "—". */
 function idiomaAlbum(e: Entrada, set: Coleccion | undefined): string {
@@ -61,54 +59,79 @@ function useAlbumesAuto(): AlbumAuto[] {
   }, [cat, col.entradas]);
 }
 
+const ENERGIAS_PORTADA = ['agua', 'fuego', 'planta', 'psiquico', 'electrico'];
+/** Color de energía para la portada de un álbum propio sin imagen (estable por id). */
+function energiaPortada(id: string): string {
+  let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return ENERGIAS_PORTADA[h % ENERGIAS_PORTADA.length];
+}
+
 export function Albumes() {
+  const cat = useCatalogo();
   const col = useColeccion();
   const { perfil } = usePerfil();
+  const precios = usePrecios();
   const toast = useToast();
   const router = useRouter();
   const albumes = useAlbumesAuto();
   const [nuevo, setNuevo] = useState(false);
+  const [filtro, setFiltro] = useState<'todos' | 'coleccion' | 'propios'>('todos');
   const [nombre, setNombre] = useState(''); const [paginas, setPaginas] = useState(10); const [columnas, setColumnas] = useState(3); const [filas, setFilas] = useState(3);
   const idioma = perfil.idioma_nombres;
+  // precio de cada álbum: Σ precio por defecto × cantidad de sus cartas (los precios ya se piden para toda la colección)
+  const precioDe = (entradas: Entrada[]) => { let t = 0; for (const e of entradas) { const c = cat.carta(e.carta_id); if (c && !c.sd) t += precios.precioDefecto(c, e.acabado).pen * e.cantidad; } return t; };
+  const propios = col.albumes.map(a => {
+    const cas = col.casillas.filter(c => c.album_id === a.id);
+    const entradas = cas.map(c => col.entradas.find(e => e.id === c.entrada_id)).filter((e): e is Entrada => !!e);
+    const capacidad = a.paginas * a.columnas * a.filas;
+    return { album: a, cartas: entradas.reduce((n, e) => n + e.cantidad, 0), asignadas: cas.filter(c => c.carta_id || c.entrada_id).length, capacidad, precio: precioDe(entradas) };
+  });
+  const verColeccion = filtro !== 'propios', verPropios = filtro !== 'coleccion';
+  const vacio = !albumes.length && !col.albumes.length;
   return (
     <div>
-      <PorLlegar />
+      <div className="solo-celular"><PorLlegar /></div>
       <Recibidas />
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ margin: 0 }}>Mis álbumes físicos</h2>
-        <button className="btn primary sm" onClick={() => setNuevo(true)}>+ Nuevo álbum</button>
-      </div>
-      <p className="small muted">Un álbum físico es una carpeta con páginas de bolsillos (por ejemplo 3 × 3). Asigna a cada bolsillo la carta que va ahí para saber qué tienes y qué falta, página por página.</p>
-      {col.albumes.length ? (
-        <div className="album-grid">
-          {col.albumes.map(a => (
-            <Link key={a.id} href={`/app/album/p/${a.id}`} className="album-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-              <div className="album-body"><div className="album-title"><Icono n="album" tam={16} /> {a.nombre}</div><div className="small muted">{a.paginas} páginas de {a.columnas} × {a.filas} · {a.paginas * a.columnas * a.filas} bolsillos{a.descripcion ? ` · ${a.descripcion}` : ''}</div></div>
-            </Link>
-          ))}
+      <div className="cabecera-seccion">
+        <h2 style={{ margin: 0 }}>Mis álbumes</h2>
+        <div className="acciones">
+          <div className="seg solo-pc" data-testid="filtro-albumes">
+            <button className={filtro === 'todos' ? 'active' : ''} onClick={() => setFiltro('todos')}>Todos</button>
+            <button className={filtro === 'coleccion' ? 'active' : ''} onClick={() => setFiltro('coleccion')}>Por colección</button>
+            <button className={filtro === 'propios' ? 'active' : ''} onClick={() => setFiltro('propios')}>Propios</button>
+          </div>
+          <button className="btn primary sm" onClick={() => setNuevo(true)} data-testid="btn-nuevo-album"><Icono n="mas" /> Nuevo álbum</button>
         </div>
-      ) : <p className="muted small">Aún no tienes álbumes físicos.</p>}
-
-      <h2 style={{ marginTop: 22 }}>Álbumes por colección</h2>
-      <p className="small muted">Se crean solos con cada colección de la que tengas al menos una carta (uno por idioma). Las cartas que faltan se ven en gris oscuro.</p>
-      {!albumes.length ? <div className="empty"><div className="big"><Icono n="album" tam={44} grosor={1.5} /></div>Cuando guardes cartas aparecerán aquí sus colecciones.</div> : null}
+      </div>
+      {vacio ? <div className="empty"><div className="big"><Icono n="album" tam={44} grosor={1.5} /></div><p><b>Todavía no tienes álbumes.</b></p><p className="muted">Los álbumes por colección se crean solos cuando guardas cartas (uno por colección e idioma). Un álbum propio es una carpeta con páginas de bolsillos (por ejemplo 3 × 3) a la que asignas las cartas que van en cada bolsillo.</p></div> : null}
       <div className="album-grid">
-        {albumes.map(a => {
+        {verColeccion ? albumes.map(a => {
           const pct = a.total ? Math.round((a.distintas / a.total) * 100) : 0;
           return (
-            <Link key={a.set.id + a.idioma} href={`/app/album/${encodeURIComponent(a.set.id)}?idioma=${encodeURIComponent(a.idioma)}`} className="album-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-              <div className="album-cover"><Thumb carta={a.portada} set={a.set} className="lg" /></div>
+            <Link key={a.set.id + a.idioma} href={`/app/album/${encodeURIComponent(a.set.id)}?idioma=${encodeURIComponent(a.idioma)}`} className="album-card" data-testid="album-coleccion">
+              <div className="album-cover"><Thumb carta={a.portada} set={a.set} className="lg" alt="" /></div>
               <div className="album-body">
-                <div className="album-title"><SimboloSet setId={a.set.id} /> {nombreColeccion(a.set, idioma)} {a.idioma === '—' ? <span className="pill" title="Cartas registradas sin idioma">sin idioma</span> : !(a.idioma === 'JP' && a.set.rg === 'ja') ? <span className="pill">{a.idioma}</span> : null}</div>
-                <div className="small muted">{a.distintas} de {a.total} · {pct} %</div>
-                <div className="bar" style={{ marginTop: 6 }}><div style={{ width: pct + '%' }} /></div>
+                <div className="album-title"><span className="nombre">{nombreColeccion(a.set, idioma)}</span>{a.idioma === '—' ? <span className="pill" title="Cartas registradas sin idioma">sin idioma</span> : <span className={`pill ${a.idioma === 'JP' ? 'jp' : 'info'}`}>{a.idioma}</span>}</div>
+                <div className="bar" style={{ marginTop: 8 }} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}><div style={{ width: pct + '%' }} /></div>
+                <div className="album-foot-card"><span>{a.distintas} / {a.total}</span><span>{fmtPen(precioDe(a.entradas))}</span></div>
               </div>
             </Link>
           );
-        })}
+        }) : null}
+        {verPropios ? propios.map(({ album: a, cartas, asignadas, capacidad, precio }) => (
+          <Link key={a.id} href={`/app/album/p/${a.id}`} className="album-card" data-testid="album-propio">
+            <div className="album-cover portada-color" style={{ background: `var(--energia-${energiaPortada(a.id)})` }}><span className="nombre-portada">{a.nombre}</span></div>
+            <div className="album-body">
+              <div className="album-title"><span className="nombre">{a.nombre}</span><span className="pill warn">Propio</span></div>
+              <div className="bar" style={{ marginTop: 8 }} role="progressbar" aria-valuenow={capacidad ? Math.round((asignadas / capacidad) * 100) : 0} aria-valuemin={0} aria-valuemax={100}><div style={{ width: (capacidad ? Math.round((asignadas / capacidad) * 100) : 0) + '%' }} /></div>
+              <div className="album-foot-card"><span>{cartas} {cartas === 1 ? 'carta' : 'cartas'}</span><span>{fmtPen(precio)}</span></div>
+            </div>
+          </Link>
+        )) : null}
       </div>
       {nuevo ? (
-        <Sheet titulo="Nuevo álbum físico" onClose={() => setNuevo(false)} pie={<><button className="btn" onClick={() => setNuevo(false)}>Cancelar</button><button className="btn primary" onClick={async () => { const a = await col.crearAlbum({ nombre, paginas, columnas, filas }); if (a) { toast('Álbum creado', 'ok'); setNuevo(false); router.push(`/app/album/p/${a.id}`); } }}>Crear</button></>}>
+        <Sheet titulo="Nuevo álbum" onClose={() => setNuevo(false)} pie={<><button className="btn" onClick={() => setNuevo(false)}>Cancelar</button><button className="btn primary" onClick={async () => { const a = await col.crearAlbum({ nombre, paginas, columnas, filas }); if (a) { toast('Álbum creado', 'ok'); setNuevo(false); router.push(`/app/album/p/${a.id}`); } }}>Crear</button></>}>
+          <p className="small muted">Un álbum propio es una carpeta con páginas de bolsillos (por ejemplo 3 × 3). Asigna a cada bolsillo la carta que va ahí para saber qué tienes y qué falta, página por página. Los álbumes por colección se crean solos.</p>
           <Campo label="Nombre">{id => <input id={id} className="input" autoFocus value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Álbum 151, Carpeta azul…" />}</Campo>
           <div className="row wrap">
             <Campo label="Páginas">{id => <input id={id} className="input" type="number" min={1} max={300} value={paginas} onChange={e => setPaginas(Math.max(1, Math.min(300, parseInt(e.target.value, 10) || 1)))} />}</Campo>
@@ -122,7 +145,8 @@ export function Albumes() {
   );
 }
 
-/** Álbum automático de una colección (en un idioma): todas las cartas, las que faltan en gris. */
+/** Álbum de una colección (en un idioma) como hoja de carpeta: 3×3 por página en el celular, dos páginas lado a lado en PC. */
+const POR_PAGINA = 9;
 export function AlbumColeccion({ setId }: { setId: string }) {
   const cat = useCatalogo();
   const col = useColeccion();
@@ -131,9 +155,10 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   const ubicador = useUbicador();
   const params = useSearchParams();
   const router = useRouter();
+  const esPC = useEsPC();
   const idiomaAlb = params.get('idioma') || '';
-  const [f, setF] = useState<Filtro>({ sort: 'set', type: '', lang: '' });
   const [modo, setModo] = useState<'todas' | 'tengo' | 'faltan'>('todas');
+  const [pagina, setPagina] = useState(1);
   const [agregar, setAgregar] = useState<Carta | null>(null);
   const [consultarFaltan, setConsultarFaltan] = useState(false);
   const [idiomaNuevo, setIdiomaNuevo] = useState('ES');
@@ -174,6 +199,10 @@ export function AlbumColeccion({ setId }: { setId: string }) {
     return { valor: Math.round(valor * 100) / 100, faltaPen: Math.round(faltaPen * 100) / 100, faltaConPrecio };
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [propias, idsFaltan, cat, precios.version]);
+  const lista = useMemo(() => modo === 'tengo' ? cartas.filter(c => propias.has(c.id)) : modo === 'faltan' ? cartas.filter(c => !propias.has(c.id)) : cartas, [cartas, propias, modo]);
+  const totalPaginas = Math.max(1, Math.ceil(lista.length / POR_PAGINA));
+  useEffect(() => { setPagina(1); }, [modo]);
+  useEffect(() => { if (pagina > totalPaginas) setPagina(totalPaginas); }, [pagina, totalPaginas]);
 
   if (!set) return <div className="empty">Esa colección no existe. <Link href="/app/album">Volver</Link></div>;
   const sinIdioma = idiomaAlb === '—' ? [...propias.values()].flat() : [];
@@ -194,25 +223,73 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   }
   const total = cartas.filter(c => !c.sd).length;
   const pct = total ? Math.round((idsPropias.length / total) * 100) : 0;
-  const priceOf = (c: Carta) => precios.precioDefecto(c, propias.get(c.id)?.[0]?.acabado || '').pen;
-  let lista = cartas.filter(c => matchesType(c, f.type) || (!f.type));
-  if (modo === 'tengo') lista = lista.filter(c => propias.has(c.id));
-  if (modo === 'faltan') lista = lista.filter(c => !propias.has(c.id));
-  lista = f.sort === 'set' ? lista : ordenarCartas(cat, lista, f.sort, idioma, { priceOf });
+  const enVentaFaltan = idsFaltan.filter(id => enRed.has(id)).length;
+  // PC muestra dos páginas (impar + par); celular una. Las páginas se numeran igual en ambos.
+  const inicioPagina = (pagina - 1) * POR_PAGINA;
+  const paginasVista = (esPC ? [pagina, pagina + 1] : [pagina]).filter(n => n <= totalPaginas);
+  const celdas = (n: number) => lista.slice((n - 1) * POR_PAGINA, n * POR_PAGINA);
+  const irA = (n: number) => setPagina(Math.max(1, Math.min(totalPaginas, n)));
+  const pasoPC = 2;
+  const rangoCartas = `${inicioPagina + 1}–${Math.min(lista.length, inicioPagina + POR_PAGINA)}`;
+  const Celda = ({ c }: { c: Carta }) => {
+    const es = propias.get(c.id) || [];
+    const qty = es.reduce((n, e) => n + e.cantidad, 0);
+    const red = enRed.get(c.id);
+    const enVenta = es.some(e => col.publicacionDe(e.id)?.estado === 'activa');
+    const titulo = `${nombreCarta(c, idioma)} · ${c.l}${qty ? ` · tienes ${qty}` : red ? ` · en el mercado desde ${fmtPen(red.precio_min)}` : ' · te falta'}`;
+    if (qty) {
+      return (
+        <Link href={`/app/carta/${encodeURIComponent(c.id)}`} className="pocket filled album-cell" title={titulo} data-testid="casilla-tengo">
+          <Thumb carta={c} set={set} alt={nombreCarta(c, idioma)} />
+          <span className="pocket-n">{c.l}</span>
+          {qty > 1 ? <span className="casilla-cant">×{qty}</span> : null}
+          {enVenta ? <span className="album-venta" title="En venta en el mercado"><Icono n="ventas" tam={11} /></span> : null}
+          <span className="casilla-loc">{(() => { const d = ubicador.donde(es[0]); return d ? <LocChip loc={d} corto /> : null; })()}</span>
+        </Link>
+      );
+    }
+    return (
+      <Link href={`/app/carta/${encodeURIComponent(c.id)}#mercado`} className="pocket missing album-cell" title={titulo} data-testid="casilla-falta" onClick={e => { if (c.sd) { e.preventDefault(); setAgregar(c); } }}>
+        <span className="casilla-falta"><b>{c.l}</b>{red ? <span className="casilla-mercado album-red">En mercado · {fmtPen(red.precio_min)}</span> : <span className="casilla-sin">Sin stock</span>}</span>
+      </Link>
+    );
+  };
+
+  const tarjetaProgreso = (
+    <div className="panel progreso-album" data-testid="progreso-album">
+      <div className="row" style={{ alignItems: 'baseline', gap: 6 }}><span className="precio-grande">{idsPropias.length}</span><span className="muted" style={{ fontWeight: 700 }}>de {total} · {pct} %</span></div>
+      <div className="bar" style={{ margin: '8px 0 10px' }} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}><div style={{ width: pct + '%' }} /></div>
+      <div className="fila-dato"><span className="muted">Precio del álbum</span><b>{fmtPen(stats.valor)}</b></div>
+      <div className="fila-dato"><span className="muted">Para completarlo</span><b>{consultarFaltan ? <>{fmtPen(stats.faltaPen)}{stats.faltaConPrecio < idsFaltan.length ? <span className="small muted"> ({stats.faltaConPrecio} con precio de mercado)</span> : null}</> : idsFaltan.length ? <button className="link" onClick={() => setConsultarFaltan(true)}>Consultar el precio de las que faltan</button> : '—'}</b></div>
+    </div>
+  );
+  const botones = (
+    <div className="stack botones-album">
+      <Link href={`/app/buscar?q=${encodeURIComponent(set.id)}`} className="btn primary" data-testid="btn-agregar-carta"><Icono n="mas" /> Agregar carta</Link>
+      {idsFaltan.length ? <Link href={`/app/mercado?set=${encodeURIComponent(set.id)}&faltan=1`} className="btn" data-testid="faltan-mercado">Comprar faltantes en el mercado{enVentaFaltan ? ` (${enVentaFaltan} en venta)` : ''}</Link> : null}
+      {idsPropias.length ? (sinPublicar.length ? <button className="btn" disabled={asignando} onClick={() => setConfirmarVenta(true)} data-testid="btn-poner-en-venta">Poner en venta… ({sinPublicar.length})</button> : <span className="small muted" style={{ textAlign: 'center' }}>Todo lo que tienes de esta colección está en el mercado.</span>) : null}
+    </div>
+  );
+  const irAPagina = totalPaginas > 1 ? (
+    <div className="panel ir-a-pagina solo-pc-block" data-testid="ir-a-pagina">
+      <b>Ir a página</b>
+      <div className="paginas">
+        {(() => { const ini = Math.max(1, Math.min(pagina - 4, totalPaginas - 9)); const fin = Math.min(totalPaginas, ini + 9); const out = []; for (let n = ini; n <= fin; n++) out.push(<button key={n} className={paginasVista.includes(n) ? 'active' : ''} onClick={() => irA(n % 2 === 0 ? n - 1 : n)} aria-current={paginasVista.includes(n) ? 'page' : undefined}>{n}</button>); return out; })()}
+      </div>
+    </div>
+  ) : null;
 
   return (
-    <div>
-      <p className="small"><Link href="/app/album">← Álbumes</Link></p>
-      <div className="row" style={{ alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <SimboloSet setId={set.id} />
-        <h2 style={{ margin: 0 }}>{nombreColeccion(set, idioma, true)}{idiomaAlb && idiomaAlb !== '—' ? <span className="pill" style={{ marginLeft: 8 }}>{idiomaAlb}</span> : null}</h2>
+    <div className="album-detalle">
+      <p className="small migas solo-pc-block"><Link href="/app/album" className="miga"><Icono n="izquierda" tam={16} /> Mis álbumes</Link></p>
+      <div className="cabecera-seccion">
+        <h1 className="titulo-album" style={{ margin: 0 }}>{nombreColeccion(set, idioma, true)}{idiomaAlb && idiomaAlb !== '—' ? <span className={`pill ${idiomaAlb === 'JP' ? 'jp' : 'info'}`} style={{ marginLeft: 10, verticalAlign: 'middle' }}>{idiomaAlb}</span> : null}</h1>
+        <div className="seg filtro-album solo-pc" data-testid="filtro-album-pc">
+          <button className={modo === 'todas' ? 'active' : ''} onClick={() => setModo('todas')}>Todas</button>
+          <button className={modo === 'tengo' ? 'active' : ''} onClick={() => setModo('tengo')}>Tengo · {idsPropias.length}</button>
+          <button className={modo === 'faltan' ? 'active' : ''} onClick={() => setModo('faltan')}>Faltan · {idsFaltan.length}</button>
+        </div>
       </div>
-      <div className="stat" style={{ margin: '10px 0' }}>
-        <div className="box"><b>{idsPropias.length} / {total}</b><span>cartas · {pct} % completo</span></div>
-        <div className="box"><b>{fmtPen(stats.valor)}</b><span>precio de lo que tienes</span></div>
-        <div className="box"><b>{consultarFaltan ? fmtPen(stats.faltaPen) : '—'}</b><span>{consultarFaltan ? `para completar (${stats.faltaConPrecio} con precio de mercado)` : <button className="link" onClick={() => setConsultarFaltan(true)}>Consultar el precio de las que faltan</button>}</span></div>
-      </div>
-      <div className="bar" style={{ marginBottom: 10 }}><div style={{ width: pct + '%' }} /></div>
       {sinIdioma.length ? (
         <div className="notice info" style={{ marginBottom: 10 }}>
           Estas {sinIdioma.length} {sinIdioma.length === 1 ? 'carta no tiene' : 'cartas no tienen'} idioma registrado. Si todas son del mismo idioma, márcalo aquí y este álbum se unirá con el de ese idioma:
@@ -222,25 +299,39 @@ export function AlbumColeccion({ setId }: { setId: string }) {
           </div>
         </div>
       ) : null}
-      <div className="row" style={{ gap: 6, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-        {idsPropias.length ? (sinPublicar.length ? <button className="btn sm" disabled={asignando} onClick={() => setConfirmarVenta(true)}><Icono n="ventas" /> Poner en venta lo que tengo de esta colección ({sinPublicar.length})</button> : <span className="small muted"><Icono n="ventas" tam={14} /> Todo lo que tienes de esta colección está en el mercado.</span>) : null}
-        {idsFaltan.length ? <Link href={`/app/mercado?set=${encodeURIComponent(set.id)}&faltan=1`} className="btn sm ghost" data-testid="faltan-mercado"><Icono n="carrito" /> Buscar las que faltan en el mercado{(() => { const n = idsFaltan.filter(id => enRed.has(id)).length; return n ? ` (${n} en venta)` : ''; })()}</Link> : null}
-      </div>
-      <FilterBar f={f} onChange={setF} sorts={['set', 'name', 'type', 'value', 'dex']} extra={<div className="seg"><button className={modo === 'todas' ? 'active' : ''} onClick={() => setModo('todas')}>Todas</button><button className={modo === 'tengo' ? 'active' : ''} onClick={() => setModo('tengo')}>Tengo</button><button className={modo === 'faltan' ? 'active' : ''} onClick={() => setModo('faltan')}>Faltan</button></div>} />
-      <div className="album-cells">
-        {lista.map(c => {
-          const es = propias.get(c.id) || [];
-          const qty = es.reduce((n, e) => n + e.cantidad, 0);
-          const d = c.sd ? null : precios.precioDefecto(c, es[0]?.acabado || '');
-          return (
-            <div key={c.id} className={`album-cell ${qty ? '' : 'missing'}`} role="button" tabIndex={0} onClick={() => { if (qty) router.push(`/app/carta/${encodeURIComponent(c.id)}`); else setAgregar(c); }}>
-              <div className="album-img"><Thumb carta={c} set={set} className="album" />{qty ? <span className="album-qty">×{qty}</span> : null}{es.some(e => col.publicacionDe(e.id)?.estado === 'activa') ? <span className="album-venta" title="En venta en el mercado"><Icono n="ventas" tam={11} /></span> : null}</div>
-              <div className="album-num">{c.l}{c.sd ? ' · sin datos' : ''}</div>
-              <div className="album-name">{nombreCarta(c, idioma)}</div>
-              <div className="album-foot">{qty ? <span className="album-loc"><LocChip loc={ubicador.donde(es[0])} corto /></span> : enRed.get(c.id) ? <Link href={`/app/carta/${encodeURIComponent(c.id)}#mercado`} className="album-miss album-red" onClick={e => e.stopPropagation()} title="En venta en la red">En mercado · {fmtPen(enRed.get(c.id)!.precio_min)}</Link> : <span className="album-miss">falta</span>}{d ? <span className={`price ${d.origen === 'piso' ? 'piso' : ''}`}>{fmtPen(d.pen)}</span> : null}</div>
+      <div className="album-cuerpo">
+        <div className="album-principal">
+          <div className="solo-celular">{tarjetaProgreso}</div>
+          <div className="seg filtro-album solo-celular" data-testid="filtro-album" style={{ marginBottom: 10 }}>
+            <button className={modo === 'todas' ? 'active' : ''} onClick={() => setModo('todas')}>Todas</button>
+            <button className={modo === 'tengo' ? 'active' : ''} onClick={() => setModo('tengo')}>Tengo · {idsPropias.length}</button>
+            <button className={modo === 'faltan' ? 'active' : ''} onClick={() => setModo('faltan')}>Faltan · {idsFaltan.length}</button>
+          </div>
+          <div className="nav-pagina solo-celular">
+            <button className="btn icon" onClick={() => irA(pagina - 1)} disabled={pagina <= 1} aria-label="Página anterior" data-testid="pagina-anterior"><Icono n="izquierda" tam={22} /></button>
+            <div className="texto" data-testid="pagina-texto"><b>Página {pagina} de {totalPaginas}</b><span className="small muted"> · cartas {rangoCartas}</span></div>
+            <button className="btn icon" onClick={() => irA(pagina + 1)} disabled={pagina >= totalPaginas} aria-label="Página siguiente" data-testid="pagina-siguiente"><Icono n="derecha" tam={22} /></button>
+          </div>
+          {!lista.length ? <div className="empty">{modo === 'faltan' ? '¡No te falta ninguna!' : modo === 'tengo' ? 'Todavía no tienes cartas de esta colección.' : 'Esta colección no tiene cartas en el catálogo.'}</div> : (
+            <div className={`hoja-carpeta ${paginasVista.length > 1 ? 'doble' : ''}`} data-testid="hoja-carpeta">
+              {paginasVista.map(n => <div key={n} className="pagina-carpeta" data-pagina={n}>{celdas(n).map(c => <Celda key={c.id} c={c} />)}</div>)}
             </div>
-          );
-        })}
+          )}
+          {totalPaginas > 1 && totalPaginas <= 12 ? <div className="puntos-pagina solo-celular" aria-hidden="true">{Array.from({ length: totalPaginas }, (_, k) => <span key={k} className={k + 1 === pagina ? 'on' : ''} />)}</div> : null}
+          {totalPaginas > 1 ? (
+            <div className="nav-pagina solo-pc-flex" style={{ marginTop: 14 }}>
+              <button className="btn icon" onClick={() => irA(pagina - pasoPC)} disabled={pagina <= 1} aria-label="Páginas anteriores"><Icono n="izquierda" tam={22} /></button>
+              <div className="texto"><b>{paginasVista.length > 1 ? `Páginas ${paginasVista[0]} – ${paginasVista[1]}` : `Página ${pagina}`} de {totalPaginas}</b></div>
+              <button className="btn icon" onClick={() => irA(pagina + pasoPC)} disabled={pagina + pasoPC > totalPaginas} aria-label="Páginas siguientes"><Icono n="derecha" tam={22} /></button>
+            </div>
+          ) : null}
+          <div className="solo-celular" style={{ marginTop: 14 }}>{botones}</div>
+        </div>
+        <aside className="album-lateral solo-pc-block">
+          {tarjetaProgreso}
+          {botones}
+          {irAPagina}
+        </aside>
       </div>
       {agregar ? <AddEntrySheet carta={agregar} idiomaInicial={idiomaAlb !== '—' ? idiomaAlb : ''} onClose={() => setAgregar(null)} /> : null}
       {confirmarVenta ? <Confirmar titulo="Poner en venta" texto={`Se publicarán en el mercado ${sinPublicar.length} ${sinPublicar.length === 1 ? 'carta' : 'cartas'} de ${nombreColeccion(set, idioma, true)} con el precio por defecto (el mayor entre el piso y el precio de mercado). Podrás cambiar precios, pausar o retirar cuando quieras; las de más de S/ 50 quedan pausadas hasta que les agregues una foto.`} okLabel="Publicar" onOk={() => { setConfirmarVenta(false); ponerEnVenta(); }} onClose={() => setConfirmarVenta(false)} /> : null}

@@ -25,15 +25,15 @@ function esc(s: string): string {
 }
 
 function plantilla(titulo: string, parrafos: string[], boton: { texto: string; url: string }, pie: string): string {
-  return `<!doctype html><html lang="es"><body style="margin:0;background:#f3f5fa;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#16203a">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5fa;padding:24px 12px"><tr><td align="center">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#fff;border-radius:14px;box-shadow:0 6px 24px rgba(20,30,70,.10)">
-      <tr><td style="padding:28px 28px 8px;font-size:22px;font-weight:800">${esc(APP_NAME)}</td></tr>
-      <tr><td style="padding:0 28px;font-size:18px;font-weight:700">${esc(titulo)}</td></tr>
-      ${parrafos.map(p => `<tr><td style="padding:10px 28px 0;font-size:15px;line-height:1.5;color:#3a4460">${p}</td></tr>`).join('')}
-      <tr><td style="padding:22px 28px"><a href="${esc(boton.url)}" style="display:inline-block;background:#2b4fc9;color:#fff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:9px">${esc(boton.texto)}</a></td></tr>
-      <tr><td style="padding:0 28px 8px;font-size:12px;color:#8b95b1;word-break:break-all">Si el botón no funciona, copia este enlace en tu navegador:<br>${esc(boton.url)}</td></tr>
-      <tr><td style="padding:16px 28px 28px;font-size:12px;color:#8b95b1;border-top:1px solid #e9edf5">${esc(pie)}</td></tr>
+  return `<!doctype html><html lang="es"><body style="margin:0;background:#FFF6E5;font-family:Nunito,'Segoe UI',Roboto,Arial,sans-serif;color:#1C2340">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#FFF6E5;padding:24px 12px"><tr><td align="center">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#FFFFFF;border-radius:16px;box-shadow:0 1px 4px rgba(28,35,64,.10)">
+      <tr><td style="padding:28px 28px 8px;font-size:22px;font-weight:700;font-family:Fredoka,Nunito,'Segoe UI',Arial,sans-serif;color:#1C2340">${esc(APP_NAME)}</td></tr>
+      <tr><td style="padding:0 28px;font-size:18px;font-weight:700;font-family:Fredoka,Nunito,'Segoe UI',Arial,sans-serif">${esc(titulo)}</td></tr>
+      ${parrafos.map(p => `<tr><td style="padding:10px 28px 0;font-size:15px;line-height:1.5;color:#1C2340">${p}</td></tr>`).join('')}
+      <tr><td style="padding:22px 28px"><a href="${esc(boton.url)}" style="display:inline-block;background:#1F5FCC;color:#FFFFFF;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:14px">${esc(boton.texto)}</a></td></tr>
+      <tr><td style="padding:0 28px 8px;font-size:12px;color:#565E7A;word-break:break-all">Si el botón no funciona, copia este enlace en tu navegador:<br>${esc(boton.url)}</td></tr>
+      <tr><td style="padding:16px 28px 28px;font-size:12px;color:#565E7A;border-top:1px solid #F0E6D0">${esc(pie)}</td></tr>
     </table>
   </td></tr></table></body></html>`;
 }

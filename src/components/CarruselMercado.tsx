@@ -14,7 +14,7 @@ import { Icono, type NombreIcono } from './Icono';
  * se pausa al tocar o pasar el mouse y respeta "reducir movimiento" del sistema (entonces no se mueve solo).
  * Las tarjetas se duplican para que el final enlace con el principio sin saltos.
  */
-export function CarruselMercado({ titulo, icono, items, testid, vacio }: { titulo: string; icono: NombreIcono; items: Destacada[]; testid: string; vacio: string }) {
+export function CarruselMercado({ titulo, icono, items, testid, vacio, nota }: { titulo: string; icono: NombreIcono; items: Destacada[]; testid: string; vacio: string; nota?: string }) {
   const cat = useCatalogo();
   const { perfil } = usePerfil();
   const router = useRouter();
@@ -54,7 +54,7 @@ export function CarruselMercado({ titulo, icono, items, testid, vacio }: { titul
   const lista = enLoop ? [...tarjetas, ...tarjetas] : tarjetas;
   return (
     <section className="carrusel" data-testid={testid} data-loop={enLoop ? '1' : '0'} data-pausado={pausado ? '1' : '0'}>
-      <h3><Icono n={icono} /> {titulo}</h3>
+      <div className="carrusel-cabecera"><h3><Icono n={icono} /> {titulo}</h3>{nota ? <span className="small muted nota">{nota}</span> : null}</div>
       {!tarjetas.length ? <p className="small muted">{vacio}</p> : (
         <div className="pista" ref={pista} onPointerEnter={() => setPausado(true)} onPointerLeave={() => setPausado(false)} onTouchStart={() => setPausado(true)} onTouchEnd={() => setTimeout(() => setPausado(false), 1500)} onFocus={() => setPausado(true)} onBlur={() => setPausado(false)}>
           {lista.map(({ d, c }, i) => { const set = cat.setOf(c); return (

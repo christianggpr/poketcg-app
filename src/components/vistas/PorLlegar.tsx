@@ -5,12 +5,14 @@ import Link from 'next/link';
 import { nombreCarta, nombreColeccion, numLabel, type Carta } from '@/lib/catalogo';
 import { cajasOrdenadas, type Entrada } from '@/lib/coleccion';
 import { fechaDia, ordenesDe, type Orden, type OrdenItem, type Tienda } from '@/lib/compras';
-import { albumesPorColeccion, sugerirDestino, type Sugerencia } from '@/lib/sugerir';
+import { albumesPorColeccion, sugerirBulk, sugerirDestino } from '@/lib/sugerir';
 import { useCatalogo } from '../CatalogoProvider';
 import { useColeccion } from '../ColeccionProvider';
 import { useMercado } from '../MercadoProvider';
 import { usePerfil } from '../PerfilProvider';
 import { useUbicador } from '../useUbicador';
+import { usePrecios } from '../PreciosProvider';
+import { fmtPen } from '@/lib/precios-core';
 import { Sheet } from '../Sheet';
 import { Thumb } from '../Thumb';
 import { Colocacion } from '../Ubicacion';
@@ -28,8 +30,9 @@ function estadoCompra(o: Orden, tienda?: Tienda): { texto: string; clase: string
   }
 }
 
-/** Compras pagadas que aún no recibí (Mejoras 1 · C2), con el estado y la fecha estimada de cada carta. */
-export function PorLlegar() {
+/** Compras pagadas que aún no recibí (Mejoras 1 · C2), con el estado y la fecha estimada de cada carta.
+ *  `compacto`: versión del menú lateral de PC (título «Por llegar · N» y filas cortas). */
+export function PorLlegar({ compacto }: { compacto?: boolean }) {
   const cat = useCatalogo();
   const { perfil } = usePerfil();
   const mercado = useMercado();
@@ -37,84 +40,145 @@ export function PorLlegar() {
   useEffect(() => { ordenesDe('comprador_id', perfil.id).then(setDatos).catch(() => setDatos({ ordenes: [], items: [], tiendas: new Map() })); }, [perfil.id, mercado.version]);
   const pendientes = (datos?.ordenes || []).filter(o => PENDIENTES.has(o.estado));
   if (!datos || !pendientes.length) return null;
-  return (
-    <div className="panel" style={{ marginBottom: 12 }} data-testid="por-llegar">
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <h3 style={{ margin: 0 }}><Icono n="bulk" /> Por llegar <span className="muted">({pendientes.reduce((n, o) => n + datos.items.filter(i => i.orden_id === o.id).reduce((m, i) => m + i.cantidad, 0), 0)})</span></h3>
-        <Link href="/app/compras" className="btn sm ghost">Ver compras</Link>
+  const unidades = pendientes.reduce((n, o) => n + datos.items.filter(i => i.orden_id === o.id).reduce((m, i) => m + i.cantidad, 0), 0);
+  const filas = pendientes.flatMap(o => { const est = estadoCompra(o, datos.tiendas.get(o.tienda_id || '')); return datos.items.filter(i => i.orden_id === o.id).map(i => ({ o, i, est, c: cat.carta(i.carta_id) })); });
+  if (compacto) {
+    return (
+      <div className="panel lateral-por-llegar" data-testid="por-llegar-lateral">
+        <div className="row" style={{ justifyContent: 'space-between' }}><h3 style={{ margin: 0 }}>Por llegar <span className="count">{unidades}</span></h3><Link href="/app/compras" className="small">Ver compras</Link></div>
+        <div className="stack" style={{ gap: 8, marginTop: 8 }}>
+          {filas.slice(0, 4).map(({ o, i, est, c }) => (
+            <Link key={i.id} href={`/app/compras/${o.pago_id}`} className="fila-llegar" data-testid="carta-por-llegar-lateral">
+              <Thumb carta={c} set={c ? cat.setOf(c) : undefined} />
+              <div className="grow" style={{ minWidth: 0 }}><b className="nombre">{i.cantidad > 1 ? `${i.cantidad}× ` : ''}{c ? nombreCarta(c, perfil.idioma_nombres) : i.carta_id}</b><span className={`estado ${est.clase === 'ok' ? 'ok' : est.clase === 'danger' ? 'peligro' : est.clase === 'primary' ? 'info' : 'aviso'}`}>{est.texto}</span></div>
+            </Link>
+          ))}
+          {filas.length > 4 ? <Link href="/app/compras" className="small">y {filas.length - 4} más…</Link> : null}
+        </div>
       </div>
-      <p className="small muted">Cartas que compraste y todavía no recibes. Cuando recojas la orden y la marques como entregada, aparecerán abajo para guardarlas.</p>
+    );
+  }
+  return (
+    <section className="bloque por-llegar" data-testid="por-llegar">
+      <h3><span className="ico-texto"><Icono n="bulk" /> Por llegar <span className="count">{unidades}</span></span><Link href="/app/compras" className="small">Ver compras</Link></h3>
       <div className="card-list">
-        {pendientes.map(o => { const est = estadoCompra(o, datos.tiendas.get(o.tienda_id || '')); return datos.items.filter(i => i.orden_id === o.id).map(i => { const c = cat.carta(i.carta_id); const set = c ? cat.setOf(c) : undefined; return (
+        {filas.map(({ o, i, est, c }) => { const set = c ? cat.setOf(c) : undefined; return (
           <Link key={i.id} href={`/app/compras/${o.pago_id}`} className="card-row" style={{ textDecoration: 'none', color: 'inherit' }} data-testid="carta-por-llegar">
             <Thumb carta={c} set={set} />
             <div className="card-main">
-              <div className="card-name">{i.cantidad > 1 ? `${i.cantidad}× ` : ''}{c ? nombreCarta(c, perfil.idioma_nombres) : i.carta_id}{i.idioma ? <span className="pill">{i.idioma}</span> : null}{i.condicion ? <span className="pill">{i.condicion}</span> : null}</div>
-              <div className="card-set">{c ? <>{nombreColeccion(set, perfil.idioma_nombres)} <span className="num">{numLabel(c, set)}</span> · </> : null}orden #{o.numero}</div>
-              <div className="small" style={{ marginTop: 3 }}><span className={`pill ${est.clase}`}>{est.texto}</span> <span className="muted">{est.fecha}</span></div>
+              <div className="card-name">{i.cantidad > 1 ? `${i.cantidad}× ` : ''}{c ? nombreCarta(c, perfil.idioma_nombres) : i.carta_id}</div>
+              <div className="card-set">{c ? <>{nombreColeccion(set, perfil.idioma_nombres)} · <span className="num">{numLabel(c, set)}</span></> : null}{i.idioma ? <> · {i.idioma}</> : null}{i.condicion ? <> · {i.condicion}</> : null} · orden #{o.numero}</div>
+              <div style={{ marginTop: 5 }}><span className={`estado ${est.clase === 'ok' ? 'ok' : est.clase === 'danger' ? 'peligro' : est.clase === 'primary' ? 'info' : 'aviso'}`}>{est.texto}{est.fecha ? ` · ${est.fecha}` : ''}</span></div>
             </div>
+            <Icono n="derecha" tam={18} className="faint" />
           </Link>
-        ); }); })}
+        ); })}
       </div>
-    </div>
+    </section>
   );
 }
 
-/** Cartas compradas ya entregadas que aún no tienen lugar: sugerencia de destino y guardado con un toque (C2/C3). */
+/** Cartas compradas ya entregadas que aún no tienen lugar: sugerencia de destino y guardado con un toque (C2/C3).
+ *  Cada carta abre la hoja «¿Dónde la guardas?» (celular) / ventana (PC) con el destino sugerido, elegir otro álbum o Bulk. */
 export function Recibidas() {
   const cat = useCatalogo();
   const col = useColeccion();
   const { perfil } = usePerfil();
-  const ubicador = useUbicador();
-  const toast = useToast();
-  const [elegir, setElegir] = useState<Entrada | null>(null);
-  const [guardada, setGuardada] = useState<string | null>(null);
-  const [ocupado, setOcupado] = useState<string | null>(null);
+  const [abierta, setAbierta] = useState<string | null>(null);
   const enBolsillo = useMemo(() => new Set(col.casillas.filter(c => c.entrada_id).map(c => c.entrada_id as string)), [col.casillas]);
   const recibidas = col.entradas.filter(e => e.compra_orden_id && !e.caja_id && !e.album_coleccion && !enBolsillo.has(e.id)).sort((a, b) => b.creado_en.localeCompare(a.creado_en));
   const ctx = { cat, entradas: col.entradas, cajas: col.cajas, albumes: col.albumes, casillas: col.casillas, idiomaNombres: perfil.idioma_nombres, ultimaCajaId: col.ultimaCajaId };
-  const entradaGuardada = guardada ? col.entradas.find(e => e.id === guardada) || null : null;
-
-  async function aplicar(e: Entrada, s: Sugerencia) {
-    if (!s) return;
-    setOcupado(e.id);
-    let ok = false;
-    if (s.tipo === 'coleccion') ok = await col.colocarEnColeccion(e.id, s.set);
-    else if (s.tipo === 'album') ok = await col.colocarEnAlbum(e.id, s.album.id, s.indice);
-    else ok = await col.editarEntrada(e.id, { caja_id: s.caja.id });
-    setOcupado(null);
-    if (!ok) { toast(col.error || 'No se pudo guardar', 'danger', 4000); return; }
-    setGuardada(e.id);
-  }
-  if (!recibidas.length) return null;
+  const entradaAbierta = abierta ? col.entradas.find(e => e.id === abierta) || null : null;
+  if (!recibidas.length && !entradaAbierta) return null;
   return (
-    <div className="panel" style={{ marginBottom: 12 }} data-testid="recibidas">
-      <h3 style={{ margin: 0 }}><Icono n="entrada" /> Recibidas: ¿dónde las guardas? <span className="muted">({recibidas.reduce((n, e) => n + e.cantidad, 0)})</span></h3>
-      <p className="small muted">Ya son tuyas. La app sugiere un lugar mirando cómo coleccionas; tú decides.</p>
+    <section className="bloque recibidas" data-testid="recibidas">
+      <h3><span className="ico-texto"><Icono n="entrada" /> Recibidas: ¿dónde las guardas? <span className="count">({recibidas.reduce((n, e) => n + e.cantidad, 0)})</span></span></h3>
+      <p className="small muted" style={{ marginTop: -4 }}>Ya son tuyas. La app sugiere un lugar mirando cómo coleccionas; tú decides.</p>
       <div className="card-list">
         {recibidas.map(e => { const c = cat.carta(e.carta_id); const set = c ? cat.setOf(c) : undefined; const s = c ? sugerirDestino(ctx, c, e.idioma, e.id) : null; return (
-          <div key={e.id} className="card-row" style={{ cursor: 'default', flexWrap: 'wrap' }} data-testid="carta-recibida">
+          <div key={e.id} className="card-row" role="button" tabIndex={0} onClick={() => setAbierta(e.id)} onKeyDown={ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setAbierta(e.id); } }} data-testid="carta-recibida">
             <Thumb carta={c} set={set} />
             <div className="card-main">
-              <div className="card-name">{e.cantidad > 1 ? `${e.cantidad}× ` : ''}{c ? nombreCarta(c, perfil.idioma_nombres) : e.personalizada?.nombre}{e.idioma ? <span className="pill">{e.idioma}</span> : null}{e.acabado ? <span className="pill">{e.acabado}</span> : null}{e.condicion ? <span className="pill">{e.condicion}</span> : null}</div>
-              <div className="card-set">{c ? <>{nombreColeccion(set, perfil.idioma_nombres)} <span className="num">{numLabel(c, set)}</span></> : null}{e.nota ? <span className="muted"> · {e.nota}</span> : null}</div>
-              {s ? <div className="sugerencia small" data-testid="sugerencia"><span className="rotulo-sug">Sugerido</span><b style={{ display: 'block' }}>{s.etiqueta}</b>{s.tipo === 'bulk' ? ` · posición #${s.posicion}` : s.tipo === 'album' ? ` · bolsillo ${s.indice + 1}` : c ? ` · casilla ${c.l}` : ''}<div className="muted">{s.motivo}</div>{'aviso' in s && s.aviso ? <div className="warn"><Icono n="alerta" tam={14} /> {s.aviso}</div> : null}</div> : <div className="small muted">Crea un Bulk o un álbum para guardarla.</div>}
-              <div className="row wrap" style={{ gap: 6, marginTop: 8 }}>
-                {s ? <button className="btn sm primary" disabled={ocupado === e.id} onClick={() => aplicar(e, s)} data-testid="btn-guardar-sugerido">{ocupado === e.id ? '…' : `Guardar en ${s.etiqueta}`}</button> : null}
-                <button className="btn sm" onClick={() => setElegir(e)} data-testid="btn-elegir-album">Elegir otro álbum</button>
-                {s?.tipo !== 'bulk' ? <button className="btn sm ghost" onClick={() => setElegir(e)} data-testid="btn-guardar-bulk">Guardar en Bulk</button> : null}
-              </div>
+              <div className="card-name">{e.cantidad > 1 ? `${e.cantidad}× ` : ''}{c ? nombreCarta(c, perfil.idioma_nombres) : e.personalizada?.nombre}</div>
+              <div className="card-set">{c ? <>{nombreColeccion(set, perfil.idioma_nombres)} · <span className="num">{numLabel(c, set)}</span></> : null}{e.idioma ? <> · {e.idioma}</> : null}{e.condicion ? <> · {e.condicion}</> : null}</div>
+              {s ? <div className="small sugerencia-corta" data-testid="sugerencia"><span className="rotulo-sug">Sugerido</span> <b>{s.etiqueta}{s.tipo === 'bulk' ? ` · posición #${s.posicion}` : s.tipo === 'album' ? ` · bolsillo ${s.indice + 1}` : c ? ` · casilla ${c.l}` : ''}</b><span className="muted"> · {s.motivo}</span>{'aviso' in s && s.aviso ? <span className="warn"> {s.aviso}</span> : null}</div> : <div className="small muted">Crea un Bulk o un álbum para guardarla.</div>}
             </div>
+            <button className="btn sm primary" onClick={ev => { ev.stopPropagation(); setAbierta(e.id); }} data-testid="btn-recibida-guardar">Guardar</button>
           </div>
         ); })}
       </div>
-      {elegir ? <ElegirDestino entrada={elegir} onClose={() => setElegir(null)} onGuardada={id => { setElegir(null); setGuardada(id); }} /> : null}
-      {entradaGuardada ? (
-        <Sheet titulo="¡Guardada!" onClose={() => setGuardada(null)} pie={<button className="btn primary" onClick={() => setGuardada(null)} data-testid="btn-guardada-listo">Listo</button>}>
-          <div data-testid="colocacion"><Colocacion entrada={entradaGuardada} loc={ubicador.donde(entradaGuardada)} /></div>
-        </Sheet>
-      ) : null}
-    </div>
+      {entradaAbierta ? <HojaRecibida entrada={entradaAbierta} onClose={() => setAbierta(null)} /> : null}
+    </section>
+  );
+}
+
+/** Hoja «¿Dónde la guardas?» de una carta recibida: destino sugerido, elegir otro álbum, Bulk con posición, o decidir después. */
+function HojaRecibida({ entrada, onClose }: { entrada: Entrada; onClose: () => void }) {
+  const cat = useCatalogo();
+  const col = useColeccion();
+  const { perfil } = usePerfil();
+  const ubicador = useUbicador();
+  const precios = usePrecios();
+  const toast = useToast();
+  const [elegir, setElegir] = useState(false);
+  const [guardada, setGuardada] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
+  const c = cat.carta(entrada.carta_id);
+  const set = c ? cat.setOf(c) : undefined;
+  const ctx = { cat, entradas: col.entradas, cajas: col.cajas, albumes: col.albumes, casillas: col.casillas, idiomaNombres: perfil.idioma_nombres, ultimaCajaId: col.ultimaCajaId };
+  const s = c ? sugerirDestino(ctx, c, entrada.idioma, entrada.id) : null;
+  const bulk = c && s?.tipo !== 'bulk' ? sugerirBulk(ctx, c, entrada.idioma, entrada.id) : null;
+  const precio = c && !c.sd ? precios.precioDefecto(c, entrada.acabado).pen : null;
+  const idiomaTxt: Record<string, string> = { ES: 'Español', EN: 'Inglés', JP: 'Japonés', PT: 'Portugués', FR: 'Francés', DE: 'Alemán', IT: 'Italiano' };
+  const casillaTxt = (sug: NonNullable<typeof s>) => {
+    if (sug.tipo === 'coleccion') { const n = c ? parseInt(c.l, 10) : NaN; return `${isFinite(n) ? `Página ${Math.ceil(n / 9)} · ` : ''}casilla ${c?.l} (está vacía)`; }
+    if (sug.tipo === 'album') return `Página ${Math.floor(sug.indice / (sug.album.columnas * sug.album.filas)) + 1} · bolsillo ${(sug.indice % (sug.album.columnas * sug.album.filas)) + 1}`;
+    return `Posición #${sug.posicion} de ${sug.total}`;
+  };
+  async function aplicar(sug: NonNullable<typeof s> | NonNullable<typeof bulk>) {
+    setOcupado(true);
+    let ok = false;
+    if (sug.tipo === 'coleccion') ok = await col.colocarEnColeccion(entrada.id, sug.set);
+    else if (sug.tipo === 'album') ok = await col.colocarEnAlbum(entrada.id, sug.album.id, sug.indice);
+    else ok = await col.editarEntrada(entrada.id, { caja_id: sug.caja.id });
+    setOcupado(false);
+    if (!ok) { toast(col.error || 'No se pudo guardar', 'danger', 4000); return; }
+    setGuardada(true);
+  }
+  if (elegir) return <ElegirDestino entrada={entrada} onClose={() => setElegir(false)} onGuardada={() => { setElegir(false); setGuardada(true); }} />;
+  if (guardada) {
+    return (
+      <Sheet titulo="¡Guardada!" onClose={onClose} pie={<button className="btn primary" onClick={onClose} data-testid="btn-guardada-listo">Listo</button>}>
+        <div data-testid="colocacion"><Colocacion entrada={entrada} loc={ubicador.donde(entrada)} /></div>
+      </Sheet>
+    );
+  }
+  return (
+    <Sheet sobre={<span className="ok-texto"><Icono n="ok" tam={14} /> Entregada · ya es tuya</span>} titulo="¿Dónde la guardas?" onClose={onClose} className="hoja-recibida">
+      <div className="panel fila-carta-recibida">
+        <Thumb carta={c} set={set} className="lg" />
+        <div className="grow">
+          <b className="nombre">{entrada.cantidad > 1 ? `${entrada.cantidad}× ` : ''}{c ? nombreCarta(c, perfil.idioma_nombres) : entrada.personalizada?.nombre}</b>
+          <div className="small muted">{c ? <>{nombreColeccion(set, perfil.idioma_nombres)} · #{c.l}</> : null}</div>
+          <div className="small muted">{[entrada.idioma ? idiomaTxt[entrada.idioma] || entrada.idioma : '', entrada.condicion, precio != null ? fmtPen(precio) : ''].filter(Boolean).join(' · ')}</div>
+        </div>
+      </div>
+      {s ? (
+        <div className="sugerencia caja-sugerida" data-testid="sugerencia-hoja">
+          <span className="rotulo-sug">Sugerido</span>
+          <b className="titulo-sug">{s.etiqueta}</b>
+          <div className="detalle-sug">{casillaTxt(s)}</div>
+          <div className="small muted motivo-sug"><Icono n="info" tam={14} /> {s.motivo}</div>
+          {'aviso' in s && s.aviso ? <div className="warn small"><Icono n="alerta" tam={14} /> {s.aviso}</div> : null}
+        </div>
+      ) : <p className="small muted">Crea un Bulk o un álbum para guardarla.</p>}
+      <div className="stack botones-recibida">
+        {s ? <button className="btn primary grande" disabled={ocupado} onClick={() => aplicar(s)} data-testid="btn-guardar-sugerido">{ocupado ? 'Guardando…' : s.tipo === 'bulk' ? `Guardar en ${s.caja.nombre} · posición #${s.posicion}` : 'Guardar en este álbum'}</button> : null}
+        <button className="btn" disabled={ocupado} onClick={() => setElegir(true)} data-testid="btn-elegir-album">Elegir otro álbum</button>
+        {bulk ? <button className="btn" disabled={ocupado} onClick={() => aplicar(bulk)} data-testid="btn-guardar-bulk">Guardar en {bulk.caja.nombre} · posición #{bulk.posicion}</button> : null}
+        <button className="link centrado" onClick={onClose} data-testid="btn-decidir-despues">Decidir después</button>
+      </div>
+    </Sheet>
   );
 }
 

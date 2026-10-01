@@ -104,10 +104,8 @@ export function posicionVirtual(cat: Catalogo, caja: Caja, entradas: Entrada[], 
 
 /** Sugiere dónde guardar `carta` (con el idioma dado) según los álbumes, bolsillos y Bulks del usuario. */
 export function sugerirDestino(ctx: ContextoSugerencia, carta: Carta, idioma: string, excluirEntradaId?: string | null): Sugerencia {
-  const { cat, cajas, albumes, casillas } = ctx;
-  // solo cuentan las cartas que ya tienen lugar (Bulk, álbum o bolsillo): las recién recibidas no dicen cómo coleccionas
-  const enBolsillo = new Set(casillas.filter(c => c.entrada_id).map(c => c.entrada_id as string));
-  const entradas = ctx.entradas.filter(e => e.id !== excluirEntradaId && (e.caja_id || e.album_coleccion || enBolsillo.has(e.id)));
+  const { cat, albumes, casillas } = ctx;
+  const entradas = entradasConLugar(ctx, excluirEntradaId);
   const set = cat.setOf(carta);
   const nombreSet = nombreColeccion(set, ctx.idiomaNombres, true);
   const idiomaCarta = idioma || (set?.rg === 'ja' ? 'JP' : 'EN');
@@ -148,7 +146,23 @@ export function sugerirDestino(ctx: ContextoSugerencia, carta: Carta, idioma: st
     return { tipo: 'coleccion', set: carta.s, idioma: otro.idioma, etiqueta: `Álbum ${nombreSet} ${otro.idioma}`, aviso: `Ese álbum está en ${idiomaTxt[otro.idioma] || otro.idioma} y esta carta es en ${idiomaTxt[idiomaCarta] || idiomaCarta}.`, motivo: `Porque coleccionas ${nombreSet} en ${idiomaTxt[otro.idioma] || otro.idioma} (${otro.cartas} ${otro.cartas === 1 ? 'carta' : 'cartas'}), aunque el idioma no coincide.` };
   }
 
-  // 4. Bulk: el que ya guarda cartas de esa colección; si no, el último usado o el primero
+  // 4. Bulk
+  return sugerirBulk(ctx, carta, idioma, excluirEntradaId);
+}
+
+/** Solo cuentan las cartas que ya tienen lugar (Bulk, álbum o bolsillo): las recién recibidas no dicen cómo coleccionas. */
+function entradasConLugar(ctx: ContextoSugerencia, excluirEntradaId?: string | null): Entrada[] {
+  const enBolsillo = new Set(ctx.casillas.filter(c => c.entrada_id).map(c => c.entrada_id as string));
+  return ctx.entradas.filter(e => e.id !== excluirEntradaId && (e.caja_id || e.album_coleccion || enBolsillo.has(e.id)));
+}
+
+/** Opción de Bulk para `carta`: el que ya guarda cartas de esa colección; si no, el último usado o el primero (con la posición que le tocaría). */
+export function sugerirBulk(ctx: ContextoSugerencia, carta: Carta, idioma: string, excluirEntradaId?: string | null): Extract<Sugerencia, { tipo: 'bulk' }> | null {
+  const { cat, cajas } = ctx;
+  const entradas = entradasConLugar(ctx, excluirEntradaId);
+  const set = cat.setOf(carta);
+  const nombreSet = nombreColeccion(set, ctx.idiomaNombres, true);
+  const idiomaCarta = idioma || (set?.rg === 'ja' ? 'JP' : 'EN');
   const ordenadas = cajasOrdenadas(cajas);
   if (!ordenadas.length) return null;
   const porCaja = new Map<string, number>();

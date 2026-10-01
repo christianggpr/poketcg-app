@@ -1,5 +1,4 @@
 'use client';
-import { Icono } from '../Icono';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -18,7 +17,6 @@ export function MercadoInicio() {
   const col = useColeccion();
   const mercado = useMercado();
   const router = useRouter();
-  const [q, setQ] = useState('');
   const [recientes, setRecientes] = useState<ResumenCarta[] | null>(null);
   const [destacados, setDestacados] = useState<Destacados | null>(null);
   const [saldo, setSaldo] = useState(0);
@@ -28,26 +26,18 @@ export function MercadoInicio() {
   const idsMias = new Set(col.entradas.map(e => e.carta_id).filter((x): x is string => !!x));
   return (
     <div data-testid="mercado-inicio">
-      <h2 style={{ margin: 0 }}>Mercado</h2>
-      <p className="small muted">Cartas que otros coleccionistas tienen en venta. Pagas por Yape/Plin o con tu saldo y recoges en una tienda aliada con tu código de retiro; sin cargos al comprador.</p>
-      {destacados ? <CarruselMercado titulo="Más vendidas" icono="fuego" items={destacados.mas_vendidas} testid="carrusel-vendidas" vacio="Todavía no hay cartas en venta." /> : <p className="small muted"><span className="spinner" /> Cargando destacados…</p>}
-      {destacados ? <CarruselMercado titulo="Cartas de mayor precio" icono="gema" items={destacados.mayor_precio} testid="carrusel-precio" vacio="Todavía no hay cartas en venta." /> : null}
-      <form className="search-wrap" style={{ marginTop: 8 }} onSubmit={e => { e.preventDefault(); router.push(`/app/mercado/buscar${q.trim() ? '?q=' + encodeURIComponent(q.trim()) : ''}`); }}>
-        <input className="input" placeholder="Buscar en el mercado: nombre, número o colección…" value={q} onChange={e => setQ(e.target.value)} data-testid="mercado-inicio-buscar" />
-      </form>
-      <div className="row wrap" style={{ gap: 6, marginTop: 8 }}>
-        <Link href="/app/mercado/buscar" className="btn sm"><Icono n="buscar" /> Ver todo lo que hay en venta</Link>
-        <Link href="/app/mazos" className="btn sm ghost"><Icono n="mazos" /> Mazos meta</Link>
-        <Link href="/app/carrito" className="btn sm ghost" data-testid="btn-carrito"><Icono n="carrito" /> Carrito{mercado.unidades ? ` (${mercado.unidades})` : ''}</Link>
-        <Link href="/app/compras" className="btn sm ghost"><Icono n="compras" /> Mis compras{saldo > 0 ? ` · saldo ${fmtPen(saldo)}` : ''}</Link>
+      {destacados ? <CarruselMercado titulo="Más vendidas" icono="fuego" nota="últimos 30 días" items={destacados.mas_vendidas} testid="carrusel-vendidas" vacio="Todavía no hay cartas en venta." /> : <p className="small muted"><span className="spinner" /> Cargando destacados…</p>}
+      {destacados ? <CarruselMercado titulo="Mayor precio" icono="gema" nota="disponibles ahora" items={destacados.mayor_precio} testid="carrusel-precio" vacio="Todavía no hay cartas en venta." /> : null}
+      <div className="bloque recien">
+        <h3><span>Recién publicadas</span><Link href="/app/mercado/buscar" className="small">Ver todo</Link></h3>
+        {recientes === null ? <p className="small muted"><span className="spinner" /> Consultando…</p> : null}
+        {recientes && !recientes.length ? <p className="small muted">Todavía no hay cartas en venta. ¿Tienes repetidas? Ponlas en venta desde tu Bulk.</p> : null}
+        <div className="card-list">
+          {(recientes || []).map(f => { const c = cat.carta(f.carta_id); if (!c) return null; return <FilaMercado key={f.carta_id} carta={c} resumen={f} tengo={idsMias.has(f.carta_id)} onClick={() => router.push(`/app/carta/${encodeURIComponent(c.id)}#mercado`)} />; })}
+        </div>
       </div>
       <ListaDeseos abiertaAlInicio />
-      <h3 style={{ marginTop: 16 }}>Recién publicadas</h3>
-      {recientes === null ? <p className="small muted"><span className="spinner" /> Consultando…</p> : null}
-      {recientes && !recientes.length ? <p className="small muted">Todavía no hay cartas en venta. ¿Tienes repetidas? Ponlas en venta desde tu Bulk.</p> : null}
-      <div className="card-list">
-        {(recientes || []).map(f => { const c = cat.carta(f.carta_id); if (!c) return null; return <FilaMercado key={f.carta_id} carta={c} resumen={f} tengo={idsMias.has(f.carta_id)} onClick={() => router.push(`/app/carta/${encodeURIComponent(c.id)}#mercado`)} />; })}
-      </div>
+      {saldo > 0 ? <p className="small muted" style={{ marginTop: 12 }}>Tienes <b>{fmtPen(saldo)}</b> de saldo para tu próxima compra. <Link href="/app/compras">Ver mis compras</Link></p> : null}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
-import { anularOrden, cancelarPago, ETIQUETA_ORDEN, ETIQUETA_PAGO, ETIQUETA_RESOLUCION, fechaDia, fechaHora, misPagos, MOTIVOS_RECLAMO, pagoDetalle, puedeAnular, reclamosDe, retirarSaldo, saldoComprador, subirComprobante, urlVoucher, usernamesDe, type Orden, type OrdenItem, type Pago, type Reclamo, type SaldoComprador, type Tienda } from '@/lib/compras';
+import { anularOrden, cancelarPago, ETIQUETA_ORDEN, ETIQUETA_PAGO, ETIQUETA_RESOLUCION, fechaDia, fechaHora, misPagos, MOTIVOS_RECLAMO, ordenesDe, pagoDetalle, puedeAnular, reclamosDe, retirarSaldo, saldoComprador, subirComprobante, urlVoucher, usernamesDe, type Orden, type OrdenItem, type Pago, type Reclamo, type SaldoComprador, type Tienda } from '@/lib/compras';
 import { ReclamoSheet } from '../ReclamoSheet';
 import { fmtPen } from '@/lib/precios-core';
 import { supabaseBrowser } from '@/lib/supabase/client';
@@ -18,34 +18,88 @@ import { usePrecios } from '../PreciosProvider';
 import { Confirmar, Sheet } from '../Sheet';
 import { Thumb } from '../Thumb';
 import { useToast } from '../Toast';
-import { Aviso } from '../ui';
+import { Aviso, LineaAvance } from '../ui';
 
 const COLOR_PAGO: Record<string, string> = { pendiente: 'warn', revision: 'primary', confirmado: 'ok', rechazado: 'danger', vencido: '', cancelado: '' };
 
-/** Mis compras: lista de pagos con su estado. */
+const EN_CURSO = new Set(['reservada', 'revision', 'pago_confirmado', 'en_tienda', 'disputa']);
+
+/** Paso de la línea de avance (Pago en revisión → Pagado → En tienda → Entregado) y mensaje de qué sigue, por orden. */
+function avanceCompra(o: Orden, pago: Pago | undefined, tienda: Tienda | undefined): { paso: number; peligro?: boolean; texto: string; tipo: 'aviso' | 'info' | 'ok' | 'peligro'; boton?: string; secundario?: string } {
+  const t = tienda?.nombre || 'la tienda';
+  switch (o.estado) {
+    case 'reservada': return pago?.estado === 'pendiente' ? { paso: 0, texto: 'Falta enviar el comprobante del Yape', tipo: 'aviso', boton: 'Pagar' } : { paso: 0, texto: 'Estamos revisando tu Yape', tipo: 'aviso' };
+    case 'revision': return { paso: 0, texto: 'Estamos revisando tu Yape', tipo: 'aviso' };
+    case 'pago_confirmado': return { paso: 1, texto: o.fecha_entrega ? `El vendedor la dejará en ${t} el ${fechaDia(o.fecha_entrega)}` : `El vendedor la dejará en ${t} hasta el ${fechaDia(o.fecha_limite)}`, tipo: 'aviso' };
+    case 'en_tienda': return { paso: 2, texto: `Lista para recoger en ${t} · Código de retiro: ${o.codigo_retiro}`, tipo: 'ok', boton: 'Ya la recogí', secundario: 'Tengo un problema' };
+    case 'disputa': return { paso: 2, peligro: true, texto: 'Reclamo en revisión · deja las cartas en la tienda', tipo: 'peligro' };
+    case 'entregada': case 'saldo_liberado': return { paso: 3, texto: `Entregada${o.entregada_en ? ` el ${fechaDia(o.entregada_en.slice(0, 10))}` : ''} · ya está en tu colección`, tipo: 'ok' };
+    case 'vencida': return { paso: 1, peligro: true, texto: 'Vencida: el vendedor no entregó · el dinero volvió a tu saldo', tipo: 'peligro' };
+    case 'cancelada': return { paso: 0, peligro: true, texto: 'Cancelada', tipo: 'peligro' };
+    case 'pago_rechazado': return { paso: 0, peligro: true, texto: 'Pago rechazado', tipo: 'peligro' };
+    default: return { paso: 0, texto: ETIQUETA_ORDEN[o.estado], tipo: 'aviso' };
+  }
+}
+
+/** Mis compras (layout v2): saldo, pestañas En curso / Terminadas, y cada compra con su línea de avance, mensaje y botones. */
 export function Compras() {
+  const cat = useCatalogo();
+  const { perfil } = usePerfil();
   const [pagos, setPagos] = useState<Pago[] | null>(null);
+  const [datos, setDatos] = useState<{ ordenes: Orden[]; items: OrdenItem[]; tiendas: Map<string, Tienda> } | null>(null);
+  const [nombres, setNombres] = useState<Map<string, string>>(new Map());
+  const [pestana, setPestana] = useState<'curso' | 'terminadas'>('curso');
   const [error, setError] = useState('');
-  useEffect(() => { misPagos().then(setPagos).catch(e => setError((e as Error).message)); }, []);
+  useEffect(() => {
+    misPagos().then(setPagos).catch(e => setError((e as Error).message));
+    ordenesDe('comprador_id', perfil.id).then(async d => { setDatos(d); setNombres(await usernamesDe(d.ordenes.map(o => o.vendedor_id))); }).catch(e => setError((e as Error).message));
+  }, [perfil.id]);
+  const pagosPorId = new Map((pagos || []).map(p => [p.id, p]));
+  // pagos sin orden todavía (pendientes/vencidos sin órdenes) también se listan
+  const ordenes = (datos?.ordenes || []).slice().sort((a, b) => Date.parse(b.creada) - Date.parse(a.creada));
+  const enCurso = ordenes.filter(o => EN_CURSO.has(o.estado));
+  const terminadas = ordenes.filter(o => !EN_CURSO.has(o.estado));
+  const pagosSinOrden = (pagos || []).filter(p => !ordenes.some(o => o.pago_id === p.id));
+  const lista = pestana === 'curso' ? enCurso : terminadas;
+  const cargando = !pagos || !datos;
   return (
-    <div>
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <h2 style={{ margin: 0 }}>Mis compras</h2>
-        <Link href="/app/mercado" className="btn sm ghost"><Icono n="tienda" /> Mercado</Link>
-      </div>
-      <SaldoPanel />
+    <div className="compras-vista">
+      <div className="cabecera-seccion"><h1 style={{ margin: 0 }}>Mis compras</h1><SaldoPanel /></div>
       {error ? <Aviso tipo="danger">{error}</Aviso> : null}
-      {!pagos && !error ? <p className="muted small"><span className="spinner" /> Cargando…</p> : null}
-      {pagos && !pagos.length ? <div className="empty"><div className="big"><Icono n="compras" tam={44} grosor={1.5} /></div><p><b>Todavía no has comprado.</b></p><p className="muted">Arma tu carrito en el Mercado y pulsa «Comprar».</p></div> : null}
-      <div className="card-list" style={{ marginTop: 10 }}>
-        {(pagos || []).map(p => (
-          <Link key={p.id} href={`/app/compras/${p.id}`} className="card-row" style={{ textDecoration: 'none', color: 'inherit' }} data-testid="fila-compra">
+      <div className="seg" data-testid="pestanas-compras" style={{ margin: '6px 0 12px' }}>
+        <button className={pestana === 'curso' ? 'active' : ''} onClick={() => setPestana('curso')}>En curso{enCurso.length ? ` · ${enCurso.length}` : ''}</button>
+        <button className={pestana === 'terminadas' ? 'active' : ''} onClick={() => setPestana('terminadas')}>Terminadas{terminadas.length ? ` · ${terminadas.length}` : ''}</button>
+      </div>
+      {cargando && !error ? <p className="muted small"><span className="spinner" /> Cargando…</p> : null}
+      {!cargando && !ordenes.length && !pagosSinOrden.length ? <div className="empty"><div className="big"><Icono n="compras" tam={44} grosor={1.5} /></div><p><b>Todavía no has comprado.</b></p><p className="muted">Arma tu carrito en el Mercado y pulsa «Continuar al pago».</p></div> : null}
+      {!cargando && (ordenes.length || pagosSinOrden.length) && !lista.length && !(pestana === 'curso' && pagosSinOrden.some(p => p.estado === 'pendiente' || p.estado === 'revision')) ? <div className="empty muted">{pestana === 'curso' ? 'No tienes compras en curso.' : 'Todavía no tienes compras terminadas.'}</div> : null}
+      <div className="card-list">
+        {pestana === 'curso' ? pagosSinOrden.filter(p => p.estado === 'pendiente' || p.estado === 'revision').map(p => (
+          <Link key={p.id} href={`/app/compras/${p.id}`} className="card-row fila-compra" data-testid="fila-compra">
             <div className="card-main">
-              <div className="card-name">Compra #{p.numero} · {fmtPen(p.monto)} <span className={`pill ${COLOR_PAGO[p.estado] || ''}`}>{ETIQUETA_PAGO[p.estado]}</span></div>
-              <div className="card-set">{fechaHora(p.creado)}{p.n_operacion ? ` · operación ${p.n_operacion}` : ''}{p.motivo ? ` · ${p.motivo}` : ''}</div>
+              <div className="card-name">Compra #{p.numero} · {fmtPen(p.monto)}</div>
+              <LineaAvance paso={0} />
+              <span className="estado aviso bloque">{p.estado === 'pendiente' ? 'Falta enviar el comprobante del Yape' : 'Estamos revisando tu Yape'}</span>
             </div>
           </Link>
-        ))}
+        )) : null}
+        {lista.map(o => {
+          const items = (datos?.items || []).filter(i => i.orden_id === o.id);
+          const av = avanceCompra(o, pagosPorId.get(o.pago_id), datos?.tiendas.get(o.tienda_id || ''));
+          const vendedor = nombres.get(o.vendedor_id);
+          return (
+            <Link key={o.id} href={`/app/compras/${o.pago_id}`} className="card-row fila-compra" data-testid="fila-compra">
+              <div className="orden-cartas">{items.slice(0, 3).map(i => { const c = cat.carta(i.carta_id); return <Thumb key={i.id} carta={c} set={c ? cat.setOf(c) : undefined} />; })}</div>
+              <div className="card-main">
+                <div className="card-name">{items.map(i => { const c = cat.carta(i.carta_id); return (i.cantidad > 1 ? `${i.cantidad}× ` : '') + (c ? nombreCarta(c, perfil.idioma_nombres) : i.carta_id); }).join(', ') || `Orden #${o.numero}`}</div>
+                <div className="card-set">{items.length === 1 ? (() => { const i = items[0]; const c = cat.carta(i.carta_id); const set = c ? cat.setOf(c) : undefined; return <>{set?.ab || nombreColeccion(set, perfil.idioma_nombres)} · {c ? numLabel(c, set) : ''}{i.idioma ? ` · ${i.idioma}` : ''}{i.condicion ? ` · ${i.condicion}` : ''} · </>; })() : null}{fmtPen(o.subtotal)}{vendedor ? ` · @${vendedor}` : ''}</div>
+                <LineaAvance paso={av.paso} peligro={av.peligro} />
+                <span className={`estado ${av.tipo} bloque`}>{av.texto}</span>
+                {av.boton ? <div className="row" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap' }}><span className="btn sm primary">{av.boton}</span>{av.secundario ? <span className="btn sm">{av.secundario}</span> : null}</div> : null}
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );
@@ -69,15 +123,14 @@ function SaldoPanel() {
   }
   const TIPO: Record<string, string> = { devolucion: 'Devolución', uso_compra: 'Usado en compra', retiro: 'Retiro', ajuste: 'Ajuste' };
   return (
-    <div className="panel" style={{ marginTop: 10 }} data-testid="saldo-comprador">
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <div><b><Icono n="cartera" /> Tu saldo: <span data-testid="saldo-monto">{fmtPen(saldo.saldo)}</span></b>{saldo.retiro_pendiente > 0 ? <span className="small muted"> · {fmtPen(saldo.retiro_pendiente)} en camino a tu Yape</span> : null}</div>
+    <div className="panel saldo-panel" data-testid="saldo-comprador">
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+        <div><div className="small muted">Mi saldo</div><div className="precio-grande" style={{ fontSize: 22 }} data-testid="saldo-monto">{fmtPen(saldo.saldo)}</div>{saldo.retiro_pendiente > 0 ? <div className="small muted">{fmtPen(saldo.retiro_pendiente)} en camino a tu Yape</div> : null}</div>
         <div className="row" style={{ gap: 6 }}>
-          {saldo.saldo > 0 ? <button className="btn sm" disabled={ocupado} onClick={() => setConfirmar(true)} data-testid="btn-retirar-saldo">Retirar a mi Yape/Plin</button> : null}
-          <button className="btn sm ghost" onClick={() => setAbrir(a => !a)}>{abrir ? 'Ocultar' : 'Movimientos'}</button>
+          {saldo.saldo > 0 ? <button className="btn sm" disabled={ocupado} onClick={() => setConfirmar(true)} data-testid="btn-retirar-saldo">Retirar</button> : null}
+          <button className="btn sm ghost" onClick={() => setAbrir(a => !a)} title="Las devoluciones caen aquí al instante. Se descuenta solo en tu siguiente compra, o lo retiras y te lo pagamos en el siguiente día de pago a tus datos de cobro.">{abrir ? 'Ocultar' : 'Movimientos'}</button>
         </div>
       </div>
-      <p className="small muted" style={{ margin: '4px 0 0' }}>Las devoluciones caen aquí al instante. Se descuenta solo en tu siguiente compra, o lo retiras y te lo pagamos en el siguiente día de pago a tus datos de cobro.</p>
       {abrir ? <div className="card-list" style={{ marginTop: 8 }}>{saldo.movimientos.map(m => <div key={m.id} className="card-row" style={{ cursor: 'default' }}><div className="card-main"><div className="card-name">{TIPO[m.tipo] || m.tipo} · <span style={{ color: m.monto >= 0 ? 'var(--ok-texto)' : 'inherit' }}>{m.monto >= 0 ? '+' : ''}{fmtPen(m.monto)}</span></div><div className="card-set">{m.detalle} · {fechaHora(m.creado)}</div></div></div>)}{!saldo.movimientos.length ? <p className="small muted">Sin movimientos.</p> : null}</div> : null}
       {confirmar ? <Confirmar titulo="Retirar tu saldo" texto={`Te pagaremos ${fmtPen(saldo.saldo)} a tus datos de cobro (Ajustes) en el siguiente día de pago. Si prefieres, puedes dejarlo y se descuenta solo en tu próxima compra.`} okLabel="Sí, retirar" onOk={() => { setConfirmar(false); retirar(); }} onClose={() => setConfirmar(false)} /> : null}
     </div>
@@ -169,34 +222,62 @@ export function CompraDetalle({ id }: { id: string }) {
     if (r.ok) { toast('Compra cancelada; las cartas volvieron al mercado', 'ok'); cargar(); } else toast(r.error || 'No se pudo cancelar', 'danger');
   }
 
-  return (
-    <div>
-      <p className="small"><Link href="/app/compras">← Mis compras</Link></p>
-      <h2 style={{ marginTop: 0 }}>Compra #{pago.numero} <span className={`pill ${COLOR_PAGO[pago.estado] || ''}`} data-testid="estado-pago">{ETIQUETA_PAGO[pago.estado]}</span></h2>
-      <p className="small muted">{fechaHora(pago.creado)} · total <b>{fmtPen(pago.monto)}</b>{tienda ? <> · recoges en <b>{tienda.nombre}</b> ({tienda.distrito})</> : null}</p>
-
-      {pago.estado === 'pendiente' && !vencida ? (
-        <div className="panel" data-testid="instrucciones-pago">
-          <h3 style={{ marginTop: 0 }}>1. Paga por {metodos}</h3>
-          <p>Envía <b data-testid="monto-yape">{fmtPen(pago.monto_yape ?? pago.monto)}</b> al número <b style={{ fontSize: 20 }}>{pagosAj?.yape_numero || '949114582'}</b>{pagosAj?.yape_nombre ? <> a nombre de <b>{pagosAj.yape_nombre}</b></> : null}.{(pago.monto_saldo || 0) > 0 ? <span className="small muted"> (El total es {fmtPen(pago.monto)}: {fmtPen(pago.monto_saldo || 0)} se descontaron de tu saldo.)</span> : null}</p>
-          <p className="small" style={{ color: 'var(--aviso-texto)' }}><Icono n="temporizador" tam={15} /> Tienes <b>{minutos} min {String(segundos).padStart(2, '0')} s</b> para enviar el comprobante; si no, la reserva se libera y las cartas vuelven al mercado.</p>
-          <h3>2. Sube la captura y el número de operación</h3>
-          <div className="row wrap" style={{ gap: 8, alignItems: 'center' }}>
-            <button className="btn" onClick={() => input.current?.click()}>{archivo ? <><Icono n="documento" /> {archivo.name.slice(0, 28)}</> : <><Icono n="camara" /> Elegir captura del comprobante</>}</button>
-            <input ref={input} type="file" accept="image/*" hidden onChange={e => { setArchivo(e.target.files?.[0] || null); e.target.value = ''; }} data-testid="input-voucher" />
-            <input className="input" style={{ maxWidth: 220 }} placeholder="N.º de operación" value={operacion} onChange={e => setOperacion(e.target.value)} data-testid="input-operacion" />
-            <button className="btn primary" disabled={enviando} onClick={enviar} data-testid="btn-enviar-comprobante">{enviando ? 'Enviando…' : 'Enviar comprobante'}</button>
-          </div>
-          <p className="small muted" style={{ marginTop: 8 }}>El número de operación aparece en el comprobante de {metodos}. Confirmamos los pagos a mano, normalmente el mismo día.</p>
-          <button className="btn sm ghost" style={{ marginTop: 6 }} onClick={() => setCancelar(true)}>Cancelar la compra</button>
-        </div>
-      ) : null}
+  const numeroYape = (pagosAj?.yape_numero || '949114582').replace(/\D/g, '');
+  const numeroYapeTxt = numeroYape.replace(/(\d{3})(?=\d)/g, '$1 ').trim();
+  async function copiarNumero() { try { await navigator.clipboard.writeText(numeroYape); toast('Número copiado', 'ok'); } catch { toast('No se pudo copiar', 'danger'); } }
+  const pasoPago = pago.estado === 'pendiente' ? 0 : pago.estado === 'revision' ? 2 : pago.estado === 'confirmado' ? 3 : -1;
+  const pasos = (
+    <div className="pasos-pago" aria-label="Pasos del pago">
+      {['Yapea', 'Sube la captura', 'Confirmamos'].map((t, k) => <span key={t} className={`paso-pago ${pasoPago > k ? 'hecho' : pasoPago === k ? 'actual' : ''}`}><span className="n">{k + 1}</span>{t}</span>)}
+    </div>
+  );
+  const instrucciones = pago.estado === 'pendiente' && !vencida ? (
+    <div data-testid="instrucciones-pago">
+      <div className="panel pago-yape">
+        <div className="small muted">Monto exacto a yapear ({metodos})</div>
+        <div className="monto" data-testid="monto-yape">{fmtPen(pago.monto_yape ?? pago.monto)}</div>
+        {(pago.monto_saldo || 0) > 0 ? <p className="small muted">El total es {fmtPen(pago.monto)}: {fmtPen(pago.monto_saldo || 0)} se descontaron de tu saldo.</p> : null}
+        <div className="qr" aria-hidden="true">QR de Yape<br />(usa el número)</div>
+        <div className="numero-yape"><div><div className="small muted">Número de Yape</div><div className="num">{numeroYapeTxt}</div></div><button className="btn sm" onClick={copiarNumero} data-testid="btn-copiar-yape"><Icono n="copiar" /> Copiar</button></div>
+        {pagosAj?.yape_nombre ? <p className="small muted" style={{ margin: '8px 0 0' }}>A nombre de: <b>{pagosAj.yape_nombre}</b></p> : null}
+        <p className="small" style={{ color: 'var(--aviso-texto)', margin: '8px 0 0' }}><Icono n="temporizador" tam={15} /> Tienes <b>{minutos} min {String(segundos).padStart(2, '0')} s</b> para enviar el comprobante; si no, la reserva se libera y las cartas vuelven al mercado.</p>
+      </div>
+      <h3 style={{ margin: '14px 0 8px' }}>Después de yapear</h3>
+      <button type="button" className={`zona-captura ${archivo ? 'lista' : ''}`} onClick={() => input.current?.click()}>
+        <Icono n={archivo ? 'ok_circulo' : 'camara'} tam={26} />
+        {archivo ? <>Captura lista: {archivo.name.slice(0, 32)}<span className="small" style={{ fontWeight: 600 }}>Toca para cambiarla</span></> : 'Subir captura del Yape'}
+      </button>
+      <input ref={input} type="file" accept="image/*" hidden onChange={e => { setArchivo(e.target.files?.[0] || null); e.target.value = ''; }} data-testid="input-voucher" />
+      <div className="field" style={{ marginTop: 12 }}>
+        <label htmlFor="n-operacion">N.º de operación</label>
+        <input id="n-operacion" className="input" placeholder="Ej. 12345678" inputMode="numeric" value={operacion} onChange={e => setOperacion(e.target.value)} data-testid="input-operacion" />
+      </div>
+      <button className="btn primary grande block" style={{ marginTop: 12 }} disabled={enviando} onClick={enviar} data-testid="btn-enviar-comprobante">{enviando ? 'Enviando…' : 'Enviar comprobante'}</button>
+      <p className="small muted" style={{ marginTop: 10, textAlign: 'center' }}>Revisamos tu pago y te avisamos por correo. Mientras tanto, tus cartas siguen reservadas. El número de operación aparece en el comprobante de {metodos}.</p>
+      <p style={{ textAlign: 'center' }}><button className="link" onClick={() => setCancelar(true)}>Cancelar la compra</button></p>
+    </div>
+  ) : null;
+  const avisos = (
+    <>
       {vencida ? <Aviso tipo="warn">La reserva venció sin comprobante. Las cartas volvieron al mercado; puedes armar el carrito otra vez.</Aviso> : null}
       {pago.estado === 'revision' ? <Aviso tipo="info"><b>Recibimos tu comprobante</b> (operación {pago.n_operacion}). Lo revisamos y te avisamos por notificación y correo apenas se confirme. Las cartas siguen reservadas para ti.</Aviso> : null}
       {pago.estado === 'rechazado' ? <Aviso tipo="danger"><b>El pago no fue aceptado:</b> {pago.motivo}. Si fue un error, vuelve a comprar y sube el comprobante correcto.</Aviso> : null}
       {pago.estado === 'confirmado' ? <Aviso tipo="ok"><b>Pago confirmado{pago.n_operacion === 'SALDO' ? ' con tu saldo' : ''}.</b> {tienda ? `Recoge tus cartas en ${tienda.nombre} (${tienda.direccion}${tienda.horario ? ' · ' + tienda.horario : ''}).` : ''} Te avisaremos cuando cada orden esté en la tienda, con su código de retiro.</Aviso> : null}
-      {voucher ? <p className="small"><a href={voucher} target="_blank" rel="noreferrer">Ver mi comprobante</a></p> : null}
-
+      {voucher ? <p className="small" style={{ marginTop: 8 }}><a href={voucher} target="_blank" rel="noreferrer">Ver mi comprobante</a></p> : null}
+    </>
+  );
+  return (
+    <div className="compra-detalle">
+      <p className="small migas solo-pc-block"><Link href="/app/compras" className="miga"><Icono n="izquierda" tam={16} /> Mis compras</Link></p>
+      <div className="cabecera-seccion" style={{ marginBottom: 4 }}>
+        <h1 style={{ margin: 0 }}>{pago.estado === 'pendiente' && !vencida ? 'Pagar con Yape' : `Compra #${pago.numero}`}</h1>
+        <span className={`pill ${COLOR_PAGO[pago.estado] || ''}`} data-testid="estado-pago">{ETIQUETA_PAGO[pago.estado]}</span>
+      </div>
+      <p className="small muted">Compra #{pago.numero} · {fechaHora(pago.creado)} · total <b>{fmtPen(pago.monto)}</b>{tienda ? <> · recoges en <b>{tienda.nombre}</b> ({tienda.distrito})</> : null}</p>
+      {pasoPago >= 0 ? pasos : null}
+      <div className="pago-cuerpo">
+        <aside className="pago-lateral">{instrucciones}{avisos}</aside>
+        <div className="pago-ordenes">
       <h3 style={{ marginBottom: 6 }}>{ordenes.length === 1 ? 'Tu orden' : `Tus ${ordenes.length} órdenes (una por vendedor)`}</h3>
       {ordenes.map(o => (
         <div key={o.id} className="panel" style={{ marginBottom: 10 }} data-testid="orden">
@@ -232,6 +313,8 @@ export function CompraDetalle({ id }: { id: string }) {
           </div>
         </div>
       ))}
+        </div>
+      </div>
       {calificar ? <CalificarSheet orden={calificar} vendedor={vendedores.get(calificar.vendedor_id) || ''} inicial={resenas.get(calificar.id)} onClose={() => setCalificar(null)} onListo={() => { setCalificar(null); cargar(); }} /> : null}
       {confirmarEntrega ? <Confirmar titulo={`Confirmar entrega de la orden #${confirmarEntrega.numero}`} texto="Confirma solo si ya tienes las cartas en tu poder. Con tu confirmación se paga al vendedor." okLabel="Sí, ya las tengo" onOk={() => { const o = confirmarEntrega; setConfirmarEntrega(null); marcarEntregada(o); }} onClose={() => setConfirmarEntrega(null)} /> : null}
       {reclamar ? <ReclamoSheet orden={reclamar} onClose={() => setReclamar(null)} onListo={() => { setReclamar(null); cargar(); notif.recargar(); }} /> : null}

@@ -1,5 +1,5 @@
 'use client';
-import { useId, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useId, useState, type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
 import { Icono, type NombreIcono } from './Icono';
 import { Thumb } from './Thumb';
@@ -142,4 +142,16 @@ export function Cabecera({ titulo, volver, volverTexto, extra, children, classNa
       {extra ? <div className="cabecera-extra">{extra}</div> : null}
     </div>
   );
+}
+
+/** true en PC (≥ 1024 px): para elegir entre lista (celular) y tabla (PC) sin pintar las dos. */
+export function useEsPC(): boolean {
+  const [pc, setPc] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const f = () => setPc(mq.matches);
+    f(); mq.addEventListener('change', f);
+    return () => mq.removeEventListener('change', f);
+  }, []);
+  return pc;
 }

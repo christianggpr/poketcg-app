@@ -3,7 +3,7 @@ import { Icono } from '../Icono';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
-import { DIAS, ETIQUETA_ORDEN, fechaDia, fechaHora, ordenesDe, usernamesDe, type Orden, type OrdenItem, type Tienda } from '@/lib/compras';
+import { DIAS, ETIQUETA_ORDEN, fechaDia, fechaHora, usernamesDe, type Orden, type OrdenItem, type Tienda } from '@/lib/compras';
 import { comprimirImagen } from '@/lib/fotos';
 import { fmtPen } from '@/lib/precios-core';
 import { Ubicador, type Entrada } from '@/lib/coleccion';
@@ -23,35 +23,6 @@ const COLOR: Record<string, string> = { pago_confirmado: 'warn', en_tienda: 'pri
 
 async function accionOrden(body: Record<string, unknown>) {
   return fetch('/api/ordenes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()).catch(() => ({ ok: false, error: 'Sin conexión' }));
-}
-
-/** Mis ventas → Órdenes: lo que vendí y debo entregar. */
-export function OrdenesVendedor() {
-  const { perfil } = usePerfil();
-  const [datos, setDatos] = useState<{ ordenes: Orden[]; items: OrdenItem[]; tiendas: Map<string, Tienda> } | null>(null);
-  const [nombres, setNombres] = useState<Map<string, string>>(new Map());
-  useEffect(() => { ordenesDe('vendedor_id', perfil.id).then(async d => { setDatos(d); setNombres(await usernamesDe(d.ordenes.map(o => o.comprador_id))); }).catch(() => setDatos({ ordenes: [], items: [], tiendas: new Map() })); }, [perfil.id]);
-  const pendientes = (datos?.ordenes || []).filter(o => o.estado === 'pago_confirmado');
-  return (
-    <div>
-      <p className="small"><Link href="/app/ventas">← Mis ventas</Link></p>
-      <h2 style={{ marginTop: 0 }}>Órdenes de venta</h2>
-      <p className="small muted">Cada orden es una venta confirmada: debes dejar las cartas en la tienda indicada antes de la fecha límite. Tu ganancia se paga apenas el comprador la recoja.</p>
-      {pendientes.length ? <Aviso tipo="warn">Tienes {pendientes.length} {pendientes.length === 1 ? 'orden por entregar' : 'órdenes por entregar'}.</Aviso> : null}
-      {!datos ? <p className="small muted"><span className="spinner" /> Cargando…</p> : null}
-      {datos && !datos.ordenes.length ? <div className="empty"><div className="big"><Icono n="ventas" tam={44} grosor={1.5} /></div><p><b>Todavía no vendiste nada.</b></p><p className="muted">Cuando alguien compre una de tus cartas y pague, la verás aquí.</p></div> : null}
-      <div className="card-list">
-        {(datos?.ordenes || []).map(o => (
-          <Link key={o.id} href={`/app/ventas/ordenes/${o.id}`} className="card-row" style={{ textDecoration: 'none', color: 'inherit' }} data-testid="fila-orden-venta">
-            <div className="card-main">
-              <div className="card-name">Orden #{o.numero} · {fmtPen(o.subtotal)} · recibes {fmtPen(o.neto_vendedor)} <span className={`pill ${COLOR[o.estado] || ''}`}>{ETIQUETA_ORDEN[o.estado]}</span></div>
-              <div className="card-set">Comprador @{nombres.get(o.comprador_id) || '…'} · {datos?.tiendas.get(o.tienda_id || '')?.nombre || 'tienda'}{o.fecha_limite ? ` · hasta el ${fechaDia(o.fecha_limite)}` : ''}{o.fecha_entrega ? ` · entregas el ${fechaDia(o.fecha_entrega)}` : ''}</div>
-            </div>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
 }
 
 /** Detalle de una orden de venta: cartas con su ubicación, tienda, fecha de entrega y entrega. */

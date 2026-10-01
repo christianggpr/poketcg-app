@@ -25,6 +25,8 @@ export function Mercado() {
   const router = useRouter();
   const params = useSearchParams();
   const [q, setQ] = useState(params.get('q') || '');
+  // el buscador de la barra superior (PC) cambia ?q sin recargar la vista
+  useEffect(() => { const pq = params.get('q'); if (pq != null) setQ(pq); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [params]);
   const [set, setSet] = useState(params.get('set') || '');
   const [idioma, setIdioma] = useState('');
   const [acabado, setAcabado] = useState('');

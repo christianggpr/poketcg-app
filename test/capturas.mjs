@@ -32,7 +32,10 @@ const PANTALLAS = [
   { nombre: 'Buscar', ruta: '/app/buscar?q=charmander' },
   { nombre: 'Ajustes', ruta: '/app/ajustes' },
   { nombre: 'Portada', ruta: '/', sinSesion: true },
-  { nombre: 'Ingresar', ruta: '/ingresar', sinSesion: true }
+  { nombre: 'Ingresar', ruta: '/ingresar', sinSesion: true },
+  { nombre: 'Ayuda', ruta: '/ayuda', sinSesion: true },
+  { nombre: 'Tiendas', ruta: '/tiendas', sinSesion: true },
+  { nombre: 'Compra', ruta: '/app/compras', accion: async page => { const f = await page.$('[data-testid=fila-compra]'); if (f) { await f.click(); await page.waitForTimeout(800); } } }
 ];
 const TAMANOS = [{ sufijo: 'celular', width: 390, height: 844, mobile: true }, { sufijo: 'pc', width: 1280, height: 800, mobile: false }];
 
@@ -45,14 +48,19 @@ for (const t of TAMANOS) {
   await page.fill('input[type=password]', CLAVE);
   await page.click('button[type=submit]');
   await page.waitForURL(/\/app/, { timeout: 20000 }).catch(() => {});
+  // páginas públicas: sin sesión (otro contexto)
+  const ctxPub = await browser.newContext({ viewport: { width: t.width, height: t.height }, isMobile: t.mobile, hasTouch: t.mobile, deviceScaleFactor: 2, locale: 'es-PE' });
+  const pagePub = await ctxPub.newPage();
   for (const p of PANTALLAS) {
-    await page.goto(APP + p.ruta, { waitUntil: 'networkidle' }).catch(() => {});
-    await page.waitForTimeout(600);
-    if (p.accion) await p.accion(page);
-    await page.mouse.move(2, 2);
-    await page.screenshot({ path: path.join(DESTINO, `${p.nombre}-${t.sufijo}.png`), fullPage: false });
+    const pg = p.sinSesion ? pagePub : page;
+    await pg.goto(APP + p.ruta, { waitUntil: 'networkidle' }).catch(() => {});
+    await pg.waitForTimeout(600);
+    if (p.accion) await p.accion(pg);
+    await pg.mouse.move(2, 2);
+    await pg.screenshot({ path: path.join(DESTINO, `${p.nombre}-${t.sufijo}.png`), fullPage: false });
     console.log('captura', p.nombre, t.sufijo);
   }
+  await ctxPub.close();
   await ctx.close();
 }
 await browser.close();

@@ -1,7 +1,8 @@
 'use client';
-import { Icono } from '../Icono';
+import { Icono, PuntosEnergia } from '../Icono';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { Carta } from '@/lib/catalogo';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
 import { analizarVariante, construirIndice, idsFaltantes, type AnalisisCarta, type AnalisisVariante } from '@/lib/mazos-cliente';
@@ -45,12 +46,24 @@ function usarCosto(precios: ReturnType<typeof usePrecios>, a: AnalisisVariante |
   return { pen: Math.round(pen * 100) / 100, conPrecio };
 }
 
-/** Lista de mazos meta con el % que tengo de la variante más completa de cada uno. */
+/** Tipos de energía principales de una variante: los de los Pokémon más usados (dato del catálogo), hasta 2. */
+function tiposDe(a: AnalisisVariante | null): string[] {
+  if (!a) return [];
+  const peso = new Map<string, number>();
+  for (const c of a.cartas) { const ref = c.misma || c.equivalentes[0]; if (!ref || ref.c !== 'P' || !ref.t?.length) continue; peso.set(ref.t[0], (peso.get(ref.t[0]) || 0) + c.necesarias); }
+  return [...peso.entries()].sort((x, y) => y[1] - x[1]).slice(0, 2).map(x => x[0]);
+}
+
+type FiltroMazos = 'sugeridos' | 'todos' | 'jugados';
+
+/** Lista de mazos meta (layout v2): tarjeta por arquetipo con puntos de energía, cuota, variantes, tu mejor variante y lo que falta. */
 export function Mazos() {
   const cat = useCatalogo();
   const col = useColeccion();
   const precios = usePrecios();
+  const router = useRouter();
   const { datos, error } = useMazos();
+  const [filtro, setFiltro] = useState<FiltroMazos>('todos');
   const indice = useMemo(() => construirIndice(cat), [cat]);
   const analisis = useMemo(() => {
     if (!datos) return new Map<number, { variante: Variante; a: AnalisisVariante }[]>();
@@ -69,39 +82,63 @@ export function Mazos() {
     if (ids.size) precios.pedir([...ids].slice(0, 600));
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, [mejores]);
-  const sugeridos = datos ? datos.arquetipos.filter(a => (mejores.get(a.id)?.a.pct || 0) >= 50) : [];
+  const sugerido = (id: number) => (mejores.get(id)?.a.pct || 0) >= 50;
+  const lista = useMemo(() => {
+    const arq = datos?.arquetipos || [];
+    if (filtro === 'sugeridos') return arq.filter(a => sugerido(a.id)).sort((x, y) => (mejores.get(y.id)?.a.pct || 0) - (mejores.get(x.id)?.a.pct || 0));
+    if (filtro === 'jugados') return arq.slice().sort((x, y) => (y.cuota || 0) - (x.cuota || 0));
+    return arq;
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [datos, filtro, mejores]);
+  const actualizado = datos?.actualizado ? new Date(datos.actualizado) : null;
+  const hoy = actualizado && actualizado.toDateString() === new Date().toDateString();
 
   return (
-    <div>
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <h2 style={{ margin: 0 }}>Mazos del meta</h2>
-        <div className="row" style={{ gap: 6 }}><Link href="/app/mercado" className="btn sm ghost"><Icono n="tienda" /> Mercado</Link><Link href="/app/carrito" className="btn sm ghost">Carrito</Link></div>
+    <div className="mazos-vista">
+      <div className="cabecera-seccion">
+        <div>
+          <h1 style={{ margin: 0 }}>Mazos del meta</h1>
+          <div className="small muted">Standard{actualizado ? ` · actualizado ${hoy ? 'hoy a las ' + actualizado.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) : 'el ' + actualizado.toLocaleDateString('es-PE')}` : ''} · fuente: Limitless</div>
+        </div>
+        <div className="seg" data-testid="filtro-mazos">
+          <button className={filtro === 'sugeridos' ? 'active' : ''} onClick={() => setFiltro('sugeridos')}>Sugeridos para mí</button>
+          <button className={filtro === 'todos' ? 'active' : ''} onClick={() => setFiltro('todos')}>Todos</button>
+          <button className={filtro === 'jugados' ? 'active' : ''} onClick={() => setFiltro('jugados')}>Más jugados</button>
+        </div>
       </div>
-      <p className="small muted">Los mazos que más ganan en torneos (formato estándar, últimos 3 meses, según Limitless) y cuánto tienes de cada uno con tus cartas. Se actualizan cada día.{datos?.actualizado ? ` Última actualización: ${new Date(datos.actualizado).toLocaleDateString('es-PE')}.` : ''}</p>
       {error ? <Aviso tipo="danger">No se pudieron cargar los mazos: {error}</Aviso> : null}
       {!datos && !error ? <p className="muted small"><span className="spinner" /> Cargando mazos…</p> : null}
       {datos && !datos.arquetipos.length ? <div className="empty"><div className="big"><Icono n="mazos" tam={44} grosor={1.5} /></div><p><b>Todavía no hay mazos.</b></p><p className="muted">La tarea diaria los descarga de Limitless a medianoche (o el administrador puede ejecutarla ahora desde /admin).</p></div> : null}
-      {sugeridos.length ? (
-        <div className="notice ok" style={{ margin: '10px 0' }} data-testid="sugerencia-mazos">
-          <b>¡Ya vas por buen camino!</b> {sugeridos.map(a => { const m = mejores.get(a.id)!; return <span key={a.id} style={{ display: 'block' }}>Con <b>{a.nombre}</b> ({m.variante.nombre}) tienes el <b>{m.a.pct} %</b>: te faltan {m.a.faltan} cartas. <Link href={`/app/mazos/${a.id}`}>Ver qué falta</Link></span>; })}
-        </div>
-      ) : null}
-      <div className="card-list" style={{ marginTop: 10 }}>
-        {datos?.arquetipos.map(a => {
+      {datos && datos.arquetipos.length && filtro === 'sugeridos' && !lista.length ? <div className="empty muted">Todavía no tienes la mitad de ningún mazo. Mira «Todos» para ver cuánto te falta de cada uno.</div> : null}
+      <div className="mazos-grid">
+        {lista.map(a => {
           const m = mejores.get(a.id);
           const costo = usarCosto(precios, m?.a || null);
           const nVar = analisis.get(a.id)?.length || 0;
+          const tipos = tiposDe(m?.a || null);
+          const ir = () => router.push(`/app/mazos/${a.id}`);
           return (
-            <Link key={a.id} href={`/app/mazos/${a.id}`} className="card-row" style={{ textDecoration: 'none', color: 'inherit' }} data-testid="fila-mazo">
-              <div style={{ width: 34, textAlign: 'center', fontWeight: 800, color: 'var(--texto-2)' }}>{a.orden}</div>
-              <Iconos iconos={a.iconos} />
-              <div className="card-main">
-                <div className="card-name">{a.nombre}</div>
-                <div className="card-set">{a.cuota != null ? `${a.cuota} % del meta` : ''}{nVar ? ` · ${nVar} ${nVar === 1 ? 'variante' : 'variantes'}` : ''}</div>
-                {m ? <div className="small" style={{ marginTop: 3 }}><b>Tienes el {m.a.pct} %</b> ({m.a.tengo}/{m.a.total} cartas){m.a.faltan ? <span className="muted"> · te faltan {m.a.faltan} ≈ {fmtPen(costo.pen)}</span> : <span className="pill ok" style={{ marginLeft: 6 }}>¡completo!</span>}</div> : null}
-                {m ? <div className="bar" style={{ marginTop: 4, maxWidth: 260 }}><div style={{ width: m.a.pct + '%' }} /></div> : null}
+            <div key={a.id} className="panel mazo-tarjeta" role="link" tabIndex={0} onClick={ir} onKeyDown={e => { if (e.key === 'Enter') ir(); }} data-testid="fila-mazo">
+              <div className="mazo-cabecera">
+                {tipos.length ? <PuntosEnergia tipos={tipos} grande /> : <Iconos iconos={a.iconos} tam={28} />}
+                <div className="grow" style={{ minWidth: 0 }}>
+                  <div className="mazo-nombre">{a.nombre}</div>
+                  <div className="small muted">{a.cuota != null ? `${a.cuota} % del meta` : `#${a.orden} del meta`}{nVar ? ` · ${nVar} ${nVar === 1 ? 'variante' : 'variantes'}` : ''}</div>
+                </div>
+                {sugerido(a.id) ? <span className="pill ok" data-testid="sugerido-para-ti">Sugerido para ti</span> : null}
               </div>
-            </Link>
+              {m ? (
+                <div className="mejor-variante">
+                  <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}><span className="small"><b>Tu mejor variante:</b> {m.variante.nombre}</span><b className="pct" style={{ color: 'var(--primario)' }}>{m.a.pct} %</b></div>
+                  <div className="bar" style={{ margin: '6px 0' }} role="progressbar" aria-valuenow={m.a.pct} aria-valuemin={0} aria-valuemax={100}><div style={{ width: m.a.pct + '%' }} /></div>
+                  <div className="small muted">Tienes el {m.a.pct} % ({m.a.tengo}/{m.a.total}){m.a.faltan ? <> · te faltan {m.a.faltan} cartas · ≈ {fmtPen(costo.pen)}</> : <> · <span className="ok-texto">¡completo!</span></>}</div>
+                </div>
+              ) : null}
+              <div className="row mazo-botones" style={{ gap: 8, marginTop: 10 }}>
+                <Link href={`/app/mazos/${a.id}`} className="btn sm" onClick={e => e.stopPropagation()}>Ver variantes</Link>
+                {m?.a.faltan ? <Link href={`/app/mazos/${a.id}#faltantes`} className="btn sm primary" onClick={e => e.stopPropagation()}>Comprar faltantes</Link> : null}
+              </div>
+            </div>
           );
         })}
       </div>

@@ -2,12 +2,13 @@
 import { Icono } from '../Icono';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { fechaHora, urlVoucher } from '@/lib/compras';
+import { useSearchParams } from 'next/navigation';
+import { ETIQUETA_ORDEN, fechaDia, fechaHora, ordenesDe, urlVoucher, usernamesDe, type Orden, type OrdenItem, type Tienda } from '@/lib/compras';
 import { resenasDe, responderResena, type ResenaPublica } from '@/lib/reputacion';
 import { Estrellas, Insignias } from '../Vendedor';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
-import type { Entrada, Publicacion } from '@/lib/coleccion';
+import type { Entrada, Perfil, Publicacion } from '@/lib/coleccion';
 import { fmtPen, netoVendedor } from '@/lib/precios-core';
 import { useCatalogo } from '../CatalogoProvider';
 import { useColeccion } from '../ColeccionProvider';
@@ -22,8 +23,88 @@ import { EstadoPub, PublicarSheet } from '../PublicarSheet';
 
 type Filtro = 'todas' | 'activa' | 'pausada' | 'reservada';
 
-/** Mis ventas: todas mis publicaciones en el mercado, con acciones en bloque. */
+type Pestana = 'por_entregar' | 'en_venta' | 'historial';
+const ACTIVAS_VENDEDOR = new Set(['pago_confirmado', 'en_tienda', 'disputa']);
+
+/** Mis ventas (layout v2): Por cobrar / Por pagarte, aviso de fotos, pestañas Por entregar · En venta · Historial, y tu reputación. */
 export function Ventas() {
+  const cat = useCatalogo();
+  const col = useColeccion();
+  const { perfil } = usePerfil();
+  const params = useSearchParams();
+  const [datos, setDatos] = useState<{ ordenes: Orden[]; items: OrdenItem[]; tiendas: Map<string, Tienda> } | null>(null);
+  const [nombres, setNombres] = useState<Map<string, string>>(new Map());
+  const [pestana, setPestana] = useState<Pestana | null>((params.get('pestana') as Pestana) || null);
+  useEffect(() => { ordenesDe('vendedor_id', perfil.id).then(async d => { setDatos(d); setNombres(await usernamesDe(d.ordenes.map(o => o.comprador_id))); }).catch(() => setDatos({ ordenes: [], items: [], tiendas: new Map() })); }, [perfil.id]);
+  const porEntregar = (datos?.ordenes || []).filter(o => ACTIVAS_VENDEDOR.has(o.estado));
+  const historial = (datos?.ordenes || []).filter(o => !ACTIVAS_VENDEDOR.has(o.estado) && o.estado !== 'reservada' && o.estado !== 'revision');
+  const enVenta = col.publicaciones.filter(p => p.estado !== 'retirada').length;
+  const sinFoto = col.publicaciones.filter(p => p.estado === 'pausada' && p.motivo_pausa === 'foto').length;
+  // pestaña inicial: Por entregar si hay órdenes pendientes; si no, En venta
+  const activa: Pestana = pestana || (datos && porEntregar.length ? 'por_entregar' : 'en_venta');
+  return (
+    <div className="ventas-vista">
+      <h1 style={{ margin: '0 0 12px' }}>Mis ventas</h1>
+      <MiSaldo />
+      {sinFoto ? <div className="notice warn" style={{ marginBottom: 12 }} data-testid="aviso-fotos"><Icono n="camara" tam={15} /> {sinFoto} {sinFoto === 1 ? 'publicación está pausada' : 'publicaciones están pausadas'} porque el precio supera S/ 50 y no tienen foto real. Ábrelas y agrega la foto para activarlas.</div> : null}
+      <div className="seg pestanas-ventas" data-testid="pestanas-ventas">
+        <button className={activa === 'por_entregar' ? 'active' : ''} onClick={() => setPestana('por_entregar')} data-testid="btn-ordenes-venta">Por entregar{porEntregar.length ? ` · ${porEntregar.length}` : ''}</button>
+        <button className={activa === 'en_venta' ? 'active' : ''} onClick={() => setPestana('en_venta')} data-testid="btn-en-venta">En venta{enVenta ? ` · ${enVenta.toLocaleString('es-PE')}` : ''}</button>
+        <button className={activa === 'historial' ? 'active' : ''} onClick={() => setPestana('historial')} data-testid="btn-historial">Historial</button>
+      </div>
+      {activa === 'por_entregar' ? <OrdenesVenta ordenes={porEntregar} datos={datos} nombres={nombres} cat={cat} idioma={perfil.idioma_nombres} vacio="No tienes ventas por entregar. Cuando alguien compre una de tus cartas y pague, la verás aquí con la fecha y la tienda." /> : null}
+      {activa === 'en_venta' ? <Publicaciones /> : null}
+      {activa === 'historial' ? <OrdenesVenta ordenes={historial} datos={datos} nombres={nombres} cat={cat} idioma={perfil.idioma_nombres} vacio="Todavía no tienes ventas terminadas." historial /> : null}
+      <MiReputacion />
+    </div>
+  );
+}
+
+/** Lo que hay que hacer con cada orden de venta: píldora + botón. */
+function pendienteVenta(o: Orden, tienda: Tienda | undefined, comprador: string): { tipo: 'aviso' | 'info' | 'ok' | 'peligro'; texto: string; boton?: string; secundario?: string } {
+  if (o.estado === 'pago_confirmado' && !o.fecha_entrega) return { tipo: 'aviso', texto: `Elige la fecha de entrega · tienes 48 h para elegirla${o.fecha_limite ? ` · máx. ${fechaDia(o.fecha_limite)}` : ''}`, boton: 'Elegir fecha', secundario: 'Imprimir rótulo' };
+  if (o.estado === 'pago_confirmado') return { tipo: 'info', texto: `Llévala a ${tienda?.nombre || 'la tienda'} el ${fechaDia(o.fecha_entrega!)} · comprador @${comprador}`, boton: 'Ya la dejé en la tienda', secundario: 'Imprimir rótulo' };
+  if (o.estado === 'en_tienda') return { tipo: 'ok', texto: `En la tienda · esperando que @${comprador} la recoja` };
+  if (o.estado === 'disputa') return { tipo: 'peligro', texto: 'Reclamo del comprador en revisión', boton: 'Ver detalle' };
+  if (o.estado === 'entregada') return { tipo: 'ok', texto: `Entregada${o.entregada_en ? ` el ${fechaDia(o.entregada_en)}` : ''} · recibirás ${fmtPen(o.neto_vendedor)}` };
+  if (o.estado === 'saldo_liberado') return { tipo: 'ok', texto: `Entregada · recibiste ${fmtPen(o.neto_vendedor)}` };
+  if (o.estado === 'vencida') return { tipo: 'peligro', texto: 'Vencida: no se entregó a tiempo' };
+  return { tipo: 'aviso', texto: ETIQUETA_ORDEN[o.estado] };
+}
+
+/** Lista de órdenes de venta (por entregar o historial): cartas, dónde está cada una, qué hacer y su botón. */
+function OrdenesVenta({ ordenes, datos, nombres, cat, idioma, vacio, historial }: { ordenes: Orden[]; datos: { ordenes: Orden[]; items: OrdenItem[]; tiendas: Map<string, Tienda> } | null; nombres: Map<string, string>; cat: ReturnType<typeof useCatalogo>; idioma: Perfil['idioma_nombres']; vacio: string; historial?: boolean }) {
+  const col = useColeccion();
+  const ubicador = useUbicador();
+  if (!datos) return <p className="small muted" style={{ marginTop: 12 }}><span className="spinner" /> Cargando…</p>;
+  if (!ordenes.length) return <div className="empty"><div className="big"><Icono n="ventas" tam={44} grosor={1.5} /></div><p className="muted">{vacio}</p></div>;
+  return (
+    <div className="card-list" style={{ marginTop: 12 }}>
+      {ordenes.map(o => {
+        const items = datos.items.filter(i => i.orden_id === o.id);
+        const comprador = nombres.get(o.comprador_id) || '…';
+        const p = pendienteVenta(o, datos.tiendas.get(o.tienda_id || ''), comprador);
+        return (
+          <Link key={o.id} href={`/app/ventas/ordenes/${o.id}`} className="card-row fila-orden" data-testid="fila-orden-venta">
+            <div className="orden-cartas">
+              {items.slice(0, 3).map(i => { const c = cat.carta(i.carta_id); return <Thumb key={i.id} carta={c} set={c ? cat.setOf(c) : undefined} />; })}
+            </div>
+            <div className="card-main">
+              <div className="card-name">{items.map(i => { const c = cat.carta(i.carta_id); return (i.cantidad > 1 ? `${i.cantidad}× ` : '') + (c ? nombreCarta(c, idioma) : i.carta_id); }).join(', ')}</div>
+              <div className="card-set">{items.length === 1 ? (() => { const i = items[0]; const c = cat.carta(i.carta_id); const set = c ? cat.setOf(c) : undefined; return <>{set?.ab || nombreColeccion(set, idioma)} · {c ? numLabel(c, set) : ''}{i.idioma ? ` · ${i.idioma}` : ''}{i.condicion ? ` · ${i.condicion}` : ''} · </>; })() : null}{fmtPen(o.subtotal)} · orden #{o.numero}</div>
+              {!historial ? <div className="small" style={{ marginTop: 3 }}>{items.map(i => { const e = i.entrada_id ? col.entradas.find(x => x.id === i.entrada_id) : null; const d = e ? ubicador.donde(e) : null; return d ? <LocChip key={i.id} loc={d} corto /> : null; }).filter(Boolean).length ? items.map(i => { const e = i.entrada_id ? col.entradas.find(x => x.id === i.entrada_id) : null; const d = e ? ubicador.donde(e) : null; return d ? <span key={i.id} style={{ marginRight: 6 }}><LocChip loc={d} corto /></span> : null; }) : <span className="muted">Ubicación: la que tenían en tu colección (ver detalle)</span>}</div> : null}
+              <div style={{ marginTop: 6 }}><span className={`estado ${p.tipo} bloque`}>{p.texto}</span></div>
+              {p.boton ? <div className="row" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap' }}><span className="btn sm primary">{p.boton}</span>{p.secundario ? <span className="btn sm">{p.secundario}</span> : null}</div> : null}
+            </div>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+/** En venta: todas mis publicaciones en el mercado, con acciones en bloque. */
+function Publicaciones() {
   const cat = useCatalogo();
   const col = useColeccion();
   const { perfil } = usePerfil();
@@ -69,20 +150,13 @@ export function Ventas() {
   }
 
   return (
-    <div>
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <h2 style={{ margin: 0 }}>Mis ventas</h2>
-        <div className="row" style={{ gap: 6 }}><Link href="/app/ventas/ordenes" className="btn sm primary" data-testid="btn-ordenes-venta"><Icono n="paquete_ok" /> Órdenes de venta</Link><Link href="/app/bulk" className="btn sm ghost"><Icono n="bulk" /> Bulk</Link></div>
-      </div>
-      <p className="small muted">Lo que tienes publicado en el mercado. Los compradores solo ven tu nombre de usuario (@{perfil.username}); nunca tu DNI, teléfono ni nombre real. La comisión es del {Math.round(comision * 100)} % sobre el precio de venta.</p>
-      <MiReputacion />
-      <MiSaldo />
+    <div style={{ marginTop: 12 }}>
+      <p className="small muted">Los compradores solo ven tu nombre de usuario (@{perfil.username}); nunca tu DNI, teléfono ni nombre real. La comisión es del {Math.round(comision * 100)} % sobre el precio de venta.</p>
       <div className="stat" style={{ margin: '10px 0' }}>
         <div className="box"><b>{resumen.activas}</b><span>activas</span></div>
         <div className="box"><b>{fmtPen(resumen.valor)}</b><span>en venta (recibirías {fmtPen(netoVendedor(resumen.valor, comision))})</span></div>
         <div className="box"><b>{resumen.pausadas}</b><span>pausadas{resumen.reservadas ? ` · ${resumen.reservadas} reservadas` : ''}</span></div>
       </div>
-      {resumen.sinFoto ? <div className="notice warn small" style={{ marginBottom: 10 }} data-testid="aviso-fotos"><Icono n="camara" tam={15} /> {resumen.sinFoto} {resumen.sinFoto === 1 ? 'publicación está pausada' : 'publicaciones están pausadas'} porque el precio supera S/ 50 y no tienen foto real. Ábrelas y agrega la foto para activarlas.</div> : null}
       <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <div className="seg">
           <button className={filtro === 'todas' ? 'active' : ''} onClick={() => setFiltro('todas')}>Todas</button>
@@ -116,7 +190,7 @@ export function Ventas() {
               <div className="card-main">
                 <div className="card-name">{carta ? nombreCarta(carta, perfil.idioma_nombres) : 'Carta'} <EstadoPub pub={pub} conPrecio={false} /></div>
                 <div className="card-set">{nombreColeccion(set, perfil.idioma_nombres)} {carta ? <span className="num">{numLabel(carta, set)}</span> : null}{pub.acabado ? <span className="pill">{pub.acabado}</span> : null}{pub.idioma ? <span className="pill">{pub.idioma}</span> : null}{pub.condicion ? <span className="pill">{pub.condicion}</span> : null}</div>
-                <div className="small">{pub.cantidad} {pub.cantidad === 1 ? 'copia' : 'copias'} a <b>{fmtPen(pub.precio_pen)}</b> <span className="muted">({pub.tipo_precio === 'manual' ? 'manual' : 'por defecto'}; recibes {fmtPen(netoVendedor(pub.precio_pen, comision))} c/u)</span>{entrada ? <> · <LocChip loc={ubicador.ubicacion(entrada)} corto /></> : null}</div>
+                <div className="small">{pub.cantidad} {pub.cantidad === 1 ? 'copia' : 'copias'} a <b>{fmtPen(pub.precio_pen)}</b> <span className="muted">({pub.tipo_precio === 'manual' ? 'manual' : 'por defecto'}; recibes {fmtPen(netoVendedor(pub.precio_pen, comision))} c/u)</span>{entrada ? <> · <LocChip loc={ubicador.donde(entrada)} corto /></> : null}</div>
                 {pub.aviso ? <div className="small" style={{ color: 'var(--aviso-texto)' }}>{pub.aviso}</div> : null}
               </div>
               <div className="card-side">{(pub.fotos || []).length ? <span className="pill"><Icono n="camara" tam={12} /> {pub.fotos.length}</span> : null}</div>
@@ -153,9 +227,9 @@ function MiSaldo() {
     <div className="panel" data-testid="mi-saldo">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}><h3 style={{ margin: 0 }}>Mi saldo</h3><button className="btn sm ghost" onClick={() => setAbrir(a => !a)}>{abrir ? 'Ocultar' : 'Ver movimientos'}</button></div>
       <div className="stat" style={{ marginTop: 8 }}>
-        <div className="box"><b>{fmtPen(saldo.en_curso + saldo.por_liberar)}</b><span>ventas en curso</span></div>
-        <div className="box"><b>{fmtPen(saldo.por_pagar)}</b><span>por pagarte{saldo.sin_datos ? ' · faltan datos de cobro' : ''}</span></div>
-        <div className="box"><b>{fmtPen(saldo.pagado)}</b><span>ya pagado</span></div>
+        <div className="box"><span className="rotulo-dato">Por cobrar</span><b>{fmtPen(saldo.en_curso + saldo.por_liberar)}</b><span>en ventas en curso</span></div>
+        <div className="box"><span className="rotulo-dato">Por pagarte</span><b className="ok">{fmtPen(saldo.por_pagar)}</b><span>{saldo.sin_datos ? 'faltan datos de cobro' : 'se paga cada día a tus datos de cobro'}</span></div>
+        <div className="box"><span className="rotulo-dato">Ya pagado</span><b>{fmtPen(saldo.pagado)}</b><span>ya pagado</span></div>
       </div>
       {saldo.sin_datos ? <div className="notice warn small" style={{ marginTop: 8 }}>Para pagarte, registra tus datos de cobro en <Link href="/app/ajustes">Ajustes</Link>.</div> : <p className="small muted" style={{ marginTop: 6 }}>Cada entrega confirmada se paga a tus datos de cobro en el siguiente día de pago (todos los días).</p>}
       {abrir ? (

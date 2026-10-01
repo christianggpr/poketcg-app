@@ -1,6 +1,6 @@
 // PokéTCG · service worker básico (Fase 2 · E): la app abre más rápido y las imágenes de cartas,
 // el catálogo y los archivos de la app se guardan en caché. Sin conexión se muestra un aviso.
-const VERSION = 'poketcg-v2-1';
+const VERSION = 'poketcg-v2-2';
 const CACHE_APP = VERSION + '-app';
 const CACHE_IMG = VERSION + '-img';
 const MAX_IMG = 1500;

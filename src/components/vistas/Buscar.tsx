@@ -24,6 +24,8 @@ export function Buscar() {
   const { perfil } = usePerfil();
   const params = useSearchParams();
   const [q, setQ] = useState(params.get('q') || '');
+  // el buscador de la barra superior (PC) cambia ?q sin recargar la vista
+  useEffect(() => { const pq = params.get('q'); if (pq != null) setQ(pq); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [params]);
   const [qLenta, setQLenta] = useState(q);
   const [agregar, setAgregar] = useState<Carta | null>(null);
   useEffect(() => { const t = setTimeout(() => setQLenta(q), 120); return () => clearTimeout(t); }, [q]);
@@ -45,7 +47,7 @@ export function Buscar() {
         <div className="card-list" style={{ marginTop: 10 }}>
           {resultados.map(r => (
             <CardRow key={r.card.id} carta={r.card} entradas={col.entradas.filter(e => e.carta_id === r.card.id)} ubicador={ubicador}
-              extra={<div style={{ marginTop: 4 }}><button className="btn sm" onClick={e => { e.stopPropagation(); setAgregar(r.card); }}>+ Guardar en mi colección</button></div>} />
+              extra={<div style={{ marginTop: 4 }}><button className="btn sm primary" onClick={e => { e.stopPropagation(); setAgregar(r.card); }} data-testid="btn-guardar-fila"><Icono n="mas" tam={16} /> Guardar</button></div>} />
           ))}
           {!resultados.length ? <div className="empty"><div className="big"><Icono n="buscar" tam={44} grosor={1.5} /></div>No encontré esa carta. Prueba con el nombre en inglés, el número con el total (025/165) o el código de la colección.</div> : null}
           <p className="small muted">Busca por nombre en español, inglés o japonés, por número ("25", "025/165", "TG12"), por colección ("151", "obsidian", "sv2a", "jp") o combinaciones ("pikachu 151").</p>
