@@ -183,6 +183,7 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   const dosPaginas = esPC && cuad.paginas === 2;
   const hojaRef = useRef<HTMLDivElement>(null);
   const zonaRef = useRef<HTMLDivElement>(null);
+  const toque = useRef<{ x: number; y: number; t: number } | null>(null);
   // Fase 2 · C: qué cartas de esta colección están en venta en la red (se actualiza en tiempo real)
   useEffect(() => {
     if (!set) return;
@@ -220,6 +221,23 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   useEffect(() => { if (pagina > totalPaginas) setPagina(totalPaginas); }, [pagina, totalPaginas]);
   // con 2 páginas lado a lado, la de la izquierda siempre es impar (como en una carpeta real)
   useEffect(() => { if (dosPaginas && pagina % 2 === 0) setPagina(pagina - 1); }, [dosPaginas, pagina]);
+  const paso = dosPaginas ? 2 : 1;
+  const mover = (n: number) => { const m = Math.max(1, Math.min(totalPaginas, n)); setPagina(dosPaginas && m % 2 === 0 ? m - 1 : m); };
+  // Ajustes de layout 2 · 5 (PC): flechas del teclado ← → pasan de página (salvo escribiendo en un campo o con una hoja abierta)
+  useEffect(() => {
+    if (!esPC) return;
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const t = e.target as HTMLElement | null;
+      if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
+      if (document.querySelector('.sheet-backdrop')) return;
+      if (e.key === 'ArrowLeft' && pagina > 1) { e.preventDefault(); mover(pagina - paso); }
+      if (e.key === 'ArrowRight' && pagina + paso <= totalPaginas) { e.preventDefault(); mover(pagina + paso); }
+    };
+    window.addEventListener('keydown', tecla);
+    return () => window.removeEventListener('keydown', tecla);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [esPC, pagina, paso, totalPaginas, dosPaginas]);
   // Mejoras 2 · A: se precargan en segundo plano las imágenes de la página siguiente (la hoja pasa sin esperar)
   useEffect(() => {
     if (!set || typeof window === 'undefined') return;
@@ -236,7 +254,7 @@ export function AlbumColeccion({ setId }: { setId: string }) {
       const rect = hoja.getBoundingClientRect();
       const arriba = rect.top + window.scrollY;                       // distancia desde el inicio del documento
       const altoDisp = window.innerHeight - arriba - 24;              // margen inferior
-      const anchoDisp = zona.clientWidth - (zona.dataset.flechas ? 2 * 72 : 0);   // punto 5: espacio de las flechas a los costados
+      const anchoDisp = zona.clientWidth - 2 * 68;                    // menos las flechas de los costados (56 px + separación)
       const relleno = 18, sep = 12, separador = 2 * 18 + 2;           // padding de la hoja, separación entre casillas, lomo entre dos páginas
       const anchoPagina = (dosPaginas ? (anchoDisp - 2 * relleno - separador) / 2 : anchoDisp - 2 * relleno);
       const porAncho = (anchoPagina - (cuad.cols - 1) * sep) / cuad.cols;
@@ -269,8 +287,17 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   const inicioPagina = (pagina - 1) * porPagina;
   const paginasVista = (dosPaginas ? [pagina, pagina + 1] : [pagina]).filter(n => n <= totalPaginas);
   const celdas = (n: number) => lista.slice((n - 1) * porPagina, n * porPagina);
-  const paso = dosPaginas ? 2 : 1;
-  const irA = (n: number) => { const m = Math.max(1, Math.min(totalPaginas, n)); setPagina(dosPaginas && m % 2 === 0 ? m - 1 : m); };
+  const irA = mover;
+  // Ajustes de layout 2 · 5 (celular): deslizar con el dedo sobre la hoja pasa de página (horizontal, ≥ 50 px, rápido)
+  const tocarInicio = (e: React.TouchEvent) => { const t = e.touches[0]; if (t) toque.current = { x: t.clientX, y: t.clientY, t: Date.now() }; };
+  const tocarFin = (e: React.TouchEvent) => {
+    const ini = toque.current; toque.current = null;
+    const t = e.changedTouches[0];
+    if (!ini || !t) return;
+    const dx = t.clientX - ini.x, dy = t.clientY - ini.y;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5 || Date.now() - ini.t > 800) return;
+    mover(pagina + (dx < 0 ? paso : -paso));
+  };
   const rangoCartas = `${inicioPagina + 1}–${Math.min(lista.length, inicioPagina + porPagina)}`;
   const textoPagina = paginasVista.length > 1 ? `Páginas ${paginasVista[0]} – ${paginasVista[1]} de ${totalPaginas}` : `Página ${pagina} de ${totalPaginas}`;
   // Selector de cuadrícula (y de 1 o 2 páginas en PC), junto a los filtros Todas / Tengo / Faltan
@@ -380,24 +407,18 @@ export function AlbumColeccion({ setId }: { setId: string }) {
             </div>
             {selectorCuadricula('')}
           </div>
-          <div className="nav-pagina solo-celular">
-            <button className="btn icon" onClick={() => irA(pagina - 1)} disabled={pagina <= 1} aria-label="Página anterior" data-testid="pagina-anterior"><Icono n="izquierda" tam={22} /></button>
-            <div className="texto" data-testid="pagina-texto"><b>Página {pagina} de {totalPaginas}</b><span className="small muted"> · cartas {rangoCartas}</span></div>
-            <button className="btn icon" onClick={() => irA(pagina + 1)} disabled={pagina >= totalPaginas} aria-label="Página siguiente" data-testid="pagina-siguiente"><Icono n="derecha" tam={22} /></button>
-          </div>
+          {/* Ajustes de layout 2 · 5: "Página X de Y" pequeño arriba; flechas grandes a los costados de la hoja (teclado ← → en PC, deslizar en el celular) */}
+          <div className="texto-pagina" data-testid="pagina-texto"><b>{textoPagina}</b><span className="small muted"> · {dosPaginas ? `${porPagina} casillas por página` : `cartas ${rangoCartas}`}</span></div>
           {!lista.length ? <div className="empty">{modo === 'faltan' ? '¡No te falta ninguna!' : modo === 'tengo' ? 'Todavía no tienes cartas de esta colección.' : 'Esta colección no tiene cartas en el catálogo.'}</div> : (
-            <div className={`hoja-carpeta ${paginasVista.length > 1 ? 'doble' : ''}`} data-testid="hoja-carpeta" data-cuadricula={`${cuad.cols}x${cuad.filas}`} ref={hojaRef} style={{ '--cols': cuad.cols } as React.CSSProperties}>
-              {paginasVista.map(n => <div key={n} className="pagina-carpeta" data-pagina={n}>{celdas(n).map(c => <Celda key={c.id} c={c} />)}</div>)}
+            <div className="zona-hoja" data-testid="zona-hoja" onTouchStart={tocarInicio} onTouchEnd={tocarFin}>
+              <button type="button" className="btn icon flecha-pagina izquierda" onClick={() => irA(pagina - paso)} disabled={pagina <= 1} aria-label={dosPaginas ? 'Páginas anteriores' : 'Página anterior'} title="Página anterior (← en el teclado)" data-testid="pagina-anterior"><Icono n="izquierda" tam={30} /></button>
+              <div className={`hoja-carpeta ${paginasVista.length > 1 ? 'doble' : ''}`} data-testid="hoja-carpeta" data-cuadricula={`${cuad.cols}x${cuad.filas}`} ref={hojaRef} style={{ '--cols': cuad.cols } as React.CSSProperties}>
+                {paginasVista.map(n => <div key={n} className="pagina-carpeta" data-pagina={n}>{celdas(n).map(c => <Celda key={c.id} c={c} />)}</div>)}
+              </div>
+              <button type="button" className="btn icon flecha-pagina derecha" onClick={() => irA(pagina + paso)} disabled={pagina + paso > totalPaginas} aria-label={dosPaginas ? 'Páginas siguientes' : 'Página siguiente'} title="Página siguiente (→ en el teclado)" data-testid="pagina-siguiente"><Icono n="derecha" tam={30} /></button>
             </div>
           )}
           {totalPaginas > 1 && totalPaginas <= 12 ? <div className="puntos-pagina solo-celular" aria-hidden="true">{Array.from({ length: totalPaginas }, (_, k) => <span key={k} className={k + 1 === pagina ? 'on' : ''} />)}</div> : null}
-          {totalPaginas > 1 ? (
-            <div className="nav-pagina solo-pc-flex" style={{ marginTop: 14 }}>
-              <button className="btn icon" onClick={() => irA(pagina - paso)} disabled={pagina <= 1} aria-label={dosPaginas ? 'Páginas anteriores' : 'Página anterior'} data-testid="pagina-anterior-pc"><Icono n="izquierda" tam={22} /></button>
-              <div className="texto" data-testid="pagina-texto-pc"><b>{textoPagina}</b><span className="small muted"> · {porPagina} casillas por página</span></div>
-              <button className="btn icon" onClick={() => irA(pagina + paso)} disabled={pagina + paso > totalPaginas} aria-label={dosPaginas ? 'Páginas siguientes' : 'Página siguiente'} data-testid="pagina-siguiente-pc"><Icono n="derecha" tam={22} /></button>
-            </div>
-          ) : null}
           <div className="solo-celular" style={{ marginTop: 14 }}>{botones}</div>
         </div>
         <aside className="album-lateral" data-testid="album-lateral">

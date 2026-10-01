@@ -1399,7 +1399,7 @@ try {
   let m = await medidasPc();
   const opcionesPc = await pagePc.$$eval('[data-testid=selector-cuadricula-pc] button', els => els.map(e => e.textContent.trim()));
   if (opcionesPc.join(' ') !== '3×3 3×4 4×4 4×5 4×6' || !(await pagePc.$('[data-testid=cuadricula-4x5-pc].active')) || !(await pagePc.$('[data-testid=paginas-1].active'))) throw new Error('PC: selector de cuadrícula inesperado: ' + opcionesPc.join(' '));
-  if ((await celdasPc()) !== 20 || !/Página 1 de 11/.test(await pagePc.textContent('[data-testid=pagina-texto-pc]'))) throw new Error('PC: 4×5 debía mostrar 20 casillas de 11 páginas');
+  if ((await celdasPc()) !== 20 || !/Página 1 de 11/.test(await pagePc.textContent('[data-testid=pagina-texto]'))) throw new Error('PC: 4×5 debía mostrar 20 casillas de 11 páginas');
   if (m.hojaAbajo > m.alto || m.lateralAncho < 270 || m.lateralAncho > 290 || m.lateralX < m.hojaDerecha) throw new Error('PC: la página completa debía verse sin bajar con el panel de 280 px a la derecha: ' + JSON.stringify(m));
   if (!/\(11 páginas de 20\)/.test(await pagePc.textContent('[data-testid=ir-a-pagina]'))) throw new Error('PC: "Ir a página" no se adaptó a la cuadrícula');
   await foto(pagePc, 'pc-album-4x5');
@@ -1408,14 +1408,14 @@ try {
   await pagePc.waitForSelector('[data-testid=hoja-carpeta].doble[data-cuadricula="4x4"]');
   m = await medidasPc();
   const opcionesDoble = await pagePc.$$eval('[data-testid=selector-cuadricula-pc] button', els => els.map(e => e.textContent.trim()));
-  if (opcionesDoble.join(' ') !== '3×3 3×4 4×4' || (await celdasPc()) !== 32 || !/Páginas 1 – 2 de 13/.test(await pagePc.textContent('[data-testid=pagina-texto-pc]')) || m.hojaAbajo > m.alto) throw new Error('PC: 2 páginas debía mostrar 4×4 × 2 (32 casillas, 13 páginas) sin bajar: ' + opcionesDoble.join(' ') + ' ' + JSON.stringify(m));
-  await pagePc.click('[data-testid=pagina-siguiente-pc]');
-  await pagePc.waitForSelector('[data-testid=pagina-texto-pc]:has-text("Páginas 3 – 4 de 13")');
+  if (opcionesDoble.join(' ') !== '3×3 3×4 4×4' || (await celdasPc()) !== 32 || !/Páginas 1 – 2 de 13/.test(await pagePc.textContent('[data-testid=pagina-texto]')) || m.hojaAbajo > m.alto) throw new Error('PC: 2 páginas debía mostrar 4×4 × 2 (32 casillas, 13 páginas) sin bajar: ' + opcionesDoble.join(' ') + ' ' + JSON.stringify(m));
+  await pagePc.click('[data-testid=pagina-siguiente]');
+  await pagePc.waitForSelector('[data-testid=pagina-texto]:has-text("Páginas 3 – 4 de 13")');
   await foto(pagePc, 'pc-album-doble');
   await pagePc.click('[data-testid=paginas-1]');
   await pagePc.waitForSelector('[data-testid=hoja-carpeta]:not(.doble)[data-cuadricula="4x4"]');
   await pagePc.click('[data-testid=cuadricula-4x6-pc]');
-  await pagePc.waitForSelector('[data-testid=pagina-texto-pc]:has-text("de 9")');
+  await pagePc.waitForSelector('[data-testid=pagina-texto]:has-text("de 9")');
   if ((await celdasPc()) !== 24) throw new Error('PC: 4×6 debía mostrar 24 casillas');
   m = await medidasPc();
   if (m.hojaAbajo > m.alto) throw new Error('PC: en 4×6 la página también debía entrar sin bajar: ' + JSON.stringify(m));
@@ -1432,12 +1432,55 @@ try {
   await pagePc.click('[data-testid=cuadricula-4x5-pc]');
   await pagePc.waitForSelector('[data-testid=hoja-carpeta][data-cuadricula="4x5"]');
   log('álbum en PC: 4×5 en 1 página por defecto (20 casillas, 11 páginas, completa sin bajar, panel de 280 px); 2 páginas → 4×4 ×2; 4×6 recordado por álbum; otro álbum toma la última elección');
+  // Ajustes de layout 2 · 5 (PC): flechas ≥ 56 px a los costados de la hoja, centradas en vertical, desactivadas en los extremos; teclado ← →
+  const flechasPc = await pagePc.evaluate(() => { const r = s => document.querySelector(s).getBoundingClientRect(); const h = r('[data-testid=hoja-carpeta]'), a = r('[data-testid=pagina-anterior]'), s = r('[data-testid=pagina-siguiente]'); return { a: { w: Math.round(a.width), h: Math.round(a.height), x: Math.round(a.right), cy: Math.round(a.top + a.height / 2) }, s: { w: Math.round(s.width), h: Math.round(s.height), x: Math.round(s.left), cy: Math.round(s.top + s.height / 2) }, hoja: { l: Math.round(h.left), r: Math.round(h.right), cy: Math.round(h.top + h.height / 2) }, antDesactivada: document.querySelector('[data-testid=pagina-anterior]').disabled, texto: document.querySelector('[data-testid=pagina-texto]').getBoundingClientRect().bottom <= h.top }; });
+  if (flechasPc.a.w < 56 || flechasPc.a.h < 56 || flechasPc.s.w < 56 || flechasPc.a.x > flechasPc.hoja.l || flechasPc.s.x < flechasPc.hoja.r || Math.abs(flechasPc.a.cy - flechasPc.hoja.cy) > 4 || Math.abs(flechasPc.s.cy - flechasPc.hoja.cy) > 4 || !flechasPc.antDesactivada || !flechasPc.texto) throw new Error('PC: flechas a los costados inesperadas: ' + JSON.stringify(flechasPc));
+  await pagePc.keyboard.press('ArrowRight');
+  await pagePc.waitForSelector('[data-testid=pagina-texto]:has-text("Página 2 de 11")');
+  await pagePc.keyboard.press('ArrowRight');
+  await pagePc.waitForSelector('[data-testid=pagina-texto]:has-text("Página 3 de 11")');
+  await pagePc.keyboard.press('ArrowLeft');
+  await pagePc.waitForSelector('[data-testid=pagina-texto]:has-text("Página 2 de 11")');
+  // escribiendo en el buscador, las flechas del teclado no pasan de página
+  await pagePc.focus('[data-testid=buscador-pc] input');
+  await pagePc.keyboard.press('ArrowLeft');
+  await pagePc.waitForTimeout(300);
+  if (!/Página 2 de 11/.test(await pagePc.textContent('[data-testid=pagina-texto]'))) throw new Error('PC: con el cursor en un campo las flechas no debían pasar de página');
+  await pagePc.click('[data-testid=pagina-siguiente]');
+  await pagePc.waitForSelector('[data-testid=pagina-texto]:has-text("Página 3 de 11")');
+  for (let i = 0; i < 8; i++) await pagePc.keyboard.press('ArrowRight');
+  await pagePc.waitForSelector('[data-testid=pagina-texto]:has-text("Página 11 de 11")');
+  if (!(await pagePc.$('[data-testid=pagina-siguiente][disabled]'))) throw new Error('PC: en la última página la flecha derecha debía estar desactivada');
+  await foto(pagePc, 'pc-album-flechas');
+  log('flechas a los costados en PC (56 px, centradas, desactivadas en los extremos) y teclado ← → (no desde un campo de texto)');
   await ctxPc.close();
   const ctxCel = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'es-PE' });
   const pageCel = await ctxCel.newPage();
   await entrar(pageCel, 'chris_tcg', 'clave12345');
   await comprobarScroll(pageCel, 'celular 390×844 táctil');
   await foto(pageCel, 'scroll-celular');
+  // Ajustes de layout 2 · 5 (celular táctil): deslizar sobre la hoja pasa de página; flechas de 56 px montadas en los bordes, centradas
+  await pageCel.goto(APP + '/app/album/sv03.5');
+  await pageCel.waitForSelector('[data-testid=pagina-texto]:has-text("Página 1 de 23")');
+  const deslizar = async (desdeX, hastaX) => pageCel.evaluate(([x1, x2]) => {
+    const el = document.querySelector('[data-testid=zona-hoja]'); const r = el.getBoundingClientRect(); const y = r.top + r.height / 2;
+    const t = (x) => new Touch({ identifier: 1, target: el, clientX: x, clientY: y });
+    el.dispatchEvent(new TouchEvent('touchstart', { touches: [t(x1)], changedTouches: [t(x1)], bubbles: true }));
+    el.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [t(x2)], bubbles: true }));
+  }, [desdeX, hastaX]);
+  await deslizar(300, 80);
+  await pageCel.waitForSelector('[data-testid=pagina-texto]:has-text("Página 2 de 23")');
+  await deslizar(300, 80);
+  await pageCel.waitForSelector('[data-testid=pagina-texto]:has-text("Página 3 de 23")');
+  await deslizar(80, 300);
+  await pageCel.waitForSelector('[data-testid=pagina-texto]:has-text("Página 2 de 23")');
+  await deslizar(200, 230);   // un toque corto no pasa de página
+  await pageCel.waitForTimeout(300);
+  if (!/Página 2 de 23/.test(await pageCel.textContent('[data-testid=pagina-texto]'))) throw new Error('celular: un deslizamiento corto no debía pasar de página');
+  const flechasCel = await pageCel.evaluate(() => { const r = s => document.querySelector(s).getBoundingClientRect(); const h = r('[data-testid=hoja-carpeta]'), a = r('[data-testid=pagina-anterior]'), s = r('[data-testid=pagina-siguiente]'); return { aw: Math.round(a.width), ah: Math.round(a.height), acx: Math.round(a.left + a.width / 2), acy: Math.round(a.top + a.height / 2), scx: Math.round(s.left + s.width / 2), hl: Math.round(h.left), hr: Math.round(h.right), hcy: Math.round(h.top + h.height / 2) }; });
+  if (flechasCel.aw < 56 || flechasCel.ah < 56 || Math.abs(flechasCel.acy - flechasCel.hcy) > 4 || Math.abs(flechasCel.acx - flechasCel.hl) > 30 || Math.abs(flechasCel.scx - flechasCel.hr) > 30) throw new Error('celular: flechas inesperadas: ' + JSON.stringify(flechasCel));
+  await foto(pageCel, 'album-deslizar');
+  log('celular: deslizar pasa de página (adelante y atrás; un toque corto no), flechas de 56 px en los bordes de la hoja');
   await pageCel.setViewportSize({ width: 360, height: 780 });
   await comprobarScroll(pageCel, 'celular angosto 360×780');
   // una hoja (guardar carta) a 360 px: botones del pie de ≥ 48 px y sin desbordes
