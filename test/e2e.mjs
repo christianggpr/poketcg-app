@@ -519,6 +519,13 @@ try {
   await page.goto(APP + '/app/mazos');
   await page.waitForSelector('[data-testid=fila-mazo]');
   if ((await page.$$('[data-testid=fila-mazo]')).length !== 3) throw new Error('la página de mazos debía listar 3 arquetipos');
+  // Mejoras 2 · D: Mazos vive en Mi Colección (chip activo y pestaña inferior marcada), ya no en el Mercado
+  if (!(await page.$('[data-testid=tabbar-coleccion].active')) || !(await page.$('[data-testid=sec-mazos].active'))) throw new Error('Mazos debía aparecer marcado dentro de Mi Colección');
+  await page.goto(APP + '/app/mercado');
+  await page.waitForSelector('[data-testid=sec-carrito]');
+  if (await page.$('[data-testid=sec-mazos]')) throw new Error('el Mercado ya no debía tener el chip de Mazos');
+  await page.goto(APP + '/app/mazos');
+  await page.waitForSelector('[data-testid=fila-mazo]');
   const filaDrag = await page.textContent('[data-testid=fila-mazo] >> nth=0');
   if (!/Dragapult ex/.test(filaDrag) || !/Tienes el \d+ %/.test(filaDrag) || !/2 variantes/.test(filaDrag)) throw new Error('fila de mazo inesperada: ' + filaDrag);
   await foto(page, 'mazos');

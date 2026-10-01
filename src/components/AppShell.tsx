@@ -15,20 +15,21 @@ import { PorLlegar } from './vistas/PorLlegar';
 
 /** Las dos pestañas principales y qué rutas pertenecen a cada una. */
 const PRINCIPALES: PestanaPrincipal[] = [
-  { id: 'coleccion', href: '/app/album', label: 'Mi Colección', ico: 'albumes', rutas: ['/app/album', '/app/bulk', '/app/cajas', '/app/buscar', '/app/escanear', '/app/carta', '/app/ventas'] },
-  { id: 'mercado', href: '/app/mercado', label: 'Mercado', ico: 'tienda', rutas: ['/app/mercado', '/app/mazos', '/app/carrito', '/app/compras'] }
+  { id: 'coleccion', href: '/app/album', label: 'Mi Colección', ico: 'albumes', rutas: ['/app/album', '/app/bulk', '/app/cajas', '/app/mazos', '/app/buscar', '/app/escanear', '/app/carta', '/app/ventas'] },
+  { id: 'mercado', href: '/app/mercado', label: 'Mercado', ico: 'tienda', rutas: ['/app/mercado', '/app/carrito', '/app/compras'] }
 ];
 /** Secciones de cada pestaña: chips en el celular; en PC, menú lateral (Mi Colección) o chips (Mercado). */
 const SECCIONES: Record<'coleccion' | 'mercado', Seccion[]> = {
   coleccion: [
     { href: '/app/album', label: 'Álbumes', ico: 'album', rutas: ['/app/album'], testid: 'sec-album' },
     { href: '/app/bulk', label: 'Bulk', ico: 'bulk', rutas: ['/app/bulk', '/app/cajas'], testid: 'sec-bulk' },
+    // Mejoras 2 · D: Mazos pasa de Mercado a Mi Colección (mismas direcciones /app/mazos y /app/mazos/<id>)
+    { href: '/app/mazos', label: 'Mazos', ico: 'mazos', rutas: ['/app/mazos'], testid: 'sec-mazos' },
     { href: '/app/buscar', label: 'Buscar / Escanear', labelCorto: 'Buscar', ico: 'buscar', rutas: ['/app/buscar', '/app/escanear', '/app/carta'], testid: 'sec-buscar' },
     { href: '/app/ventas', label: 'Mis ventas', ico: 'ventas', rutas: ['/app/ventas'], testid: 'sec-ventas' }
   ],
   mercado: [
     { href: '/app/mercado', label: 'Inicio', ico: 'inicio', rutas: ['/app/mercado'], testid: 'sec-inicio' },
-    { href: '/app/mazos', label: 'Mazos', ico: 'mazos', rutas: ['/app/mazos'], testid: 'sec-mazos' },
     { href: '/app/carrito', label: 'Carrito', ico: 'carrito', rutas: ['/app/carrito'], testid: 'sec-carrito' },
     { href: '/app/compras', label: 'Mis compras', ico: 'compras', rutas: ['/app/compras'], testid: 'sec-compras' }
   ]
@@ -37,7 +38,7 @@ const pertenece = (ruta: string, prefijo: string) => ruta === prefijo || ruta.st
 /** Pantallas interiores (detalle de carta, álbum, Bulk, compra, mazo, orden, pago…): sin chips y con «volver» en el celular. */
 const esInterior = (ruta: string) => /^\/app\/(carta|album|compras|mazos|ventas\/ordenes)\/.+/.test(ruta) || ruta === '/app/notificaciones' || ruta === '/app/ajustes' || ruta === '/app/tienda';
 /** En PC, Mi Colección lleva menú lateral en Álbumes, Buscar/Escanear y Mis ventas (no en Bulk ni en los detalles, como en las maquetas). */
-const conLateral = (ruta: string) => ['/app/album', '/app/buscar', '/app/escanear', '/app/ventas', '/app/ventas/ordenes'].includes(ruta);
+const conLateral = (ruta: string) => ['/app/album', '/app/mazos', '/app/buscar', '/app/escanear', '/app/ventas', '/app/ventas/ordenes'].includes(ruta);
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const ruta = usePathname();

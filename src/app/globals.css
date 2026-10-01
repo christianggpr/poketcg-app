@@ -997,8 +997,12 @@ details.faq .faq-resp { padding: 0 14px 12px; font-size: 14px; color: var(--text
 .mejor-variante { background: var(--suave); border-radius: 12px; padding: 10px 12px; margin-top: 10px; }
 .mejor-variante .pct { font-variant-numeric: tabular-nums; }
 .mazo-botones .btn { flex: 1 1 0; }
-@media (min-width: 700px) { .mazos-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (min-width: 1024px) { .mazos-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
+@media (min-width: 700px) { .mazos-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { .mazos-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; } }
+/* Mejoras 2 · D: Mazos en Mi Colección lleva menú lateral; con menos ancho, dos columnas y botones que pueden partirse */
+@media (min-width: 1024px) and (max-width: 1399px) { .view-lateral .mazos-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.mazo-tarjeta { min-width: 0; }
+.mazo-botones .btn { white-space: normal; min-width: 0; }
 
 /* Bloque D · carrito y pago */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

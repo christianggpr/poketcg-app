@@ -94,7 +94,7 @@ export function BarraInferiorCelular({ principales, principal }: { principales: 
   );
 }
 
-/** Chips de secciones (Álbumes · Bulk · Buscar · Mis ventas / Inicio · Mazos · Carrito · Mis compras). */
+/** Chips de secciones (Álbumes · Bulk · Mazos · Buscar · Mis ventas / Inicio · Carrito · Mis compras). */
 export function ChipsSecciones({ secciones, activa, label, className = '' }: { secciones: Seccion[]; activa: Seccion | null; label?: string; className?: string }) {
   return (
     <nav className={`subtabs ${className}`} aria-label={label} data-testid="subtabs">
