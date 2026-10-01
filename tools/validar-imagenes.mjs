@@ -34,7 +34,7 @@ const args = process.argv.slice(2);
 const opcion = (n) => { const i = args.indexOf(n); return i < 0 ? null : args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : true; };
 const solo = typeof opcion('--solo') === 'string' ? new Set(opcion('--solo').split(',').map(s => s.trim()).filter(Boolean)) : null;
 const sinApi = !!opcion('--sin-api');
-const CONCURRENCIA = Number(opcion('--concurrencia')) || 12;
+const CONCURRENCIA = Number(opcion('--concurrencia')) || 8;
 
 const API = 'https://api.tcgdex.net/v2';
 const ASSETS = 'https://assets.tcgdex.net';
@@ -58,6 +58,8 @@ const fmtNum = (n) => n.toLocaleString('es-PE');
 const pct = (a, b) => (b ? (100 * a / b).toFixed(2).replace('.', ',') : '0,00') + ' %';
 
 let peticiones = 0, errores = 0;
+const erroresDetalle = new Map(); // "host · motivo" → cuántas veces
+const anotarError = (url, motivo) => { const k = `${new URL(url).hostname} · ${motivo}`; erroresDetalle.set(k, (erroresDetalle.get(k) || 0) + 1); };
 
 /** Ejecuta fn sobre los elementos con un máximo de n a la vez. */
 async function enLotes(items, n, fn) {
@@ -71,7 +73,8 @@ async function enLotes(items, n, fn) {
 
 /** ¿Existe la imagen? 'ok' | 'no' | 'error' (red o servidor, tras reintentos). */
 async function existe(url) {
-  for (let intento = 0; intento < 4; intento++) {
+  let motivo = '';
+  for (let intento = 0; intento < 5; intento++) {
     try {
       peticiones++;
       const r = await fetch(url, { method: 'HEAD', redirect: 'follow', headers: { 'user-agent': UA }, signal: AbortSignal.timeout(20000) });
@@ -83,11 +86,14 @@ async function existe(url) {
         if (g.ok) return 'ok';
         if (g.status === 404 || g.status === 403 || g.status === 410) return 'no';
       }
-      if (r.status === 429) { await espera(4000 * (intento + 1)); continue; }
-    } catch { /* red: se reintenta */ }
-    await espera(800 * (intento + 1));
+      motivo = 'HTTP ' + r.status;
+      // demasiadas peticiones o servidor ocupado: se espera más cada vez (5, 10, 20, 40 s)
+      if (r.status === 429 || r.status >= 500) { await espera(5000 * 2 ** intento); continue; }
+    } catch (e) { motivo = (e && e.name === 'TimeoutError') ? 'tiempo agotado' : 'red'; }
+    await espera(1500 * (intento + 1));
   }
   errores++;
+  anotarError(url, motivo || 'desconocido');
   return 'error';
 }
 
@@ -105,6 +111,7 @@ async function setApi(lang, id) {
     } catch { await espera(1200 * (intento + 1)); }
   }
   errores++;
+  anotarError(API, 'API de TCGdex');
   return null;
 }
 
@@ -203,9 +210,11 @@ salida.peticiones = peticiones; salida.errores = errores; salida.segundos = segu
 salida.yaEnTcgdex = yaEnTcgdex;
 salida.resumen = { total, conImagen, pct: total ? Math.round(10000 * conImagen / total) / 100 : 0, conFuentePublica: { total: totalConFuente, conImagen: conImagenConFuente, pct: totalConFuente ? Math.round(10000 * conImagenConFuente / totalConFuente) / 100 : 0 }, sinFuentePublica: total - totalConFuente, sinDatos, fuentes: fuentesTotal };
 
+salida.erroresDetalle = Object.fromEntries(erroresDetalle);
 // Demasiados errores de red → no se escribe nada (el resultado no sería fiable)
-if (errores > Math.max(20, peticiones * 0.02)) {
+if (errores > Math.max(50, peticiones * 0.15)) {
   console.error(`\nDemasiados errores de red (${errores} de ${peticiones} peticiones): no se escribe el resultado. Vuelve a intentarlo más tarde.`);
+  console.error([...erroresDetalle.entries()].map(([k, n]) => `${k}: ${n}`).join('\n'));
   process.exit(2);
 }
 
@@ -218,6 +227,7 @@ const informe = [
   `  · Colecciones con fuente pública (TCGdex, pokemontcg.io, Limitless): ${fmtNum(conImagenConFuente)} de ${fmtNum(totalConFuente)} con imagen (${pct(conImagenConFuente, totalConFuente)})`,
   `  · Colecciones japonesas de 1996–2006 sin fuente pública (${setsSinFuente.length} colecciones, ${fmtNum(total - totalConFuente)} cartas): sin imagen`,
   `Por fuente: TCGdex ${fmtNum(fuentesTotal.tcgdex)} · TCGdex en español (respaldo) ${fmtNum(fuentesTotal['tcgdex-es'])} · pokemontcg.io ${fmtNum(fuentesTotal.pokemontcg)} · Limitless ${fmtNum(fuentesTotal.limitless)} · ninguna ${fmtNum(fuentesTotal.ninguna)}`,
+  errores ? `Errores de red (esas cartas quedan como "sin comprobar", no como sin imagen): ${[...erroresDetalle.entries()].map(([k, n]) => `${k} ×${n}`).join(' · ')}` : '',
   yaEnTcgdex.length ? `Cartas completadas a mano que ya están en TCGdex (se les quita la marca sinTcgdex): ${yaEnTcgdex.length}` : '',
   '',
   'Por colección (id · nombre · con imagen/total · TCGdex por idioma · respaldos · sin imagen):',

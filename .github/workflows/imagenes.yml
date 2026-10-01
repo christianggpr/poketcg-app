@@ -35,7 +35,7 @@ jobs:
           node-version: 20
 
       - name: Comprobar las imágenes
-        run: node tools/validar-imagenes.mjs --concurrencia 16
+        run: node tools/validar-imagenes.mjs --concurrencia 8
 
       - name: Regenerar el catálogo
         if: ${{ inputs.regenerar }}
