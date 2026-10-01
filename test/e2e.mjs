@@ -33,6 +33,7 @@ const correrTarea = async () => {
   return r;
 };
 const num = q => parseInt(sql(q), 10);
+const pen = n => 'S/ ' + Number(n).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 /** PNG mínimo (w×h, un color) para simular la foto de una carta. */
 function png(w, h, rgb) {
   const fila = w * 3 + 1, raw = Buffer.alloc(fila * h);
@@ -373,6 +374,35 @@ try {
   await page.waitForFunction(() => document.querySelectorAll('[data-testid=fila-mercado]').length === 2, null, { timeout: 15000 });   // Charmander ya la tengo
   await page.uncheck('label:has-text("Solo las que me faltan") input');
   log('mercado: 3 cartas en venta; búsqueda, filtro por acabado y "solo las que me faltan" OK');
+
+  // Mejoras 1 · D: Inicio del Mercado con carruseles en loop ("Más vendidas" y "Mayor precio") que se mueven solos y se pausan al tocar
+  await page.mouse.move(5, 5);   // el mouse del paso anterior no debe quedar sobre el carrusel (lo pausaría)
+  await page.goto(APP + '/app/mercado');
+  await page.waitForSelector('[data-testid=carrusel-precio-item]');
+  if ((await page.$$('[data-testid=carrusel-vendidas-item]')).length !== 3 || (await page.$$('[data-testid=carrusel-precio-item]')).length !== 3) throw new Error('los carruseles debían mostrar las 3 cartas con stock');
+  const masCara = sql(`select carta_id || '|' || precio_pen from public.mercado order by precio_pen desc limit 1`).split('|');
+  const primeraCara = await page.textContent('[data-testid=carrusel-precio-item] >> nth=0');
+  if (!primeraCara.includes(pen(masCara[1])) || !/Charmander/.test(primeraCara)) throw new Error('"Mayor precio" debía empezar por la oferta más cara (' + masCara.join(' ') + '): ' + primeraCara);
+  if ((await page.getAttribute('[data-testid=carrusel-vendidas]', 'data-loop')) !== '1' || (await page.$$('[data-testid=carrusel-vendidas] .tarjeta')).length !== 6) throw new Error('el carrusel debía duplicar las tarjetas para el loop');
+  const scroll0 = await page.$eval('[data-testid=carrusel-vendidas] .pista', el => el.scrollLeft);
+  await page.waitForTimeout(1500);
+  const scroll1 = await page.$eval('[data-testid=carrusel-vendidas] .pista', el => el.scrollLeft);
+  if (scroll1 <= scroll0 + 10) throw new Error('el carrusel no se desplaza solo: ' + scroll0 + ' → ' + scroll1 + ' (pausado=' + await page.getAttribute('[data-testid=carrusel-vendidas]', 'data-pausado') + ')');
+  await page.hover('[data-testid=carrusel-vendidas] .pista');
+  await page.waitForSelector('[data-testid=carrusel-vendidas][data-pausado="1"]');
+  const scroll2 = await page.$eval('[data-testid=carrusel-vendidas] .pista', el => el.scrollLeft);
+  await page.waitForTimeout(800);
+  if (Math.abs((await page.$eval('[data-testid=carrusel-vendidas] .pista', el => el.scrollLeft)) - scroll2) > 2) throw new Error('el carrusel debía pausarse con el mouse encima');
+  await page.mouse.move(5, 5);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.reload();
+  await page.waitForSelector('[data-testid=carrusel-vendidas-item]');
+  const scrollR = await page.$eval('[data-testid=carrusel-vendidas] .pista', el => el.scrollLeft);
+  await page.waitForTimeout(1200);
+  if ((await page.$eval('[data-testid=carrusel-vendidas] .pista', el => el.scrollLeft)) !== scrollR) throw new Error('con "reducir movimiento" el carrusel no debe moverse solo');
+  await page.emulateMedia({ reducedMotion: null });
+  await foto(page, 'mercado-inicio');
+  log('Inicio del Mercado: carruseles "Más vendidas" y "Mayor precio" (3 cartas, loop, se mueven solos, pausa al pasar el mouse, quietos con "reducir movimiento")');
 
   // detalle de la carta: "Disponible en la red" y agregar 2 copias al carrito
   await page.click('[data-testid=fila-mercado]:has-text("Bulbasaur")');
@@ -989,7 +1019,6 @@ try {
   log('retiro del saldo (S/ 10.00, sin datos de cobro → pendiente de datos) y ajustes de plazo: 7 días y 48 h');
 
   // ---------- Fase 4 · C: reportes del administrador (ventas, comisiones, devoluciones, top vendedores) + Excel
-  const pen = n => 'S/ ' + Number(n).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const [ventasEsp, comisionesEsp, ordenesEsp] = sql(`select coalesce(sum(subtotal), 0) || '|' || coalesce(sum(comision), 0) || '|' || count(*) from public.ordenes where estado in ('entregada', 'saldo_liberado') and entregada_en >= (current_date - 29)::timestamp at time zone 'America/Lima'`).split('|');
   const devolucionesEsp = num(`select count(*) from public.ordenes where (estado = 'vencida' or (estado = 'cancelada' and anulada_por = 'reclamo')) and actualizada >= (current_date - 29)::timestamp at time zone 'America/Lima'`);
   if (Number(ventasEsp) < 100 || Number(ordenesEsp) < 1 || devolucionesEsp < 2) throw new Error('datos de prueba insuficientes para el reporte: ' + JSON.stringify({ ventasEsp, ordenesEsp, devolucionesEsp }));

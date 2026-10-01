@@ -71,3 +71,14 @@ export async function liberarReserva(reservaId: string): Promise<{ ok: boolean; 
   return data as { ok: boolean; error?: string };
 }
 
+
+/** Mejoras 1 · D: destacados del Inicio del Mercado (función `mercado_destacados`). */
+export type Destacada = { carta_id: string; desde: number; hasta?: number; copias: number; ofertas: number; vendidas?: number; deseadas?: number; motivo?: 'vendida' | 'deseada' | 'publicada' };
+export type Destacados = { mas_vendidas: Destacada[]; mayor_precio: Destacada[]; generado: string };
+export async function destacadosMercado(limite = 12): Promise<Destacados> {
+  const { data, error } = await supabaseBrowser().rpc('mercado_destacados', { p_limite: limite });
+  if (error) throw new Error(error.message);
+  const d = (data || { mas_vendidas: [], mayor_precio: [], generado: '' }) as Destacados;
+  const n = (x: Destacada): Destacada => ({ ...x, desde: Number(x.desde), hasta: x.hasta == null ? undefined : Number(x.hasta), copias: Number(x.copias), ofertas: Number(x.ofertas), vendidas: Number(x.vendidas || 0), deseadas: Number(x.deseadas || 0) });
+  return { ...d, mas_vendidas: (d.mas_vendidas || []).map(n), mayor_precio: (d.mayor_precio || []).map(n) };
+}

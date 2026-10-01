@@ -657,3 +657,16 @@ details.faq .faq-resp { padding: 0 12px 12px; font-size: 14px; color: var(--fg);
 .sugerencia { margin-top: 6px; padding: 8px 10px; border-radius: 10px; background: var(--primary-soft); color: var(--fg); }
 .sugerencia .warn { color: var(--warn); font-weight: 600; margin-top: 2px; }
 .loc.album { background: var(--warn-soft); color: var(--warn); }
+
+/* Mejoras 1 · D: carruseles del Inicio del Mercado */
+.carrusel { margin-top: 12px; }
+.carrusel h3 { margin: 0 0 6px; }
+.carrusel .pista { display: flex; gap: 10px; overflow-x: auto; scroll-behavior: auto; padding: 4px 2px 10px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.carrusel .pista::-webkit-scrollbar { display: none; }
+.carrusel .tarjeta {
+  flex: none; width: 128px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 6px 10px;
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--radius); color: inherit; text-align: center; min-height: 44px;
+}
+.carrusel .tarjeta:hover, .carrusel .tarjeta:focus-visible { border-color: var(--primary); }
+.carrusel .tarjeta .nombre { font-weight: 700; font-size: 13px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; }
+.carrusel .tarjeta .precio { font-weight: 800; color: var(--ok); font-size: 14px; }
