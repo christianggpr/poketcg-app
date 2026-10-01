@@ -67,9 +67,9 @@ export async function mantenimientoRapido(admin: SupabaseClient, forzar = false)
   return { vencidos, ordenes, liberadas, enviadas: r.enviadas };
 }
 
-/** Publicaciones que se agotaron (también por confirmación automática) y aún conservan fotos: se borran. */
+/** Publicaciones agotadas sin órdenes en camino (también por confirmación automática) que aún conservan fotos: se borran. */
 async function limpiarFotosVendidas(admin: SupabaseClient): Promise<void> {
-  const { data } = await admin.from('publicaciones').select('id, fotos').eq('estado', 'vendida').neq('fotos', '{}').limit(50);
-  const ids = (data || []).filter(p => Array.isArray(p.fotos) && p.fotos.length).map(p => p.id as string);
+  const { data } = await admin.rpc('publicaciones_fotos_por_borrar');
+  const ids = ((data as string[] | { publicaciones_fotos_por_borrar: string }[] | null) || []).map(x => (typeof x === 'string' ? x : x.publicaciones_fotos_por_borrar)).filter(Boolean);
   if (ids.length) await borrarFotosVendidas(admin, ids);
 }

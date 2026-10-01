@@ -1,10 +1,11 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
 import { DIAS, ETIQUETA_ORDEN, fechaDia, fechaHora, ordenesDe, usernamesDe, type Orden, type OrdenItem, type Tienda } from '@/lib/compras';
 import { comprimirImagen } from '@/lib/fotos';
 import { fmtPen } from '@/lib/precios-core';
+import { Ubicador, type Entrada } from '@/lib/coleccion';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { useCatalogo } from '../CatalogoProvider';
 import { useColeccion } from '../ColeccionProvider';
@@ -91,6 +92,9 @@ export function OrdenVendedorDetalle({ id }: { id: string }) {
     setConCuenta(!!cc);
   }
   useEffect(() => { cargar(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
+  // Las copias vendidas ya salieron de la colección: se calcula dónde estaban (caja y posición) como si siguieran ahí
+  const virtuales = useMemo(() => items.filter(i => i.entrada_datos && !col.entradas.some(x => x.id === i.entrada_id)).map(i => i.entrada_datos as unknown as Entrada), [items, col.entradas]);
+  const ubicadorVirtual = useMemo(() => (virtuales.length ? new Ubicador(cat, col.cajas, [...col.entradas, ...virtuales], perfil.idioma_nombres) : null), [virtuales, cat, col.cajas, col.entradas, perfil.idioma_nombres]);
 
   if (orden === undefined) return <p className="small muted"><span className="spinner" /> Cargando…</p>;
   if (!orden) return <div className="empty">Esa orden no existe. <Link href="/app/ventas/ordenes">Órdenes</Link></div>;
@@ -125,7 +129,7 @@ export function OrdenVendedorDetalle({ id }: { id: string }) {
       <p className="small muted">Comprador <b>@{comprador}</b> · vendiste por {fmtPen(orden.subtotal)} · comisión {fmtPen(orden.comision)} · <b>recibes {fmtPen(orden.neto_vendedor)}</b></p>
 
       <div className="panel">
-        <h3 style={{ marginTop: 0 }}>Qué entregar y dónde está en tu colección</h3>
+        <h3 style={{ marginTop: 0 }}>Qué entregar y dónde estaba en tu colección</h3>
         <div className="card-list">
           {items.map(i => { const c = cat.carta(i.carta_id); const set = c ? cat.setOf(c) : undefined; const e = i.entrada_id ? col.entradas.find(x => x.id === i.entrada_id) : undefined; return (
             <div key={i.id} className="card-row" style={{ cursor: 'default' }} data-testid="item-venta">
@@ -133,7 +137,7 @@ export function OrdenVendedorDetalle({ id }: { id: string }) {
               <div className="card-main">
                 <div className="card-name">{i.cantidad}× {c ? nombreCarta(c, perfil.idioma_nombres) : i.carta_id}</div>
                 <div className="card-set">{nombreColeccion(set, perfil.idioma_nombres)} {c ? <span className="num">{numLabel(c, set)}</span> : null}{i.acabado ? <span className="pill">{i.acabado}</span> : null}{i.idioma ? <span className="pill">{i.idioma}</span> : null}{i.condicion ? <span className="pill">{i.condicion}</span> : null}</div>
-                <div className="small" style={{ marginTop: 3 }}>{e ? <LocChip loc={ubicador.ubicacion(e)} /> : <span className="muted">ya no está en tu colección</span>}</div>
+                <div className="small" style={{ marginTop: 3 }} data-testid="ubicacion-venta">{e ? <LocChip loc={ubicador.ubicacion(e)} /> : i.entrada_datos && ubicadorVirtual ? (() => { const v = i.entrada_datos as unknown as Entrada; const loc = ubicadorVirtual.ubicacion(v); return loc ? <><span className="muted">Ya salió de tu colección · estaba en</span> <LocChip loc={loc} /></> : <span className="muted">Ya salió de tu colección{v.caja_id ? ' (su caja ya no existe)' : ' (estaba sin caja)'}</span>; })() : <span className="muted">ya no está en tu colección</span>}</div>
               </div>
               <div className="card-side"><span className="price">{fmtPen(i.precio_pen * i.cantidad)}</span></div>
             </div>

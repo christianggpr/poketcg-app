@@ -6,7 +6,6 @@ import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
 import { cancelarPago, ETIQUETA_ORDEN, ETIQUETA_PAGO, fechaDia, fechaHora, misPagos, pagoDetalle, subirComprobante, urlVoucher, usernamesDe, type Orden, type OrdenItem, type Pago, type Tienda } from '@/lib/compras';
 import { fmtPen } from '@/lib/precios-core';
 import { supabaseBrowser } from '@/lib/supabase/client';
-import { AddEntrySheet } from '../AddEntrySheet';
 import { useCatalogo } from '../CatalogoProvider';
 import { useNotificaciones } from '../NotificacionesProvider';
 import { usePerfil } from '../PerfilProvider';
@@ -62,7 +61,6 @@ export function CompraDetalle({ id }: { id: string }) {
   const [enviando, setEnviando] = useState(false);
   const [cancelar, setCancelar] = useState(false);
   const [confirmarEntrega, setConfirmarEntrega] = useState<Orden | null>(null);
-  const [agregar, setAgregar] = useState<OrdenItem | null>(null);
   const [ahora, setAhora] = useState(Date.now());
   const input = useRef<HTMLInputElement>(null);
   const pagosAj = precios.ajustes.pagos;
@@ -105,7 +103,7 @@ export function CompraDetalle({ id }: { id: string }) {
   }
   async function marcarEntregada(o: Orden) {
     const r = await fetch('/api/ordenes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion: 'entregada', id: o.id }) }).then(x => x.json()).catch(() => ({ ok: false, error: 'Sin conexión' }));
-    if (r.ok) { toast('¡Listo! Orden entregada. Puedes agregar las cartas a tu colección.', 'ok', 4000); cargar(); notif.recargar(); } else toast(r.error || 'No se pudo confirmar', 'danger', 4000);
+    if (r.ok) { toast('¡Listo! Las cartas ya están en tu colección: colócalas desde Cajas → Por colocar.', 'ok', 4500); cargar(); notif.recargar(); } else toast(r.error || 'No se pudo confirmar', 'danger', 4000);
   }
   async function cancelarCompra() {
     const r = await cancelarPago(pago.id);
@@ -150,7 +148,7 @@ export function CompraDetalle({ id }: { id: string }) {
           {o.estado === 'pago_confirmado' ? <div className="small muted" style={{ marginTop: 4 }}>El vendedor debe dejarla en la tienda hasta el <b>{fechaDia(o.fecha_limite)}</b>{o.fecha_entrega ? <> (eligió el {fechaDia(o.fecha_entrega)})</> : null}.</div> : null}
           {o.estado === 'en_tienda' ? <div className="notice ok" style={{ marginTop: 6 }}>🏪 <b>Ya está en la tienda.</b> Muestra este código para recogerla: <b style={{ fontSize: 22, letterSpacing: 2 }} data-testid="codigo-retiro">{o.codigo_retiro}</b><div style={{ marginTop: 6 }}><button className="btn sm primary" onClick={() => setConfirmarEntrega(o)} data-testid="btn-entregado">✅ Ya la recogí (Entregado)</button></div></div> : null}
           {o.estado === 'pago_confirmado' ? <div className="small muted" style={{ marginTop: 4 }}>¿Ya tienes la carta en la mano? <button className="link" onClick={() => setConfirmarEntrega(o)}>Marcar como entregada</button></div> : null}
-          {o.estado === 'entregada' || o.estado === 'saldo_liberado' ? <div className="small" style={{ marginTop: 4 }}>✅ Entregada el {fechaHora(o.entregada_en)}. Agrega las cartas a tu colección con el botón de cada una.</div> : null}
+          {o.estado === 'entregada' || o.estado === 'saldo_liberado' ? <div className="small" style={{ marginTop: 4 }} data-testid="orden-entregada">✅ Entregada el {fechaHora(o.entregada_en)}. Las cartas ya están en tu colección: <Link href="/app/cajas">colócalas en una caja</Link> (Cajas → Por colocar).</div> : null}
           {o.motivo && ['cancelada', 'vencida', 'pago_rechazado', 'disputa'].includes(o.estado) ? <div className="small" style={{ marginTop: 4, color: 'var(--warn)' }}>{o.motivo}</div> : null}
           <div className="card-list" style={{ marginTop: 8 }}>
             {items.filter(i => i.orden_id === o.id).map(i => { const c = cat.carta(i.carta_id); const set = c ? cat.setOf(c) : undefined; return (
@@ -160,14 +158,13 @@ export function CompraDetalle({ id }: { id: string }) {
                   <div className="card-name">{i.cantidad}× {c ? nombreCarta(c, perfil.idioma_nombres) : i.carta_id}</div>
                   <div className="card-set">{nombreColeccion(set, perfil.idioma_nombres)} {c ? <span className="num">{numLabel(c, set)}</span> : null}{i.acabado ? <span className="pill">{i.acabado}</span> : null}{i.idioma ? <span className="pill">{i.idioma}</span> : null}{i.condicion ? <span className="pill">{i.condicion}</span> : null}</div>
                 </div>
-                <div className="card-side"><span className="price">{fmtPen(i.precio_pen * i.cantidad)}</span>{o.estado === 'entregada' || o.estado === 'saldo_liberado' ? <button className="btn sm" style={{ marginTop: 4 }} onClick={() => setAgregar(i)} data-testid="btn-agregar-coleccion">+ A mi colección</button> : null}</div>
+                <div className="card-side"><span className="price">{fmtPen(i.precio_pen * i.cantidad)}</span>{o.estado === 'entregada' || o.estado === 'saldo_liberado' ? <span className="pill ok" style={{ marginTop: 4 }} data-testid="en-mi-coleccion">en tu colección</span> : null}</div>
               </div>
             ); })}
           </div>
         </div>
       ))}
       {confirmarEntrega ? <Confirmar titulo={`Confirmar entrega de la orden #${confirmarEntrega.numero}`} texto="Confirma solo si ya tienes las cartas en tu poder. Con tu confirmación se paga al vendedor." okLabel="Sí, ya las tengo" onOk={() => { const o = confirmarEntrega; setConfirmarEntrega(null); marcarEntregada(o); }} onClose={() => setConfirmarEntrega(null)} /> : null}
-      {agregar ? <AddEntrySheet carta={cat.carta(agregar.carta_id)} idiomaInicial={agregar.idioma} acabadoInicial={agregar.acabado} condicionInicial={agregar.condicion} cantidadInicial={agregar.cantidad} onClose={() => setAgregar(null)} /> : null}
       {cancelar ? <Confirmar titulo="Cancelar la compra" texto="Las cartas volverán al mercado y tendrás que armar el carrito de nuevo si cambias de idea." okLabel="Cancelar compra" peligro onOk={() => { setCancelar(false); cancelarCompra(); }} onClose={() => setCancelar(false)} /> : null}
       {pago.estado !== 'pendiente' ? <p className="small" style={{ marginTop: 8 }}><button className="link" onClick={() => router.push('/app/mercado')}>Seguir comprando</button></p> : null}
     </div>

@@ -20,19 +20,19 @@ Comprueba que **pg_cron sigue activo** (Fase 2, `programar-tareas.sql`): ahora e
 |---|---|---|
 | 1 | Comprador | Agrega cartas al carrito (reserva de 24 h) y pulsa **Comprar** → elige la tienda de recojo → se crea un **pago** con una **orden por vendedor**. |
 | 2 | Comprador | Ve el número de Yape/Plin y el monto; paga y sube la **foto del comprobante** (+ n.º de operación) en **30 minutos**. Si no, la reserva se libera sola. |
-| 3 | Tú (admin) | Recibes correo y aviso en **/admin → 🧾 Pagos**. Comprueba el pago en tu app de Yape y pulsa **Confirmar** (o Rechazar con motivo). Se marcan los comprobantes con n.º de operación repetido. |
+| 3 | Tú (admin) | Recibes correo y aviso en **/admin → 🧾 Pagos**. Comprueba el pago en tu app de Yape y pulsa **Confirmar** (o Rechazar con motivo). Se marcan los comprobantes con n.º de operación repetido. **Al confirmar, las copias vendidas salen de la colección del vendedor** (su orden guarda en qué caja y posición estaban). |
 | 4 | Vendedor | Recibe aviso (app + correo + WhatsApp) con las cartas, **dónde las tiene en su colección** y la tienda. Elige la **fecha de entrega** (días que abre la tienda, hasta el sábado límite). Recordatorios el día anterior y el día de la entrega. |
 | 5 | Tienda | Cuando el vendedor deja las cartas, pulsa **Recibido en tienda** (con foto opcional). Si la sede no tiene cuenta, lo marca el vendedor con foto obligatoria. |
 | 6 | Comprador | Recibe el **código de retiro de 6 dígitos** (app + correo). Va a la tienda y lo muestra. |
 | 7 | Tienda | Pulsa **Retirado por el comprador** y escribe el código (sin código no se entrega). El comprador también puede marcar **Entregado** él mismo desde Mis compras. Si nadie hace nada en **3 días**, se confirma sola. |
-| 8 | App | Las copias salen de la colección del vendedor (la publicación queda *vendida*, su foto se borra) y el comprador puede **agregarlas a su colección** con un toque. La ganancia del vendedor (precio − 5 %) pasa a **por pagar**. |
+| 8 | App | Las cartas **entran solas a la colección del comprador** en **Cajas → 📥 Por colocar** (sin caja, con idioma, variante y estado de la compra): elige la caja, pulsa «Colocar» y la app le dice la posición. La foto de la publicación vendida se borra. La ganancia del vendedor (precio − 5 %) pasa a **por pagar**. |
 | 9 | Tú (admin) | Cada día recibes por correo el **Excel de pagos** (hojas Yape-Plin, Transferencia, Sin datos, Resumen). Pagas y en **/admin → 💰 Pagos a vendedores** pulsas **Pagado ✔** (n.º de operación y captura opcionales). El vendedor recibe el aviso y ve el comprobante en **Mi saldo**. |
 
-**Fecha límite de entrega**: pago confirmado de domingo a jueves → el sábado de esa semana; viernes o sábado → el sábado siguiente. Si el vendedor no entrega a tiempo, la orden queda **vencida**, las copias vuelven a su colección, y tú recibes el aviso para devolver el dinero al comprador por Yape.
+**Fecha límite de entrega**: pago confirmado de domingo a jueves → el sábado de esa semana; viernes o sábado → el sábado siguiente. Si el vendedor no entrega a tiempo, la orden queda **vencida**, las copias vuelven a su colección (a la misma caja, si sigue existiendo) y al mercado, y tú recibes el aviso para devolver el dinero al comprador por Yape.
 
 ## 3. Pantallas nuevas
 
-- **Comprador**: Carrito → Comprar · **Mis compras** (estado, instrucciones de pago, subir comprobante, código de retiro, "Entregado", "Agregar a mi colección") · 🔔 **Notificaciones**.
+- **Comprador**: Carrito → Comprar · **Mis compras** (estado, instrucciones de pago, subir comprobante, código de retiro, "Entregado") · **Cajas → Por colocar** (las cartas compradas, listas para asignarles caja) · 🔔 **Notificaciones**.
 - **Vendedor**: Mis ventas → **Órdenes de venta** (cartas con su ubicación, fecha de entrega, foto de entrega) · **Mi saldo** (en curso, por pagarte, ya pagado, movimientos y comprobantes) · Ajustes → **Datos de cobro** (Yape/Plin o banco, cifrados) y **Verificar celular por WhatsApp**.
 - **Tienda**: pestaña **Tienda** (por llegar, por retirar, entregadas; recibido y retirado con código). Solo ve nombres de usuario, cartas y códigos.
 - **Admin** (`/admin`): 🧾 Pagos por confirmar (con voucher) · 📦 Órdenes · 💰 Pagos a vendedores (+ Excel) · 🏪 Tiendas · 📱 Celulares (verificaciones por WhatsApp) · 📲 WhatsApp pendientes · 💳 Cobros y pagos (número y nombre de Yape/Plin, métodos, WhatsApp de la app, días de pago, minutos para subir el comprobante, días para la confirmación automática, días de espera para pagar al vendedor) · 📈 Precios y tareas · 🗂️ Catálogo.
@@ -49,7 +49,7 @@ Comprobante subido (a ti) · pago confirmado / rechazado · fecha de entrega fij
 
 ## 6. Pruebas automáticas (ya corridas, todas en verde)
 
-- `npm test`: 34 pruebas (plazos, compra y vencimiento, comprobantes y confirmación, tienda y código, confirmación automática, órdenes vencidas, saldos y pagos, recordatorios, foto > S/ 50, más las de las Fases 1 y 2).
+- `npm test`: 34 pruebas (plazos, compra y vencimiento, comprobantes y confirmación con salida del stock, tienda y código, entrega a la colección del comprador, confirmación automática, órdenes vencidas que devuelven las copias, saldos y pagos, recordatorios, foto > S/ 50, más las de las Fases 1 y 2).
 - `node test/e2e.mjs`: 53 pasos de extremo a extremo con tres sesiones (comprador/admin, vendedora y tienda), del carrito al pago del vendedor.
 
 ## 7. Si algo falla

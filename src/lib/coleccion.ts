@@ -51,6 +51,7 @@ export type Entrada = {
   condicion: string;
   nota: string;
   posicion: number | null;
+  compra_orden_id?: string | null;   // Fase 3: entrada creada por una compra en el mercado (llega "por colocar")
   creado_en: string;
   actualizado_en: string;
 };

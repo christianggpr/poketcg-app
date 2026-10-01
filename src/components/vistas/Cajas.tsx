@@ -19,6 +19,62 @@ import { CardPicker } from '../CardPicker';
 import { AddEntrySheet } from '../AddEntrySheet';
 import { EntryDetailSheet } from '../EntryDetailSheet';
 import { EstadoPub, PreguntaVenta } from '../PublicarSheet';
+import { Colocacion } from '../Ubicacion';
+
+/** Cartas sin caja ("por colocar"): las compradas en el mercado llegan aquí; se eligen caja y la app dice la posición. */
+function PorColocar({ entradas }: { entradas: Entrada[] }) {
+  const cat = useCatalogo();
+  const col = useColeccion();
+  const { perfil } = usePerfil();
+  const toast = useToast();
+  const ubicador = useUbicador();
+  const cajas = cajasOrdenadas(col.cajas);
+  const [destino, setDestino] = useState<string>('');
+  const [ocupado, setOcupado] = useState<string | null>(null);
+  const [detalle, setDetalle] = useState<Entrada | null>(null);
+  const [colocadaId, setColocadaId] = useState<string | null>(null);
+  const cajaDestino = destino || col.ultimaCajaId || cajas[0]?.id || '';
+  const colocada = colocadaId ? col.entradas.find(e => e.id === colocadaId) || null : null;
+  const lista = [...entradas].sort((a, b) => (b.compra_orden_id ? 1 : 0) - (a.compra_orden_id ? 1 : 0) || b.creado_en.localeCompare(a.creado_en));
+
+  async function colocar(e: Entrada) {
+    if (!cajaDestino) { toast('Crea una caja primero', 'danger'); return; }
+    setOcupado(e.id);
+    const ok = await col.editarEntrada(e.id, { caja_id: cajaDestino });
+    setOcupado(null);
+    if (!ok) { toast('No se pudo colocar', 'danger'); return; }
+    setColocadaId(e.id);
+  }
+  return (
+    <div className="panel" style={{ marginTop: 12 }} data-testid="por-colocar">
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+        <h3 style={{ margin: 0 }}>📥 Por colocar <span className="muted">({totalCartas(entradas)})</span></h3>
+        {cajas.length ? <label className="small row" style={{ gap: 6, alignItems: 'center' }}>Colocar en <select className="input" style={{ width: 'auto', minHeight: 34, padding: '5px 10px', fontSize: 13 }} value={cajaDestino} onChange={e => setDestino(e.target.value)} data-testid="select-caja-colocar">{cajas.map(c => <option key={c.id} value={c.id}>📦 {c.nombre}</option>)}</select></label> : null}
+      </div>
+      <p className="small muted">Cartas que todavía no tienen caja: las que compraste en el mercado llegan aquí. Elige la caja y pulsa «Colocar»: la app te dice en qué posición va.</p>
+      {!cajas.length ? <p className="notice warn small">Crea una caja para poder colocarlas.</p> : null}
+      <div className="card-list">
+        {lista.map(e => { const c = cat.carta(e.carta_id); const set = c ? cat.setOf(c) : undefined; return (
+          <div key={e.id} className="card-row" style={{ cursor: 'default' }} data-testid="carta-por-colocar">
+            <span onClick={() => setDetalle(e)} role="button" style={{ cursor: 'pointer' }}><Thumb carta={c} set={set} /></span>
+            <div className="card-main">
+              <div className="card-name">{e.cantidad > 1 ? `${e.cantidad}× ` : ''}{nombreEntrada(cat, e, perfil.idioma_nombres)}</div>
+              <div className="card-set">{coleccionEntrada(cat, e, perfil.idioma_nombres)} <span className="num">{numeroEntrada(cat, e)}</span>{e.idioma ? <span className="pill">{e.idioma}</span> : null}{e.acabado ? <span className="pill">{e.acabado}</span> : null}{e.condicion ? <span className="pill">{e.condicion}</span> : null}</div>
+              {e.compra_orden_id ? <div className="small muted">🛒 {e.nota || 'Comprada en el mercado'}</div> : e.nota ? <div className="small muted">{e.nota}</div> : null}
+            </div>
+            <div className="card-side"><button className="btn sm primary" disabled={!cajas.length || ocupado === e.id} onClick={() => colocar(e)} data-testid="btn-colocar">{ocupado === e.id ? '…' : 'Colocar'}</button><button className="btn sm ghost" style={{ marginTop: 4 }} onClick={() => setDetalle(e)}>Editar</button></div>
+          </div>
+        ); })}
+      </div>
+      {detalle ? <EntryDetailSheet entrada={detalle} onClose={() => setDetalle(null)} /> : null}
+      {colocada ? (
+        <Sheet titulo="¡Colocada!" onClose={() => setColocadaId(null)} pie={<button className="btn primary" onClick={() => setColocadaId(null)} data-testid="btn-colocada-listo">Listo</button>}>
+          <div data-testid="colocacion"><Colocacion entrada={colocada} loc={ubicador.ubicacion(colocada)} /></div>
+        </Sheet>
+      ) : null}
+    </div>
+  );
+}
 
 export function EditorCaja({ caja, onClose }: { caja?: Caja | null; onClose: (guardada?: Caja) => void }) {
   const col = useColeccion();
@@ -130,7 +186,7 @@ export function Cajas() {
           );
         })}
       </div>
-      {sinCaja.length ? <p className="notice warn small" style={{ marginTop: 12 }}>{sinCaja.length} {sinCaja.length === 1 ? 'carta no tiene' : 'cartas no tienen'} caja asignada (aparecen en Buscar → Mi colección; ábrelas para asignarles una caja).</p> : null}
+      {sinCaja.length ? <PorColocar entradas={sinCaja} /> : null}
       {editor.abierto ? <EditorCaja caja={editor.caja} onClose={() => setEditor({ abierto: false })} /> : null}
     </div>
   );

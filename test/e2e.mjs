@@ -524,7 +524,10 @@ try {
   if (sql(`select estado from public.pagos where id = '${pagoId}'`) !== 'confirmado') throw new Error('el pago no quedó confirmado');
   const ordenConf = sql(`select estado || ':' || codigo_retiro || ':' || fecha_limite from public.ordenes where pago_id = '${pagoId}'`);
   if (!/^pago_confirmado:\d{6}:\d{4}-\d{2}-\d{2}$/.test(ordenConf)) throw new Error('orden inesperada tras confirmar: ' + ordenConf);
-  if (num(`select count(*) from public.mercado where carta_id = 'sv03.5-001'`) !== 0 || num(`select vendidas from public.publicaciones where usuario_id = '${LUCIA}' and carta_id = 'sv03.5-001'`) !== 3) throw new Error('las copias vendidas siguen en el mercado');
+  if (num(`select count(*) from public.mercado where carta_id = 'sv03.5-001'`) !== 0 || num(`select count(*) from public.publicaciones where usuario_id = '${LUCIA}' and estado = 'vendida'`) !== 3) throw new Error('las copias vendidas siguen en el mercado');
+  // stock: las copias vendidas salen de la colección de la vendedora al confirmarse (quedan guardadas en la orden para devolverlas si vence)
+  if (num(`select count(*) from public.entradas where usuario_id = '${LUCIA}'`) !== 0) throw new Error('las copias vendidas siguen en la colección de la vendedora');
+  if (num(`select count(*) from public.orden_items where orden_id = (select id from public.ordenes where pago_id = '${pagoId}') and descontado_en is not null and entrada_datos->>'caja_id' = '${CAJA_LUCIA}'`) !== 3) throw new Error('la orden no guardó de dónde salieron las copias');
   const avisoVenta = sql(`select cuerpo from public.notificaciones where usuario_id = '${LUCIA}' and tipo = 'venta_confirmada' order by id desc limit 1`);
   if (!/Tienda E2E/.test(avisoVenta) || !/Caja Lucía/.test(avisoVenta)) throw new Error('el aviso a la vendedora no trae tienda y ubicación: ' + avisoVenta);
   if (!(await correos()).some(c => /Vendiste/.test(c.subject) && c.to?.includes?.('vendedora@correo.pe') || /Vendiste/.test(c.subject))) throw new Error('la vendedora no recibió el correo de venta');
@@ -579,7 +582,7 @@ try {
   await pageL.waitForSelector('[data-testid=fila-orden-venta]');
   await pageL.click('[data-testid=fila-orden-venta] >> nth=0');
   await pageL.waitForSelector('[data-testid=entrega-vendedor]');
-  if (!/Caja Lucía/.test(await pageL.textContent('[data-testid=item-venta] >> nth=0'))) throw new Error('la orden no muestra dónde está la carta en la colección de la vendedora');
+  if (!/estaba en.*Caja Lucía.*#\d de 3/.test(await pageL.textContent('[data-testid=item-venta] >> nth=0'))) throw new Error('la orden no muestra dónde estaba la carta en la colección de la vendedora: ' + await pageL.textContent('[data-testid=item-venta] >> nth=0'));
   if (!(await pageL.$('[data-testid=btn-foto-entrega]'))) throw new Error('sin cuenta de tienda, la vendedora debía poder subir la foto de la entrega');
   const opciones = await pageL.$$eval('[data-testid=select-fecha] option', els => els.map(o => o.value));
   await pageL.selectOption('[data-testid=select-fecha]', opciones[opciones.length - 1]);
@@ -649,19 +652,25 @@ try {
   await pageL.waitForSelector('[data-testid=estado-orden-venta]:has-text("Entregada")');
   log('retiro con código: entregada por la tienda; 3 publicaciones vendidas, colección de la vendedora descontada, ganancia S/ 118.61 avisada');
 
-  // el comprador agrega una carta comprada a su colección (Caja 2) con idioma, acabado y estado ya puestos
+  // las cartas compradas entraron solas a la colección del comprador, sin caja ("por colocar"), con idioma, acabado y estado de la compra
+  const CHRIS = sql(`select id from public.perfiles where username = 'chris_tcg'`);
+  if (sql(`select string_agg(carta_id || ':' || cantidad || ':' || idioma || ':' || acabado || ':' || condicion || ':' || coalesce(caja_id::text, 'sin caja'), ' | ' order by carta_id) from public.entradas where usuario_id = '${CHRIS}' and compra_orden_id = '${ordenId}'`) !== 'sv03.5-001:3:ES:Normal:Buena:sin caja | sv03.5-004:1:EN:Reverse::sin caja | sv03.5-010:2:ES:::sin caja') throw new Error('las cartas compradas no entraron a la colección del comprador como "por colocar": ' + sql(`select string_agg(carta_id || ':' || cantidad || ':' || coalesce(caja_id::text, 'sin caja'), ' | ') from public.entradas where usuario_id = '${CHRIS}' and compra_orden_id = '${ordenId}'`));
   await page.goto(APP + '/app/compras/' + pagoId);
-  await page.waitForSelector('[data-testid=btn-agregar-coleccion]');
-  await page.click('[data-testid=orden] .card-row:has-text("Bulbasaur") [data-testid=btn-agregar-coleccion]');
-  await page.waitForSelector('.sheet:has-text("Guardar en una caja")');
-  if ((await page.inputValue('.sheet input[type=number]')) !== '3' || (await page.inputValue('.sheet select >> nth=1')) !== 'ES') throw new Error('la hoja no vino con la cantidad e idioma de la compra');
-  await page.click('.sheet .chipbtn:has-text("Caja 2")');
-  await page.click('.sheet-foot >> text=Guardar');
-  await page.waitForSelector('.placement .where');
-  await page.click('.sheet-foot >> text=Listo');
-  if (num("select cantidad from public.entradas where carta_id = 'sv03.5-001' and usuario_id = (select id from public.perfiles where username = 'chris_tcg')") !== 3) throw new Error('la carta comprada no se agregó a la colección');
+  await page.waitForSelector('[data-testid=orden-entregada]');
+  if ((await page.$$('[data-testid=en-mi-coleccion]')).length !== 3) throw new Error('la compra no marca las cartas como "en tu colección"');
+  // Cajas → Por colocar (6 cartas): Bulbasaur ×3 a la Caja 2 con la posición indicada
+  await page.goto(APP + '/app/cajas');
+  await page.waitForSelector('[data-testid=por-colocar]:has-text("Por colocar (6)")');
+  if ((await page.$$('[data-testid=carta-por-colocar]')).length !== 3 || !/orden #\d+ a @vendedora_lima/.test(await page.textContent('[data-testid=por-colocar]'))) throw new Error('la sección "Por colocar" no muestra las 3 cartas compradas');
+  await page.selectOption('[data-testid=select-caja-colocar]', { label: '📦 Caja 2' });
+  await page.click('[data-testid=carta-por-colocar]:has-text("Bulbasaur") [data-testid=btn-colocar]');
+  await page.waitForSelector('[data-testid=colocacion] .placement .where:has-text("Caja 2")');
+  await foto(page, 'por-colocar');
+  await page.click('[data-testid=btn-colocada-listo]');
+  await page.waitForSelector('[data-testid=por-colocar]:has-text("Por colocar (3)")');
+  if (sql(`select c.nombre || ':' || e.cantidad from public.entradas e join public.cajas c on c.id = e.caja_id where e.usuario_id = '${CHRIS}' and e.carta_id = 'sv03.5-001' and e.compra_orden_id = '${ordenId}'`) !== 'Caja 2:3') throw new Error('la carta comprada no quedó en la Caja 2');
   await ctxL.close(); await ctxT.close();
-  log('comprador: Bulbasaur ×3 agregado a Caja 2 desde la compra');
+  log('comprador: 3 cartas compradas (6 copias) entraron solas "por colocar"; Bulbasaur ×3 colocado en la Caja 2 con su posición');
 
   // ---------- Fase 3 · C: saldo del vendedor, Excel del día de pago y pago marcado
   if (sql(`select estado || ':' || monto from public.retiros where usuario_id = '${LUCIA}'`) !== 'pendiente:118.61') throw new Error('la entrega no generó el pago pendiente: ' + sql(`select estado || ':' || monto from public.retiros where usuario_id = '${LUCIA}'`));
@@ -826,14 +835,14 @@ try {
   const resImp = await page.textContent('.notice.ok');
   const nCajas = parseInt(sql("select count(*) from public.cajas where usuario_id = (select id from public.perfiles where username = 'chris_tcg')"), 10);
   const nEnt = parseInt(sql("select count(*) from public.entradas where usuario_id = (select id from public.perfiles where username = 'chris_tcg')"), 10);
-  if (nCajas !== 3 || nEnt !== 10) throw new Error(`importación: ${nCajas} cajas, ${nEnt} entradas (${resImp})`);   // 6 propias + 4 importadas
+  if (nCajas !== 3 || nEnt !== 12) throw new Error(`importación: ${nCajas} cajas, ${nEnt} entradas (${resImp})`);   // 5 propias + 3 compradas + 4 importadas
   await foto(page, 'ajustes');
   log('importación v1:', resImp.trim());
 
   // exportar JSON
   const [descarga] = await Promise.all([page.waitForEvent('download'), page.click('text=Exportar respaldo (.json)')]);
   const exportado = JSON.parse(fs.readFileSync(await descarga.path(), 'utf8'));
-  if (exportado.entradas.length !== 10) throw new Error('exportación incompleta');
+  if (exportado.entradas.length !== 12) throw new Error('exportación incompleta: ' + exportado.entradas.length);
   log('exportación JSON:', exportado.entradas.length, 'entradas');
 
   // ---------- cerrar sesión, ingresar por usuario, recuperar contraseña
