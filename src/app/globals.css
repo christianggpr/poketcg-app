@@ -472,7 +472,7 @@ textarea.input { min-height: 72px; resize: vertical; }
 }
 .album-card:hover { box-shadow: var(--sombra), 0 0 0 2px var(--linea); }
 .album-cover { width: 100%; aspect-ratio: 2 / 1; border-radius: 12px; overflow: hidden; background: var(--suave-2); display: flex; align-items: center; justify-content: center; }
-.album-cover .thumb { width: 100%; height: 100%; object-fit: cover; border-radius: 0; }
+.album-cover .thumb { width: 100%; height: 100%; object-fit: cover; object-position: 50% 18%; border-radius: 0; }   /* Ajustes de layout · 3: se ve la ilustración, no los ataques */
 .album-cover.portada-color { background: var(--energia-agua); align-items: flex-end; }
 .album-body { flex: 1; min-width: 0; }
 .album-title { font-weight: 800; font-size: 15px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
