@@ -69,7 +69,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const inicioMercado = ruta === '/app/mercado';
   const listo = !!cat && col.cargado;
   // Mejoras 4 · A: en el detalle de un álbum (libro) la vista es más ancha y con menos relleno vertical para que la hoja sea lo más grande posible
-  const esLibro = /^\/app\/album\/.+/.test(ruta);
+  const esLibro = /^\/app\/album\/.+/.test(ruta) && ruta !== '/app/album/nuevo';   // Mejoras 5 · B: el asistente de nuevo álbum no es un libro
   // Mejoras 1 · A1: al cambiar de página, si no quedó ninguna hoja abierta, el desplazamiento se libera siempre
   useEffect(() => { const t = setTimeout(liberarScrollSiNoHayHojas, 50); return () => clearTimeout(t); }, [ruta]);
   return (

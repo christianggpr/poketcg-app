@@ -100,3 +100,14 @@ test('0010: si la carta está en dos bolsillos sin copia, o el álbum por colecc
   await q(SQL);
   assert.equal((await q<E>(`select id, album_coleccion, caja_id from public.entradas where id = $1`, [e]))[0].album_coleccion, 'tst7', 'álbum por colección con más cartas: no se toca');
 });
+
+test('0011 (bloque B): albumes.tipo_album (libre por defecto) y parametros; un tipo inválido se rechaza', async t => {
+  if (!conBase(t)) return;
+  const libre = await album(ids.yo, 'Carpeta M7 libre');
+  assert.equal((await q<{ tipo_album: string; parametros: unknown }>(`select tipo_album, parametros from public.albumes where id = $1`, [libre]))[0].tipo_album, 'libre');
+  const id = await como(ids.yo, async c => (await c.query(`insert into public.albumes (nombre, paginas, columnas, filas, tipo_album, parametros) values ('Bulbasaur M7', 2, 3, 3, 'pokemon', '{"dex":1,"evoluciones":true,"idioma":""}') returning id`)).rows[0].id as string);
+  const fila = (await q<{ tipo_album: string; parametros: { dex: number; evoluciones: boolean } }>(`select tipo_album, parametros from public.albumes where id = $1`, [id]))[0];
+  assert.equal(fila.tipo_album, 'pokemon');
+  assert.deepEqual(fila.parametros, { dex: 1, evoluciones: true, idioma: '' });
+  await assert.rejects(como(ids.yo, c => c.query(`insert into public.albumes (nombre, paginas, columnas, filas, tipo_album) values ('Malo M7', 1, 3, 3, 'otro')`)), /albumes_tipo_valido/);
+});

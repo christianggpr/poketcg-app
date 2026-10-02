@@ -2,7 +2,7 @@
 import { Icono } from '../Icono';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { Carta, Coleccion } from '@/lib/catalogo';
 import { fold, nombreCarta, nombreColeccion } from '@/lib/catalogo';
 import type { Album, Casilla, Entrada } from '@/lib/coleccion';
@@ -19,7 +19,9 @@ import { Thumb } from '../Thumb';
 import { LocChip } from '../Ubicacion';
 import { CardPicker } from '../CardPicker';
 import { AgregarRapidoSheet } from '../AgregarRapidoSheet';
-import { idiomaPredominante } from '@/lib/sugerir';
+import { idiomaPredominante, idsEnBolsillo } from '@/lib/sugerir';
+import { NOMBRE_TIPO, descripcionTipo, tipoDeAlbum, type ParametrosAlbum } from '@/lib/albumes-tipos';
+import { SugerenciasSheet } from './SugerenciasAlbum';
 import { Sheet, Confirmar } from '../Sheet';
 import { usePedirPrecios } from '../Precio';
 import { useToast } from '../Toast';
@@ -51,12 +53,22 @@ export function AlbumFisico({ id }: { id: string }) {
   const [borrar, setBorrar] = useState(false);
   const [rellenar, setRellenar] = useState(false);
   const [modo, setModo] = useState<'todos' | 'tengo' | 'faltan'>('todos');
+  // Mejoras 5 · B: tipo del álbum (Pokémon, tipo, ilustrador…), "¿Ponerlas en este álbum?" al crearlo y Sugerencias
+  const params = useSearchParams();
+  const esNuevo = params.get('nuevo') === '1';
+  const [cargadas, setCargadas] = useState(false);
+  const [poner, setPoner] = useState(false);
+  const [poniendo, setPoniendo] = useState(false);
+  const [sugerencias, setSugerencias] = useState(false);
+  const [preguntado, setPreguntado] = useState(false);
   const idioma = perfil.idioma_nombres;
+  const tipoAlbum = tipoDeAlbum(album);
 
   const cargar = useCallback(async () => {
     if (!album) return;
     const lista = await col.casillasDe(album.id);
     setCasillas(new Map(lista.map(c => [c.indice, c])));
+    setCargadas(true);
   }, [album, col]);
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -65,6 +77,32 @@ export function AlbumFisico({ id }: { id: string }) {
     for (const e of col.entradas) if (e.carta_id) { const l = m.get(e.carta_id) || []; l.push(e); m.set(e.carta_id, l); }
     return m;
   }, [col.entradas]);
+  // Mejoras 5 · B: bolsillos con carta asignada sin copia dentro, para los que tengo una copia en otro lugar (no en un bolsillo)
+  const candidatasPoner = useMemo(() => {
+    const enBolsillo = idsEnBolsillo(col.casillas);
+    const usadas = new Set<string>();
+    const out: { indice: number; entrada: Entrada; set: string }[] = [];
+    for (const c of [...casillas.values()].sort((a, b) => a.indice - b.indice)) {
+      if (!c.carta_id || c.entrada_id) continue;
+      const carta = cat.carta(c.carta_id);
+      if (!carta) continue;
+      const libres = (propias.get(c.carta_id) || []).filter(e => !enBolsillo.has(e.id) && !usadas.has(e.id));
+      // mejor una copia suelta (cantidad 1) que separar una pila
+      const e = libres.find(x => x.cantidad === 1) || libres[0];
+      if (!e) continue;
+      usadas.add(e.id);
+      out.push({ indice: c.indice, entrada: e, set: carta.s });
+    }
+    return out;
+  }, [casillas, propias, col.casillas, cat]);
+  // al abrir un álbum recién creado: si tengo cartas que encajan, pregunto si ponerlas; si es de tipo (vacío), abro Sugerencias
+  useEffect(() => {
+    if (!esNuevo || !cargadas || preguntado || !album) return;
+    setPreguntado(true);
+    if (candidatasPoner.length) setPoner(true);
+    else if (!casillas.size && (tipoAlbum === 'tipo' || tipoAlbum === 'ilustrador')) setSugerencias(true);
+    router.replace(`/app/album/p/${album.id}`);
+  }, [esNuevo, cargadas, preguntado, album, candidatasPoner.length, casillas.size, tipoAlbum, router]);
   const idsAsignadas = useMemo(() => [...casillas.values()].map(c => c.carta_id).filter((x): x is string => !!x), [casillas]);
   usePedirPrecios(idsAsignadas);
   const stats = useMemo(() => {
@@ -114,6 +152,17 @@ export function AlbumFisico({ id }: { id: string }) {
     setCasillas(m => { const n = new Map(m); const cas = n.get(indice); n.set(indice, { album_id: album.id, indice, carta_id: cas?.carta_id || e.carta_id, entrada_id: id }); return n; });
     toast(`Copia movida a «${album.nombre}», bolsillo ${indice + 1}`, 'ok');
     setMenu(null);
+  }
+  // Mejoras 5 · B: "¿Ponerlas en este álbum?" → las copias que tengo pasan a sus bolsillos (su ubicación ahora es este álbum)
+  async function ponerTodas() {
+    if (!album || poniendo) return;
+    setPoniendo(true);
+    const n = await col.ponerEnBolsillos(album.id, candidatasPoner);
+    setPoniendo(false);
+    setPoner(false);
+    await cargar();
+    if (n) toast(`${n} ${n === 1 ? 'copia puesta' : 'copias puestas'} en «${album.nombre}»`, 'ok', 4000);
+    else toast('No se pudo mover ninguna copia', 'danger');
   }
   // siguiente bolsillo con carta asignada que todavía no tengo (para "Guardar y siguiente")
   const siguienteSinTener = (desde: number): { indice: number; carta: Carta } | null => {
@@ -192,8 +241,11 @@ export function AlbumFisico({ id }: { id: string }) {
       </>
     );
   };
+  const conSugerencias = tipoAlbum === 'tipo' || tipoAlbum === 'ilustrador';
   const acciones: AccionLibro[] = [
-    { texto: 'Rellenar con una colección', icono: 'album', onClick: () => setRellenar(true), testid: 'btn-rellenar-album', primaria: true },
+    ...(conSugerencias ? [{ texto: 'Sugerencias', icono: 'chispas' as const, onClick: () => setSugerencias(true), testid: 'btn-sugerencias', primaria: true }] : []),
+    ...(candidatasPoner.length ? [{ texto: `Poner aquí las que tengo (${candidatasPoner.length})`, icono: 'album' as const, onClick: () => setPoner(true), testid: 'btn-poner-tengo' }] : []),
+    { texto: 'Rellenar con una colección', icono: 'album', onClick: () => setRellenar(true), testid: 'btn-rellenar-album', primaria: !conSugerencias },
     { texto: 'Editar álbum', icono: 'lapiz', onClick: () => setEditar(true), testid: 'btn-editar-album' },
     { texto: 'Eliminar álbum', icono: 'basura', onClick: () => setBorrar(true), testid: 'btn-eliminar-album' }
   ];
@@ -209,7 +261,7 @@ export function AlbumFisico({ id }: { id: string }) {
       <Libro<number>
         items={items} clave={i => String(i)} celda={celda} cuadriculaId={`p-${album.id}`} cuadriculaPropia={{ cols: album.columnas, filas: album.filas }}
         miga={{ href: '/app/album', texto: 'Mis álbumes' }}
-        titulo={<>{album.nombre}<span className="pill warn" style={{ marginLeft: 8, verticalAlign: 'middle' }}>Propio</span></>}
+        titulo={<>{album.nombre}<span className="pill warn" style={{ marginLeft: 8, verticalAlign: 'middle' }} title={tipoAlbum !== 'libre' ? descripcionTipo(cat, album, idioma) : undefined} data-testid="pill-tipo-libro">{tipoAlbum === 'libre' ? 'Propio' : NOMBRE_TIPO[tipoAlbum]}</span></>}
         resumen={<span data-testid="progreso-album"><b>{stats.tengo} / {stats.asignadas}</b> · <b>{fmtPen(stats.valor)}</b> · <span className="muted">faltan {fmtPen(stats.falta)}</span></span>}
         filtros={filtros} acciones={acciones} nombreUnidad="bolsillos"
         ayuda="Toca un bolsillo vacío (o su +) para asignarle una carta; uno lleno abre sus opciones. En PC puedes arrastrar una carta a otro bolsillo."
@@ -252,6 +304,22 @@ export function AlbumFisico({ id }: { id: string }) {
         onGuardada={(c, continuar) => { const sig = continuar ? siguienteSinTener(rapido.indice) : null; setRapido(sig); cargar(); }} /> : null}
       {rellenar ? <RellenarSheet desde={inicioVisible} onClose={() => setRellenar(false)} onElegir={(s, desde) => { setRellenar(false); rellenarCon(s, desde); }} /> : null}
       {editar ? <EditorAlbum album={album} onClose={() => setEditar(false)} /> : null}
+      {poner && candidatasPoner.length ? (
+        <Sheet titulo="¿Ponerlas en este álbum?" onClose={() => setPoner(false)} pie={<><button className="btn" onClick={() => setPoner(false)} data-testid="btn-poner-no">No, solo marcarlas</button><button className="btn primary" disabled={poniendo} onClick={ponerTodas} data-testid="btn-poner-si">{poniendo ? 'Poniendo…' : `Sí, ponerlas aquí (${candidatasPoner.length})`}</button></>}>
+          <p>Tienes <b>{candidatasPoner.length}</b> {candidatasPoner.length === 1 ? 'carta que encaja' : 'cartas que encajan'} en este álbum{candidatasPoner.length < stats.tengo ? ` (de ${stats.tengo} que tienes)` : ''}.</p>
+          <p className="small muted">Si las pones aquí, cada copia se mueve a su bolsillo y <b>este álbum pasa a ser su ubicación</b> (salen del Bulk o del álbum por colección donde estaban; de una pila de varias se separa 1). Si no, se quedan donde están y aquí se ven como «tengo».</p>
+          <div className="card-list" style={{ maxHeight: '40vh', overflow: 'auto' }} data-testid="lista-poner">
+            {candidatasPoner.slice(0, 60).map(({ indice, entrada }) => { const c = cat.carta(entrada.carta_id); if (!c) return null; const d = ubicador.donde(entrada); return (
+              <div key={entrada.id} className="card-row" style={{ cursor: 'default' }}>
+                <Thumb carta={c} set={cat.setOf(c)} alt={nombreCarta(c, idioma)} />
+                <div className="card-main"><div className="card-name">{nombreCarta(c, idioma)} <span className="num">{c.l}</span></div><div className="card-set">{d ? <LocChip loc={d} corto /> : null} → bolsillo {indice + 1}{entrada.cantidad > 1 ? ` · 1 de ${entrada.cantidad}` : ''}</div></div>
+              </div>
+            ); })}
+            {candidatasPoner.length > 60 ? <p className="small muted">… y {candidatasPoner.length - 60} más.</p> : null}
+          </div>
+        </Sheet>
+      ) : null}
+      {sugerencias ? <SugerenciasSheet album={album} casillas={casillas} onClose={() => setSugerencias(false)} onAgregadas={() => cargar()} /> : null}
       {borrar ? <Confirmar titulo="Eliminar álbum" texto={`Se eliminará el álbum "${album.nombre}" y la asignación de sus bolsillos. Tus cartas no se borran de tu colección.`} okLabel="Eliminar" peligro onOk={async () => { const ok = await col.eliminarAlbum(album.id); if (ok) { toast('Álbum eliminado', 'ok'); router.replace('/app/album'); } }} onClose={() => setBorrar(false)} /> : null}
     </div>
   );

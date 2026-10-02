@@ -1378,3 +1378,51 @@ button.card-row { width: 100%; text-align: left; font: inherit; color: inherit; 
   .tarjeta-bulk .venta-bulk { grid-column: 1 / -1; }
 }
 .entry-row .nota-entrada { font-size: 12px; margin-top: 2px; line-height: 1.3; }
+
+/* Mejoras 5 · B: asistente "Nuevo álbum" en 3 pasos (maquetas M5-PC-Nuevo / M5-Nuevo) */
+.nuevo-album { display: flex; flex-direction: column; gap: 12px; max-width: 1080px; margin: 0 auto; }
+.nuevo-album .miga { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; font-weight: 800; color: var(--texto); text-decoration: none; align-self: flex-start; }
+.nuevo-album .miga:hover { color: var(--enlace); }
+.nuevo-album .titulo-nuevo { margin: 0; font-size: 22px; }
+.nuevo-album .paso-nuevo { font-size: 14px; margin-top: -6px; }
+.tipos-album { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tipo-album { text-align: left; border: 3px solid transparent; background: var(--tarjeta); box-shadow: var(--sombra); border-radius: 18px; padding: 0; overflow: hidden; cursor: pointer; color: var(--texto); display: flex; flex-direction: column; min-width: 0; }
+.tipo-album.active { border-color: var(--primario); }
+.tipo-album:hover { box-shadow: var(--sombra), 0 0 0 2px var(--linea); }
+.tipo-album .tipo-cabecera { height: 74px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; color: #fff; }
+.tipo-album .tipo-emblema { position: absolute; right: -15px; bottom: -15px; opacity: .28; width: 90px; height: 90px; }
+.tipo-album .tipo-etiqueta { position: relative; padding: 6px 12px; border-radius: 10px; background: rgba(255, 255, 255, .88); color: var(--carpeta, #1C2340); font-family: var(--fuente-titulos); font-weight: 700; font-size: 15px; }
+.tipo-album .tipo-cuerpo { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; }
+.tipo-album .tipo-cuerpo b { font-family: var(--fuente-titulos); font-weight: 700; font-size: 17px; line-height: 1.15; }
+.tipo-album .tipo-cuerpo .meta { line-height: 1.4; font-size: 13px; color: var(--texto-2); font-weight: 700; }
+.paso-detalle { display: flex; flex-direction: column; gap: 12px; }
+.paso-detalle .fila-campos { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.chips-opcion { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips-opcion .chipbtn { min-height: 44px; padding: 8px 14px; font-size: 14px; }
+.resumen-tipo { display: flex; align-items: center; gap: 10px; background: var(--ok-fondo); color: var(--ok-texto); border-radius: 12px; padding: 10px 12px; }
+.resumen-tipo .resumen-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.resumen-tipo b { font-weight: 800; color: var(--texto); overflow: hidden; text-overflow: ellipsis; }
+.resumen-tipo .meta { font-size: 13px; font-weight: 700; color: var(--texto-2); }
+.pie-nuevo { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; padding-top: 4px; }
+.pie-nuevo .btn { min-height: 48px; }
+.pie-nuevo .btn.primary { min-width: 200px; }
+@media (max-width: 639px) {
+  .pie-nuevo { flex-direction: column-reverse; }
+  .pie-nuevo .btn { width: 100%; min-height: 56px; }
+}
+@media (min-width: 700px) { .tipos-album { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; } .paso-detalle .fila-campos { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 1024px) {
+  .nuevo-album .titulo-nuevo { font-size: 30px; }
+  .tipos-album { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .tipo-album .tipo-cabecera { height: 110px; }
+  .tipo-album .tipo-emblema { right: -20px; bottom: -20px; width: 120px; height: 120px; }
+}
+/* Mejoras 5 · B: hoja de Sugerencias (álbum de tipo / ilustrador) */
+.filtros-sugerencias { gap: 10px; }
+.filtros-sugerencias .seg { width: 100%; }
+.filtros-sugerencias .seg button { flex: 1 1 auto; }
+.filtros-sugerencias .acciones-sugerencias { gap: 6px; }
+.filtros-sugerencias .acciones-sugerencias .chipbtn { min-height: 40px; padding: 6px 12px; font-size: 13.5px; }
+.hoja-sugerencias .card-list .card-row { cursor: pointer; }
+.hoja-sugerencias .fila-sugerencia .card-name .pill { font-size: 11px; }
+.sheet .filtros-sugerencias .acciones-sugerencias .chipbtn:not(.active) { background: var(--tarjeta); box-shadow: var(--sombra); }

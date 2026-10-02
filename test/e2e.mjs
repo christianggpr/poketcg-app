@@ -845,7 +845,7 @@ try {
   await entrar(pageT, 'tienda_lince', 'clave-tienda');
   await pageT.goto(APP + '/app/tienda');
   await pageT.waitForSelector('[data-testid=orden-tienda]:has-text("vendedora_lima")'); // los nombres de usuario cargan después de las órdenes
-  if (/987654321|912345678/.test(await pageT.textContent('body'))) throw new Error('la tienda debe ver la orden sin celulares');
+  if (/987654321|912345678/.test(await pageT.evaluate(() => document.body.innerText))) throw new Error('la tienda debe ver la orden sin celulares');
   await pageT.click('[data-testid=btn-recibido]');
   await pageT.click('[data-testid=btn-recibido-sin-foto]');
   await pageT.waitForSelector('.toast:has-text("recibida")');
@@ -1054,7 +1054,8 @@ try {
   await pageAnon.waitForSelector('[data-testid=perfil-publico]');
   if ((await pageAnon.textContent('[data-testid=perfil-puntaje]')) !== '5.0' || (await pageAnon.textContent('[data-testid=perfil-ventas]')) !== '1' || !(await pageAnon.$('[data-testid=insignia-nuevo]'))) throw new Error('el perfil público no muestra puntaje, ventas e insignia');
   if (!/@chris_tcg/.test(await pageAnon.textContent('[data-testid=resena-publica]')) || !/impecables/.test(await pageAnon.textContent('[data-testid=resena-publica]'))) throw new Error('la reseña no aparece en el perfil público');
-  if (/9\d{8}|Lucía Torres|vendedora@correo/.test(await pageAnon.textContent('body'))) throw new Error('el perfil público expone datos personales');
+  // (innerText: el texto visible, sin los scripts de Next, cuyos nombres de archivo pueden parecer un celular)
+  if (/9\d{8}|Lucía Torres|vendedora@correo/.test(await pageAnon.evaluate(() => document.body.innerText))) throw new Error('el perfil público expone datos personales');
   await foto(pageAnon, 'perfil-publico');
   // la vendedora ve su reputación y responde la reseña
   const ctxL3 = await browser.newContext({ viewport: { width: 420, height: 860 }, locale: 'es-PE' });
@@ -1741,22 +1742,33 @@ try {
   const portadasCol = await page.$$eval('[data-testid=album-coleccion] [data-testid=portada-coleccion]', els => els.map(e => e.style.background || getComputedStyle(e).backgroundColor));
   if (!portadasCol.length || portadasCol.some(b => !b)) throw new Error('las portadas de colección debían tener un color suave: ' + JSON.stringify(portadasCol));
   if (await page.$('[data-testid=album-coleccion] .album-cover .thumb')) throw new Error('la portada ya no debía ser una carta recortada');
+  // Mejoras 5 · B: "Nuevo álbum" es un asistente de 3 pasos (tipo → detalle → portada y tamaño); "Cartas sueltas" salta al paso 3
   await page.click('[data-testid=btn-nuevo-album]');
-  await page.waitForSelector('.sheet [data-testid=portada-propia]');
-  await page.fill('.sheet input.input >> nth=0', 'Carpeta azul');
-  await page.fill('.sheet input[type=number] >> nth=0', '2');
-  const coloresNuevo = await page.$$eval('.sheet [data-testid=colores-portada] button', els => els.map(e => e.getAttribute('aria-label').replace('Color ', '')));
+  await page.waitForURL(/\/app\/album\/nuevo/, { timeout: 20000 });
+  await page.waitForSelector('[data-testid=tipos-album] [data-testid=tipo-libre]');
+  const tiposNuevo = await page.$$eval('[data-testid=tipos-album] .tipo-album b', els => els.map(e => e.textContent.trim()));
+  if (tiposNuevo.join(' · ') !== 'Colección oficial · Un Pokémon · Un tipo · Un ilustrador · Cartas sueltas') throw new Error('tipos de álbum inesperados: ' + tiposNuevo.join(' · '));
+  if (!/Paso 1 de 3/.test(await page.textContent('[data-testid=paso-nuevo]')) || !(await page.$('[data-testid=btn-siguiente][disabled]'))) throw new Error('el paso 1 debía decir "Paso 1 de 3" con Siguiente deshabilitado hasta elegir un tipo');
+  const filasTipos = await page.$$eval('[data-testid=tipos-album] .tipo-album', els => new Set(els.map(e => Math.round(e.getBoundingClientRect().top))).size);
+  if (filasTipos !== 3) throw new Error('en el celular las 5 tarjetas de tipo debían ir en 2 columnas (3 filas): ' + filasTipos);
+  await page.click('[data-testid=tipo-libre]');
+  await page.click('[data-testid=btn-siguiente]');
+  await page.waitForSelector('[data-testid=paso-portada] [data-testid=portada-propia]');
+  if (!/Paso 3 de 3 · Portada y tamaño/.test(await page.textContent('[data-testid=paso-nuevo]'))) throw new Error('"Cartas sueltas" debía saltar al paso 3: ' + await page.textContent('[data-testid=paso-nuevo]'));
+  await page.fill('[data-testid=album-nombre]', 'Carpeta azul');
+  await page.fill('[data-testid=album-paginas]', '2');
+  const coloresNuevo = await page.$$eval('[data-testid=colores-portada] button', els => els.map(e => e.getAttribute('aria-label').replace('Color ', '')));
   if (coloresNuevo.join(' ') !== '#E2571E #1F5FCC #1E8A57 #7C4DDB #C99A00 #D23B30 #1C2340 #0E7C86') throw new Error('colores de portada inesperados: ' + coloresNuevo.join(' '));
-  const marcasNuevo = await page.$$eval('.sheet [data-testid=marcas-agua] button', els => els.map(e => e.textContent.trim()));
+  const marcasNuevo = await page.$$eval('[data-testid=marcas-agua] button', els => els.map(e => e.textContent.trim()));
   if (marcasNuevo.join(' · ') !== 'Emblema PokéTCG · Llamas · Olas · Hojas · Rayos · Estrellas · Ninguna') throw new Error('marcas de agua inesperadas: ' + marcasNuevo.join(' · '));
-  await page.click('.sheet [data-testid=color-1e8a57]');
-  await page.click('.sheet [data-testid=marca-estrellas]');
-  await page.waitForSelector('.sheet [data-testid=portada-propia][data-color="#1E8A57"][data-marca="estrellas"] .marca-patron');
-  if ((await page.textContent('.sheet [data-testid=portada-propia]')) !== 'Carpeta azulVista previa de la portada') throw new Error('la vista previa no muestra el nombre');
+  await page.click('[data-testid=color-1e8a57]');
+  await page.click('[data-testid=marca-estrellas]');
+  await page.waitForSelector('[data-testid=paso-portada] [data-testid=portada-propia][data-color="#1E8A57"][data-marca="estrellas"] .marca-patron');
+  if ((await page.textContent('[data-testid=paso-portada] [data-testid=portada-propia]')) !== 'Carpeta azulVista previa de la portada') throw new Error('la vista previa no muestra el nombre');
   await foto(page, 'nuevo-album');
-  await page.click('.sheet-foot >> text=Crear');
+  await page.click('[data-testid=btn-crear-album]');
   await page.waitForURL(/\/app\/album\/p\//, { timeout: 20000 });
-  if (sql("select color || '|' || marca_agua from public.albumes where nombre = 'Carpeta azul'") !== '#1E8A57|estrellas') throw new Error('el álbum no guardó color y marca de agua');
+  if (sql("select color || '|' || marca_agua || '|' || tipo_album from public.albumes where nombre = 'Carpeta azul'") !== '#1E8A57|estrellas|libre') throw new Error('el álbum no guardó color, marca de agua y tipo libre');
   // editar (Mejoras 4 · B: desde el menú Acciones del libro): cambiar a dorado (color claro → texto oscuro) y emblema; la tarjeta del álbum lo refleja
   await page.waitForSelector('[data-testid=hoja-carpeta]');
   await page.click('[data-testid=btn-acciones]');
@@ -1774,9 +1786,12 @@ try {
   // si la base aún no tiene las columnas (0008 sin pegar), crear un álbum sigue funcionando y queda con el color por defecto al reponerlas
   sql('alter table public.albumes drop column if exists color; alter table public.albumes drop column if exists marca_agua;');
   await page.click('[data-testid=btn-nuevo-album]');
-  await page.fill('.sheet input.input >> nth=0', 'Sin columnas');
-  await page.click('.sheet [data-testid=color-7c4ddb]');
-  await page.click('.sheet-foot >> text=Crear');
+  await page.waitForURL(/\/app\/album\/nuevo/, { timeout: 20000 });
+  await page.click('[data-testid=tipo-libre]');
+  await page.click('[data-testid=btn-siguiente]');
+  await page.fill('[data-testid=album-nombre]', 'Sin columnas');
+  await page.click('[data-testid=color-7c4ddb]');
+  await page.click('[data-testid=btn-crear-album]');
   await page.waitForURL(/\/app\/album\/p\//, { timeout: 20000 });
   execSync('su postgres -c "psql -q -d poketcg_test -f supabase/migrations/0008_mejoras3.sql"');
   if (sql("select color || '|' || marca_agua from public.albumes where nombre = 'Sin columnas'") !== '#1F5FCC|emblema') throw new Error('el álbum creado sin columnas debía quedar con los valores por defecto');
@@ -1921,6 +1936,257 @@ try {
     if ((await page.$$('[data-testid=album-coleccion]')).length !== albumesColAntes2) throw new Error('la copia debía ir al álbum de la colección que ya tengo en ese idioma, sin crear otro (ni uno "sin idioma")');
     sql(`delete from public.entradas where usuario_id = '${CHRIS}' and carta_id = 'sv03.5-007'; delete from public.precios where carta_id in ('sv03.5-007', 'base1-44')`);
     log('Mejoras 5 · A2: el + rápido en un álbum abierto sin idioma guarda con el idioma sugerido (' + idiomaMas + ') en el álbum de la colección; sin álbum "sin idioma"');
+  }
+
+  // ---------- Mejoras 5 · B: tipos de álbum al crear (Un Pokémon · Un tipo · Un ilustrador · Colección oficial) y "¿Ponerlas en este álbum?"
+  {
+    // B1 · Un Pokémon (Caterpie + evoluciones, todos los idiomas): se rellena solo con todas sus cartas por fecha; las que tengo se ofrecen para ponerlas
+    const bulk2 = sql(`select id from public.cajas where usuario_id = '${CHRIS}' and nombre = 'Bulk 2'`);
+    sql(`drop table if exists public.e2e_snap_b; create table public.e2e_snap_b as select e.id, e.caja_id, e.posicion, e.album_coleccion, e.cantidad from public.entradas e join public.cartas c on c.id = e.carta_id where e.usuario_id = '${CHRIS}' and c.dex && array[10, 11, 12]`);
+    const pilaB = sql(`insert into public.entradas (usuario_id, caja_id, carta_id, cantidad, acabado, idioma, condicion, posicion) values ('${CHRIS}', '${bulk2}', 'sv03.5-012', 2, 'Normal', 'EN', 'NM', 98) returning id`);
+    const lineaCaterpie = num(`select count(*) from public.cartas c where not c.sin_datos and c.dex && array[10, 11, 12]`);
+    const soloCaterpie = num(`select count(*) from public.cartas c where not c.sin_datos and c.dex @> array[10]`);
+    const tengoLinea = num(`select count(distinct e.carta_id) from public.entradas e join public.cartas c on c.id = e.carta_id where e.usuario_id = '${CHRIS}' and not c.sin_datos and c.dex && array[10, 11, 12]`);
+    // candidatas a poner: cartas de la línea con alguna copia que no esté ya en un bolsillo
+    const paraPoner = num(`select count(distinct e.carta_id) from public.entradas e join public.cartas c on c.id = e.carta_id where e.usuario_id = '${CHRIS}' and not c.sin_datos and c.dex && array[10, 11, 12] and not exists (select 1 from public.album_casillas k where k.entrada_id = e.id)`);
+    await page.goto(APP + '/app/album');
+    await page.waitForSelector('[data-testid=album-coleccion]');
+    const albumesColAntesB = (await page.$$('[data-testid=album-coleccion]')).length;
+    await page.click('[data-testid=btn-nuevo-album]');
+    await page.waitForURL(/\/app\/album\/nuevo/, { timeout: 20000 });
+    await page.click('[data-testid=tipo-pokemon]');
+    await page.click('[data-testid=btn-siguiente]');
+    await page.waitForSelector('[data-testid=paso-pokemon] [data-testid=buscar-especie-input]');
+    if (!/Paso 2 de 3 · ¿Qué Pokémon\?/.test(await page.textContent('[data-testid=paso-nuevo]')) || !(await page.$('[data-testid=btn-siguiente][disabled]'))) throw new Error('el paso 2 de Un Pokémon debía pedir el Pokémon con Siguiente deshabilitado');
+    await page.fill('[data-testid=buscar-especie-input]', 'caterp');
+    await page.click('[data-testid=opcion-especie]:has-text("Caterpie")');
+    await page.waitForSelector('[data-testid=resumen-tipo]:has-text("Caterpie · Nº 0010")');
+    if (!(await page.textContent('[data-testid=resumen-tipo]')).includes(`${soloCaterpie} cartas en el catálogo`)) throw new Error('el resumen debía contar las cartas de Caterpie (' + soloCaterpie + '): ' + await page.textContent('[data-testid=resumen-tipo]'));
+    await page.click('[data-testid=incluir-evoluciones]');
+    await page.waitForSelector(`[data-testid=resumen-tipo]:has-text("${lineaCaterpie} cartas en el catálogo · tienes ${tengoLinea}")`);
+    if (!/Evoluciones \(2\)/.test(await page.textContent('[data-testid=incluir-evoluciones]'))) throw new Error('Caterpie tiene 2 evoluciones: ' + await page.textContent('[data-testid=incluir-evoluciones]'));
+    await page.click('[data-testid=btn-siguiente]');
+    await page.waitForSelector('[data-testid=paso-portada] [data-testid=album-nombre]');
+    if ((await page.inputValue('[data-testid=album-nombre]')) !== 'Caterpie y evoluciones') throw new Error('el nombre sugerido debía ser "Caterpie y evoluciones": ' + await page.inputValue('[data-testid=album-nombre]'));
+    const paginasSugeridas = parseInt(await page.inputValue('[data-testid=album-paginas]'), 10);
+    if (paginasSugeridas !== Math.ceil(lineaCaterpie / 9)) throw new Error(`las páginas debían calcularse solas (${Math.ceil(lineaCaterpie / 9)} para ${lineaCaterpie} cartas en 3 × 3): ${paginasSugeridas}`);
+    if (!/Pokémon/.test(await page.textContent('[data-testid=paso-portada] .pill'))) throw new Error('el paso 3 debía mostrar el tipo Pokémon');
+    await foto(page, 'nuevo-album-pokemon');
+    await page.click('[data-testid=btn-crear-album]');
+    await page.waitForURL(/\/app\/album\/p\//, { timeout: 30000 });
+    const albumCaterpie = sql(`select id from public.albumes where usuario_id = '${CHRIS}' and nombre = 'Caterpie y evoluciones'`);
+    if (!albumCaterpie) throw new Error('no se creó el álbum de Caterpie');
+    if (sql(`select tipo_album || '|' || (parametros->>'dex') || '|' || (parametros->>'evoluciones') || '|' || coalesce(parametros->>'idioma', '-') from public.albumes where id = '${albumCaterpie}'`) !== 'pokemon|10|true|') throw new Error('el álbum debía guardar tipo pokemon con dex 10 y evoluciones: ' + sql(`select tipo_album || '|' || parametros::text from public.albumes where id = '${albumCaterpie}'`));
+    for (let i = 0; i < 40 && num(`select count(*) from public.album_casillas where album_id = '${albumCaterpie}'`) !== lineaCaterpie; i++) await page.waitForTimeout(250);
+    if (num(`select count(*) from public.album_casillas where album_id = '${albumCaterpie}'`) !== lineaCaterpie) throw new Error('el álbum debía rellenarse con las ' + lineaCaterpie + ' cartas de la línea: ' + sql(`select count(*) from public.album_casillas where album_id = '${albumCaterpie}'`));
+    // orden por fecha de colección: la primera carta es de la colección más antigua de la línea
+    const primeraLinea = sql(`select k.carta_id from public.album_casillas k join public.cartas c on c.id = k.carta_id join public.colecciones_tcg s on s.id = c.coleccion_id where k.album_id = '${albumCaterpie}' and k.indice = 0`);
+    const masAntigua = sql(`select min(s.fecha) from public.cartas c join public.colecciones_tcg s on s.id = c.coleccion_id where not c.sin_datos and c.dex && array[10, 11, 12]`);
+    if (sql(`select s.fecha from public.cartas c join public.colecciones_tcg s on s.id = c.coleccion_id where c.id = '${primeraLinea}'`) !== masAntigua) throw new Error('el bolsillo 1 debía ser de la colección más antigua (' + masAntigua + '): ' + primeraLinea);
+    // "¿Ponerlas en este álbum?": las copias que tengo (la pila de 2 Butterfree separa 1)
+    await page.waitForSelector('.sheet [data-testid=btn-poner-si]');
+    if (!(await page.textContent('.sheet')).includes(`Tienes ${paraPoner} cartas que encajan`)) throw new Error('la pregunta debía contar ' + paraPoner + ' cartas: ' + (await page.textContent('.sheet')).slice(0, 200));
+    if (!/1 de 2/.test(await page.textContent('.sheet [data-testid=lista-poner]'))) throw new Error('la lista debía avisar que de la pila de 2 Butterfree se separa 1: ' + await page.textContent('.sheet [data-testid=lista-poner]'));
+    await foto(page, 'ponerlas-en-este-album');
+    await page.click('.sheet [data-testid=btn-poner-si]');
+    await page.waitForSelector('.sheet', { state: 'detached', timeout: 30000 });
+    for (let i = 0; i < 40 && num(`select count(*) from public.album_casillas where album_id = '${albumCaterpie}' and entrada_id is not null`) !== paraPoner; i++) await page.waitForTimeout(250);
+    if (num(`select count(*) from public.album_casillas where album_id = '${albumCaterpie}' and entrada_id is not null`) !== paraPoner) throw new Error('debían quedar ' + paraPoner + ' copias en sus bolsillos: ' + sql(`select count(*) from public.album_casillas where album_id = '${albumCaterpie}' and entrada_id is not null`));
+    if (num(`select count(*) from public.album_casillas k join public.entradas e on e.id = k.entrada_id where k.album_id = '${albumCaterpie}' and (e.caja_id is not null or e.album_coleccion is not null)`) !== 0) throw new Error('las copias puestas en el álbum debían salir del Bulk y del álbum por colección');
+    if (sql(`select cantidad::text || '|' || coalesce(caja_id::text, '-') from public.entradas where id = '${pilaB}'`) !== `1|${bulk2}`) throw new Error('de la pila de 2 Butterfree debía quedar 1 en Bulk 2');
+    const enBolsilloB = sql(`select e.cantidad::text || '|' || e.idioma from public.album_casillas k join public.entradas e on e.id = k.entrada_id join public.cartas c on c.id = k.carta_id where k.album_id = '${albumCaterpie}' and c.id = 'sv03.5-012'`);
+    if (enBolsilloB !== '1|EN') throw new Error('la copia separada de Butterfree debía estar en su bolsillo (1, EN): ' + enBolsilloB);
+    // las que tengo están en páginas posteriores (orden por fecha): el filtro Tengo las muestra
+    await page.click('[data-testid=filtro-album] button:has-text("Tengo")');
+    await page.waitForSelector('[data-testid=bolsillo-tengo]');
+    if ((await page.$$('[data-testid=bolsillo-tengo]')).length !== tengoLinea) throw new Error('el filtro Tengo debía mostrar ' + tengoLinea + ' bolsillos');
+    await foto(page, 'album-pokemon-tengo');
+    await page.click('[data-testid=filtro-album] button:has-text("Todos")');
+    if (!/Pokémon/.test(await page.textContent('[data-testid=pill-tipo-libro]'))) throw new Error('el libro debía mostrar la etiqueta Pokémon');
+    // Acciones: "Poner aquí las que tengo" ya no aparece (todas puestas); Rellenar / Editar / Eliminar siguen
+    await page.click('[data-testid=btn-acciones]');
+    const accionesPokemon = await page.$$eval('[data-testid=menu-acciones] [role=menuitem]', els => els.map(e => e.textContent.trim()));
+    if (accionesPokemon.join(' | ') !== 'Rellenar con una colección | Editar álbum | Eliminar álbum') throw new Error('Acciones del álbum de Pokémon inesperadas: ' + accionesPokemon.join(' | '));
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('[data-testid=menu-acciones]', { state: 'detached' });
+    // en Mis álbumes: tarjeta con etiqueta "Pokémon" y subtítulo "Caterpie + evoluciones"; sin álbumes por colección nuevos
+    await page.goto(APP + '/app/album');
+    await page.waitForSelector('[data-testid=album-propio]:has-text("Caterpie y evoluciones")');
+    const tarjetaCaterpie = await page.textContent('[data-testid=album-propio]:has-text("Caterpie y evoluciones")');
+    if (!/Pokémon/.test(tarjetaCaterpie) || !/Caterpie \+ evoluciones/.test(tarjetaCaterpie)) throw new Error('la tarjeta debía decir Pokémon · Caterpie + evoluciones: ' + tarjetaCaterpie);
+    if ((await page.$$('[data-testid=album-coleccion]')).length > albumesColAntesB) throw new Error('crear el álbum de Pokémon no debía crear álbumes por colección');
+    // limpieza: se borra el álbum y las copias vuelven a donde estaban (la separada se elimina)
+    sql(`delete from public.albumes where id = '${albumCaterpie}';
+      delete from public.entradas e using public.cartas c where c.id = e.carta_id and e.usuario_id = '${CHRIS}' and c.dex && array[10, 11, 12] and e.id not in (select id from public.e2e_snap_b);
+      update public.entradas e set caja_id = s.caja_id, posicion = s.posicion, album_coleccion = s.album_coleccion, cantidad = s.cantidad from public.e2e_snap_b s where e.id = s.id;
+      drop table public.e2e_snap_b;`);
+    log('Mejoras 5 · B1: Un Pokémon (Caterpie + evoluciones, ' + lineaCaterpie + ' cartas por fecha, ' + Math.ceil(lineaCaterpie / 9) + ' páginas solas); "¿Ponerlas en este álbum?" puso ' + paraPoner + ' copias (1 separada de la pila de Butterfree); etiqueta y subtítulo en Mis álbumes');
+
+    // B2 · Un tipo (Planta): empieza vacío y abre Sugerencias (las que tengo primero, filtros colección y rareza); "Marcar las que tengo" → bolsillos
+    const plantaExtra = sql(`insert into public.entradas (usuario_id, caja_id, carta_id, cantidad, acabado, idioma, condicion, posicion) values ('${CHRIS}', '${bulk2}', 'sv03.5-002', 1, 'Normal', 'EN', 'NM', 97) returning id`);
+    const plantaTotal = num(`select count(*) from public.cartas c where not c.sin_datos and c.categoria = 'P' and 'Grass' = any(c.tipos)`);
+    const plantaTengo = num(`select count(distinct e.carta_id) from public.entradas e join public.cartas c on c.id = e.carta_id where e.usuario_id = '${CHRIS}' and not c.sin_datos and c.categoria = 'P' and 'Grass' = any(c.tipos)`);
+    await page.click('[data-testid=btn-nuevo-album]');
+    await page.waitForURL(/\/app\/album\/nuevo/, { timeout: 20000 });
+    await page.click('[data-testid=tipo-tipo]');
+    await page.click('[data-testid=btn-siguiente]');
+    await page.waitForSelector('[data-testid=paso-tipo] [data-testid=tipo-energia-Grass]');
+    await page.click('[data-testid=tipo-energia-Grass]');
+    await page.waitForSelector(`[data-testid=resumen-tipo]:has-text("${plantaTotal} cartas en el catálogo · tienes ${plantaTengo}")`);
+    if (!/Son muchas: el álbum empieza vacío/.test(await page.textContent('[data-testid=paso-tipo]'))) throw new Error('Un tipo debía avisar que el álbum empieza vacío con sugerencias');
+    await page.click('[data-testid=btn-siguiente]');
+    await page.waitForSelector('[data-testid=paso-portada] [data-testid=album-nombre]');
+    if ((await page.inputValue('[data-testid=album-nombre]')) !== 'Tipo Planta') throw new Error('nombre sugerido para Un tipo: ' + await page.inputValue('[data-testid=album-nombre]'));
+    await page.click('[data-testid=btn-crear-album]');
+    await page.waitForURL(/\/app\/album\/p\//, { timeout: 30000 });
+    const albumPlanta = sql(`select id from public.albumes where usuario_id = '${CHRIS}' and nombre = 'Tipo Planta'`);
+    if (sql(`select tipo_album || '|' || (parametros->>'tipo') from public.albumes where id = '${albumPlanta}'`) !== 'tipo|Grass') throw new Error('el álbum debía guardar tipo "tipo" con Grass');
+    await page.waitForSelector('.sheet.hoja-sugerencias [data-testid=sugerencia-fila]', { timeout: 20000 });
+    if (!(await page.textContent('.sheet.hoja-sugerencias .sheet-sobre')).includes(`Tipo Planta · ${plantaTotal} cartas que encajan`)) throw new Error('Sugerencias debía contar ' + plantaTotal + ': ' + await page.textContent('.sheet.hoja-sugerencias .sheet-sobre'));
+    const tengoPrimero = await page.$$eval('.sheet.hoja-sugerencias [data-testid=sugerencia-fila]', els => els.map(e => e.dataset.tengo));
+    if (plantaTengo && (tengoPrimero.slice(0, plantaTengo).some(t => t !== '1') || tengoPrimero.slice(plantaTengo).some(t => t !== '0'))) throw new Error('las que tengo debían ir primero: ' + tengoPrimero.join(''));
+    if (!/Marcar las que tengo \(/.test(await page.textContent('.sheet.hoja-sugerencias [data-testid=btn-marcar-tengo]'))) throw new Error('faltaba "Marcar las que tengo"');
+    // filtro por rareza: solo filas de esa rareza
+    const rarezaOpcion = await page.$eval('.sheet.hoja-sugerencias [data-testid=sugerencias-rareza] option:nth-child(2)', e => e.value);
+    await page.selectOption('.sheet.hoja-sugerencias [data-testid=sugerencias-rareza]', rarezaOpcion);
+    await page.waitForFunction(r => [...document.querySelectorAll('.sheet.hoja-sugerencias [data-testid=sugerencia-fila] .card-set')].every(e => e.textContent.includes(r)), rarezaOpcion);
+    await page.selectOption('.sheet.hoja-sugerencias [data-testid=sugerencias-rareza]', '');
+    await page.click('.sheet.hoja-sugerencias [data-testid=btn-marcar-tengo]');
+    await page.waitForSelector(`.sheet.hoja-sugerencias [data-testid=btn-agregar-sugerencias]:has-text("Agregar ${plantaTengo} al álbum")`);
+    await foto(page, 'sugerencias-tipo');
+    await page.click('.sheet.hoja-sugerencias [data-testid=btn-agregar-sugerencias]');
+    await page.waitForSelector('.sheet.hoja-sugerencias', { state: 'detached', timeout: 30000 });
+    for (let i = 0; i < 40 && num(`select count(*) from public.album_casillas where album_id = '${albumPlanta}'`) !== plantaTengo; i++) await page.waitForTimeout(250);
+    if (num(`select count(*) from public.album_casillas where album_id = '${albumPlanta}'`) !== plantaTengo) throw new Error('las sugerencias marcadas debían ir a los bolsillos: ' + sql(`select count(*) from public.album_casillas where album_id = '${albumPlanta}'`));
+    if (num(`select paginas from public.albumes where id = '${albumPlanta}'`) !== Math.max(2, Math.ceil(plantaTengo / 9))) throw new Error('las páginas debían crecer si hacía falta: ' + sql(`select paginas from public.albumes where id = '${albumPlanta}'`));
+    await page.waitForSelector('[data-testid=bolsillo-tengo]');   // van a los primeros bolsillos libres (desde el 1)
+    await page.click('[data-testid=btn-acciones]');
+    const accionesTipo = await page.$$eval('[data-testid=menu-acciones] [role=menuitem]', els => els.map(e => e.textContent.trim()));
+    if (!/^Sugerencias \| Poner aquí las que tengo \(\d+\) \| Rellenar con una colección \| Editar álbum \| Eliminar álbum$/.test(accionesTipo.join(' | '))) throw new Error('Acciones del álbum de tipo inesperadas: ' + accionesTipo.join(' | '));
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('[data-testid=menu-acciones]', { state: 'detached' });
+    sql(`delete from public.albumes where id = '${albumPlanta}'; delete from public.entradas where id = '${plantaExtra}'`);
+    log('Mejoras 5 · B2: Un tipo (Planta, ' + plantaTotal + ' cartas) empieza vacío y abre Sugerencias: las que tengo primero, filtro por rareza, "Marcar las que tengo" (' + plantaTengo + ') → bolsillos; Acciones con Sugerencias y "Poner aquí las que tengo"');
+
+    // B3 · Colección oficial (Base Set EN, sin cartas): aparece en Mis álbumes con el nombre elegido y se puede quitar
+    await page.goto(APP + '/app/album');
+    await page.waitForSelector('[data-testid=album-coleccion]');
+    const albumesColAntesB3 = (await page.$$('[data-testid=album-coleccion]')).length;
+    const tengoBase1 = num(`select count(distinct carta_id) from public.entradas where usuario_id = '${CHRIS}' and carta_id like 'base1-%'`);
+    const tengoBase1EN = num(`select count(distinct carta_id) from public.entradas where usuario_id = '${CHRIS}' and carta_id like 'base1-%' and idioma = 'EN' and not exists (select 1 from public.album_casillas k where k.entrada_id = entradas.id)`);
+    const nuevoColB3 = tengoBase1EN ? 0 : 1;   // si ya tengo cartas EN de Base Set, el álbum explícito se une al automático
+    await page.click('[data-testid=btn-nuevo-album]');
+    await page.waitForURL(/\/app\/album\/nuevo/, { timeout: 20000 });
+    await page.click('[data-testid=tipo-coleccion]');
+    await page.click('[data-testid=btn-siguiente]');
+    await page.waitForSelector('[data-testid=paso-coleccion] [data-testid=buscar-coleccion]');
+    await page.fill('[data-testid=paso-coleccion] [data-testid=buscar-coleccion]', 'base1');
+    await page.click('[data-testid=paso-coleccion] [data-testid=opcion-coleccion]:has-text("1999")');   // Base Set (en español, "Edición Básica")
+    await page.waitForSelector('[data-testid=paso-coleccion] [data-testid=filtro-coleccion] .elegida');
+    if (!(await page.$('[data-testid=btn-siguiente][disabled]'))) throw new Error('sin idioma, Siguiente debía estar deshabilitado');
+    await page.click('[data-testid=paso-coleccion] [data-testid=idioma-EN]');
+    try { await page.waitForSelector(`[data-testid=resumen-tipo]:has-text("102 cartas en el catálogo · tienes ${tengoBase1}")`, { timeout: 10000 }); }
+    catch { throw new Error(`el resumen de Base Set debía decir "102 cartas en el catálogo · tienes ${tengoBase1}": ` + await page.textContent('[data-testid=paso-coleccion]')); }
+    await page.click('[data-testid=btn-siguiente]');
+    await page.waitForSelector('[data-testid=paso-portada] [data-testid=album-nombre]');
+    if (!/Un álbum de colección oficial usa la hoja de la colección/.test(await page.textContent('[data-testid=paso-portada]'))) throw new Error('el paso 3 de Colección oficial debía explicar que usa la hoja de la colección');
+    await page.fill('[data-testid=album-nombre]', 'Mi Base Set');
+    await page.click('[data-testid=btn-crear-album]');
+    await page.waitForURL(/\/app\/album\/base1\?idioma=EN/, { timeout: 30000 });
+    await page.waitForSelector('[data-testid=casilla-falta]');
+    if (!/Mi Base Set/.test(await page.textContent('.libro-titulo'))) throw new Error('el libro debía titularse con el nombre elegido: ' + await page.textContent('.libro-titulo'));
+    if (sql(`select tipo_album || '|' || (parametros->>'set') || '|' || (parametros->>'idioma') from public.albumes where usuario_id = '${CHRIS}' and nombre = 'Mi Base Set'`) !== 'coleccion|base1|EN') throw new Error('el álbum de colección oficial debía guardar set e idioma');
+    if ((await page.textContent('[data-testid=progreso-album]')).trim().indexOf(`${tengoBase1EN} / 102`) !== 0) throw new Error(`el álbum de colección oficial debía decir ${tengoBase1EN} / 102: ` + await page.textContent('[data-testid=progreso-album]'));
+    await page.goto(APP + '/app/album');
+    await page.waitForSelector('[data-testid=album-coleccion]:has-text("Mi Base Set")');
+    if ((await page.$$('[data-testid=album-coleccion]')).length !== albumesColAntesB3 + nuevoColB3) throw new Error('Mi Base Set debía aparecer entre los álbumes por colección (una sola vez)');
+    if (!new RegExp(`${tengoBase1EN} / 102`).test(await page.textContent('[data-testid=album-coleccion]:has-text("Mi Base Set")'))) throw new Error(`la tarjeta debía decir ${tengoBase1EN} / 102`);
+    await page.click('[data-testid=album-coleccion]:has-text("Mi Base Set")');
+    await page.waitForURL(/\/app\/album\/base1\?idioma=EN/, { timeout: 20000 });
+    await page.waitForSelector('[data-testid=btn-acciones]');
+    await page.click('[data-testid=btn-acciones]');
+    await page.click('[data-testid=btn-quitar-album]');
+    await page.click('.sheet .btn.danger:has-text("Quitar")');
+    if (!tengoBase1EN) await page.waitForURL(/\/app\/album$/, { timeout: 20000 });   // sin cartas, vuelve a la lista
+    else { await page.waitForSelector('.sheet', { state: 'detached' }); await page.goto(APP + '/app/album'); }
+    await page.waitForSelector('[data-testid=album-coleccion]');
+    if ((await page.$$('[data-testid=album-coleccion]')).length !== albumesColAntesB3 || num(`select count(*) from public.albumes where usuario_id = '${CHRIS}' and nombre = 'Mi Base Set'`) !== 0) throw new Error('"Quitar de Mis álbumes" debía borrar el álbum de colección oficial');
+    log('Mejoras 5 · B3: Colección oficial (Base Set EN sin cartas) → "Mi Base Set" entre los álbumes por colección (0 / 102), hoja de la colección, "Quitar de Mis álbumes"');
+
+    // B4 · Un ilustrador con pocas cartas: se rellena solo
+    // un ilustrador con entre 12 y 40 cartas cuyo nombre no tenga variantes (mayúsculas/acentos) en el catálogo
+    const candidatosIl = sql(`select ilustrador from public.cartas where not sin_datos and ilustrador ~ '^[A-Za-z .]+$' group by ilustrador having count(*) between 12 and 40 and count(*) = (select count(*) from public.cartas c2 where not c2.sin_datos and lower(c2.ilustrador) = lower(cartas.ilustrador)) order by count(*) desc, ilustrador limit 1`);
+    const ilustradorPocas = candidatosIl.split('\n')[0];
+    if (!ilustradorPocas) throw new Error('no hay un ilustrador de prueba');
+    const cartasIlustrador = num(`select count(*) from public.cartas where not sin_datos and ilustrador = '${ilustradorPocas}'`);
+    const ilustradorPoner = num(`select count(distinct e.carta_id) from public.entradas e join public.cartas c on c.id = e.carta_id where e.usuario_id = '${CHRIS}' and not c.sin_datos and c.ilustrador = '${ilustradorPocas}' and not exists (select 1 from public.album_casillas k where k.entrada_id = e.id)`);
+    await page.click('[data-testid=btn-nuevo-album]');
+    await page.waitForURL(/\/app\/album\/nuevo/, { timeout: 20000 });
+    await page.click('[data-testid=tipo-ilustrador]');
+    await page.click('[data-testid=btn-siguiente]');
+    await page.waitForSelector('[data-testid=paso-ilustrador] [data-testid=buscar-filtro-ilustrador]');
+    await page.fill('[data-testid=paso-ilustrador] [data-testid=buscar-filtro-ilustrador]', ilustradorPocas);
+    await page.click(`[data-testid=paso-ilustrador] [data-testid=opcion-filtro-ilustrador]:has-text("${ilustradorPocas}")`);
+    await page.waitForSelector(`[data-testid=resumen-tipo]:has-text("${cartasIlustrador} cartas en el catálogo")`);
+    if (!/Se rellena solo/.test(await page.textContent('[data-testid=paso-ilustrador]'))) throw new Error('un ilustrador con pocas cartas debía rellenarse solo');
+    await page.click('[data-testid=btn-siguiente]');
+    await page.waitForSelector('[data-testid=paso-portada] [data-testid=album-nombre]');
+    if ((await page.inputValue('[data-testid=album-nombre]')) !== ilustradorPocas) throw new Error('nombre sugerido del ilustrador: ' + await page.inputValue('[data-testid=album-nombre]'));
+    await page.click('[data-testid=btn-crear-album]');
+    await page.waitForURL(/\/app\/album\/p\//, { timeout: 30000 });
+    const albumIlustrador = sql(`select id from public.albumes where usuario_id = '${CHRIS}' and tipo_album = 'ilustrador'`);
+    for (let i = 0; i < 40 && num(`select count(*) from public.album_casillas where album_id = '${albumIlustrador}'`) !== cartasIlustrador; i++) await page.waitForTimeout(250);
+    if (num(`select count(*) from public.album_casillas where album_id = '${albumIlustrador}'`) !== cartasIlustrador) throw new Error('el álbum del ilustrador debía rellenarse con sus ' + cartasIlustrador + ' cartas');
+    await page.waitForSelector('[data-testid=bolsillo-falta], [data-testid=bolsillo-tengo]');
+    if (ilustradorPoner) { await page.waitForSelector('.sheet [data-testid=btn-poner-no]'); await page.click('.sheet [data-testid=btn-poner-no]'); await page.waitForSelector('.sheet', { state: 'detached' }); }
+    else { await page.waitForTimeout(600); if (await page.$('.sheet')) throw new Error('sin copias que encajen no debía preguntar'); }
+    sql(`delete from public.albumes where id = '${albumIlustrador}'`);
+    log('Mejoras 5 · B4: Un ilustrador (' + ilustradorPocas + ', ' + cartasIlustrador + ' cartas) se rellena solo');
+
+    // B5 · sin 0011 pegado (sin columnas tipo_album / parametros) crear sigue funcionando; "No, solo marcarlas" no mueve nada
+    sql('alter table public.albumes drop column if exists tipo_album; alter table public.albumes drop column if exists parametros;');
+    const pikachuExtra = sql(`insert into public.entradas (usuario_id, caja_id, carta_id, cantidad, acabado, idioma, condicion, posicion) values ('${CHRIS}', '${bulk2}', 'sv03.5-025', 1, 'Normal', 'EN', 'NM', 96) returning id`);
+    const pikachuAntes = sql(`select string_agg(id::text || ':' || coalesce(caja_id::text, '-') || ':' || coalesce(album_coleccion, '-'), ',' order by id) from public.entradas e where e.usuario_id = '${CHRIS}' and e.carta_id = 'sv03.5-025'`);
+    await page.goto(APP + '/app/album');
+    await page.waitForSelector('[data-testid=btn-nuevo-album]');
+    await page.click('[data-testid=btn-nuevo-album]');
+    await page.waitForURL(/\/app\/album\/nuevo/, { timeout: 20000 });
+    await page.click('[data-testid=tipo-pokemon]');
+    await page.click('[data-testid=btn-siguiente]');
+    await page.fill('[data-testid=buscar-especie-input]', '25');
+    await page.click('[data-testid=opcion-especie]:has-text("Pikachu")');
+    await page.waitForSelector('[data-testid=resumen-tipo]:has-text("Pikachu · Nº 0025")');
+    await page.click('[data-testid=idioma-EN]');
+    await page.click('[data-testid=btn-siguiente]');
+    await page.waitForSelector('[data-testid=paso-portada] [data-testid=album-nombre]');
+    await page.click('[data-testid=btn-crear-album]');
+    await page.waitForURL(/\/app\/album\/p\//, { timeout: 30000 });
+    await page.waitForSelector('.toast:has-text("0011_mejoras5b.sql")', { timeout: 20000 });
+    const albumPikachu = sql(`select id from public.albumes where usuario_id = '${CHRIS}' and nombre = 'Pikachu'`);
+    if (!albumPikachu) throw new Error('sin 0011 el álbum debía crearse igual');
+    execSync('su postgres -c "psql -q -d poketcg_test -f supabase/migrations/0011_mejoras5b.sql"');
+    if (sql(`select tipo_album from public.albumes where id = '${albumPikachu}'`) !== 'libre') throw new Error('al reponer las columnas el álbum creado sin ellas queda como libre');
+    await page.waitForSelector('.sheet [data-testid=btn-poner-no]');
+    await page.click('.sheet [data-testid=btn-poner-no]');
+    await page.waitForSelector('.sheet', { state: 'detached' });
+    if (sql(`select string_agg(id::text || ':' || coalesce(caja_id::text, '-') || ':' || coalesce(album_coleccion, '-'), ',' order by id) from public.entradas e where e.usuario_id = '${CHRIS}' and e.carta_id = 'sv03.5-025'`) !== pikachuAntes) throw new Error('"No, solo marcarlas" no debía mover ninguna copia');
+    await page.click('[data-testid=filtro-album] button:has-text("Tengo")');
+    await page.waitForSelector('[data-testid=bolsillo-tengo]');
+    sql(`delete from public.albumes where id = '${albumPikachu}'; delete from public.entradas where id = '${pikachuExtra}'`);
+    log('Mejoras 5 · B5: sin 0011 el álbum se crea igual (aviso) y queda libre al reponer las columnas; "No, solo marcarlas" deja las copias donde están');
+
+    // B6 · PC: las 5 tarjetas del paso 1 en una fila (1280 px)
+    const ctxPcB = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'es-PE' });
+    const pagePcB = await ctxPcB.newPage();
+    await entrar(pagePcB, 'chris_tcg', 'clave12345');
+    await pagePcB.goto(APP + '/app/album/nuevo');
+    await pagePcB.waitForSelector('[data-testid=tipos-album] [data-testid=tipo-libre]');
+    const filasTiposPc = await pagePcB.$$eval('[data-testid=tipos-album] .tipo-album', els => new Set(els.map(e => Math.round(e.getBoundingClientRect().top))).size);
+    if (filasTiposPc !== 1) throw new Error('en PC las 5 tarjetas debían ir en una fila: ' + filasTiposPc);
+    if (await pagePcB.$('[data-testid=menu-lateral]')) throw new Error('el asistente no lleva menú lateral');
+    await foto(pagePcB, 'pc-nuevo-album');
+    await ctxPcB.close();
+    log('Mejoras 5 · B6: en PC el paso 1 muestra las 5 tarjetas en una fila, sin menú lateral');
   }
 
   // ---------- Mejoras 4 · C: Pokédex (álbum virtual, una casilla por especie en orden nacional; primero en la lista)

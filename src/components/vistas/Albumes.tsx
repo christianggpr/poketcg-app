@@ -26,10 +26,10 @@ import { PorLlegar, Recibidas } from './PorLlegar';
 import { AvisosOrdenar, LlenarAlbumesSheet, OrdenarRepetidasSheet, useOrdenar } from './Repetidas';
 import { PonerEnVentaSheet } from './VentaAlbum';
 import { Libro, type AccionLibro } from '../Libro';
-import { EditorAlbumPropio } from '../EditorAlbumPropio';
 import { PortadaColeccion, PortadaPropia } from '../Portadas';
 import { AgregarRapidoSheet } from '../AgregarRapidoSheet';
 import { idiomaPredominante, idsEnBolsillo } from '@/lib/sugerir';
+import { NOMBRE_TIPO, descripcionTipo, tipoDeAlbum, type ParametrosAlbum } from '@/lib/albumes-tipos';
 import { TarjetaPokedex, useOcultarPokedex } from './Pokedex';
 
 /** Idioma de una entrada para agrupar álbumes: JP para colecciones japonesas, el registrado o "—". */
@@ -38,8 +38,12 @@ function idiomaAlbum(e: Entrada, set: Coleccion | undefined): string {
   return e.idioma || '—';
 }
 
-type AlbumAuto = { set: Coleccion; idioma: string; entradas: Entrada[]; distintas: number; total: number };
+type AlbumAuto = { set: Coleccion; idioma: string; entradas: Entrada[]; distintas: number; total: number; nombre?: string };
 
+/**
+ * Álbumes por colección: uno por colección e idioma con cartas guardadas y, Mejoras 5 · B, los creados a propósito como
+ * "Colección oficial" (aunque todavía no tengan ninguna carta); si coinciden, se muestran una sola vez con el nombre elegido.
+ */
 function useAlbumesAuto(): AlbumAuto[] {
   const cat = useCatalogo();
   const col = useColeccion();
@@ -59,9 +63,20 @@ function useAlbumesAuto(): AlbumAuto[] {
       if (!a) { a = { set, idioma, entradas: [], distintas: 0, total: cat.cartasDe(set.id).filter(c => !c.sd).length }; m.set(key, a); }
       a.entradas.push(e);
     }
+    for (const a of col.albumes) {
+      if (tipoDeAlbum(a) !== 'coleccion') continue;
+      const p = (a.parametros || {}) as ParametrosAlbum;
+      const set = cat.coleccion(p.set);
+      if (!set) continue;
+      const idioma = set.rg === 'ja' ? 'JP' : p.idioma || '—';
+      const key = set.id + '|' + idioma;
+      const auto = m.get(key);
+      if (auto) auto.nombre = a.nombre;
+      else m.set(key, { set, idioma, entradas: [], distintas: 0, total: cat.cartasDe(set.id).filter(c => !c.sd).length, nombre: a.nombre });
+    }
     for (const a of m.values()) a.distintas = new Set(a.entradas.map(e => e.carta_id)).size;
     return [...m.values()].sort((a, b) => (b.set.d || '').localeCompare(a.set.d || '') || a.idioma.localeCompare(b.idioma));
-  }, [cat, col.entradas, col.casillas]);
+  }, [cat, col.entradas, col.casillas, col.albumes]);
 }
 
 export function Albumes() {
@@ -69,15 +84,13 @@ export function Albumes() {
   const col = useColeccion();
   const { perfil } = usePerfil();
   const precios = usePrecios();
-  const toast = useToast();
-  const router = useRouter();
   const albumes = useAlbumesAuto();
-  const [nuevo, setNuevo] = useState(false);
   const [filtro, setFiltro] = useState<'todos' | 'coleccion' | 'propios'>('todos');
   const idioma = perfil.idioma_nombres;
   // precio de cada álbum: Σ precio por defecto × cantidad de sus cartas (los precios ya se piden para toda la colección)
   const precioDe = (entradas: Entrada[]) => { let t = 0; for (const e of entradas) { const c = cat.carta(e.carta_id); if (c && !c.sd) t += precios.precioDefecto(c, e.acabado).pen * e.cantidad; } return t; };
-  const propios = col.albumes.map(a => {
+  // Mejoras 5 · B: los álbumes de "Colección oficial" van con los de colección; los demás (Pokémon, tipo, ilustrador, libres) aquí
+  const propios = col.albumes.filter(a => tipoDeAlbum(a) !== 'coleccion').map(a => {
     const cas = col.casillas.filter(c => c.album_id === a.id);
     const entradas = cas.map(c => col.entradas.find(e => e.id === c.entrada_id)).filter((e): e is Entrada => !!e);
     const capacidad = a.paginas * a.columnas * a.filas;
@@ -101,7 +114,7 @@ export function Albumes() {
             <button className={filtro === 'coleccion' ? 'active' : ''} onClick={() => setFiltro('coleccion')}>Por colección</button>
             <button className={filtro === 'propios' ? 'active' : ''} onClick={() => setFiltro('propios')}>Propios</button>
           </div>
-          <button className="btn primary sm" onClick={() => setNuevo(true)} data-testid="btn-nuevo-album"><Icono n="mas" /> Nuevo álbum</button>
+          <Link href="/app/album/nuevo" className="btn primary sm" data-testid="btn-nuevo-album"><Icono n="mas" /> Nuevo álbum</Link>
         </div>
       </div>
       {vacio ? <div className="empty"><div className="big"><Icono n="album" tam={44} grosor={1.5} /></div><p><b>Todavía no tienes álbumes.</b></p><p className="muted">Los álbumes por colección se crean solos cuando guardas cartas (uno por colección e idioma). Un álbum propio es una carpeta con páginas de bolsillos (por ejemplo 3 × 3) a la que asignas las cartas que van en cada bolsillo.</p></div> : null}
@@ -113,7 +126,8 @@ export function Albumes() {
             <Link key={a.set.id + a.idioma} href={`/app/album/${encodeURIComponent(a.set.id)}?idioma=${encodeURIComponent(a.idioma)}`} className="album-card" data-testid="album-coleccion">
               <PortadaColeccion set={a.set} />
               <div className="album-body">
-                <div className="album-title"><span className="nombre">{nombreColeccion(a.set, idioma)}</span>{a.idioma === '—' ? <span className="pill" title="Cartas registradas sin idioma">sin idioma</span> : <span className={`pill ${a.idioma === 'JP' ? 'jp' : 'info'}`}>{a.idioma}</span>}</div>
+                <div className="album-title"><span className="nombre">{a.nombre || nombreColeccion(a.set, idioma)}</span>{a.idioma === '—' ? <span className="pill" title="Cartas registradas sin idioma">sin idioma</span> : <span className={`pill ${a.idioma === 'JP' ? 'jp' : 'info'}`}>{a.idioma}</span>}</div>
+                {a.nombre && a.nombre !== nombreColeccion(a.set, idioma) ? <div className="small muted album-sub">{nombreColeccion(a.set, idioma)}</div> : null}
                 <div className="bar" style={{ marginTop: 8 }} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}><div style={{ width: pct + '%' }} /></div>
                 <div className="album-foot-card"><span>{a.distintas} / {a.total}</span><span>{fmtPen(precioDe(a.entradas))}</span></div>
               </div>
@@ -124,7 +138,8 @@ export function Albumes() {
           <Link key={a.id} href={`/app/album/p/${a.id}`} className="album-card" data-testid="album-propio">
             <PortadaPropia nombre={a.nombre} color={a.color} marca={a.marca_agua} />
             <div className="album-body">
-              <div className="album-title"><span className="nombre">{a.nombre}</span><span className="pill warn">Propio</span></div>
+              <div className="album-title"><span className="nombre">{a.nombre}</span><span className="pill warn" data-testid="pill-tipo-album">{tipoDeAlbum(a) === 'libre' ? 'Propio' : NOMBRE_TIPO[tipoDeAlbum(a)]}</span></div>
+              {tipoDeAlbum(a) !== 'libre' ? <div className="small muted album-sub" data-testid="album-sub">{descripcionTipo(cat, a, idioma)}</div> : null}
               <div className="bar" style={{ marginTop: 8 }} role="progressbar" aria-valuenow={capacidad ? Math.round((asignadas / capacidad) * 100) : 0} aria-valuemin={0} aria-valuemax={100}><div style={{ width: (capacidad ? Math.round((asignadas / capacidad) * 100) : 0) + '%' }} /></div>
               <div className="album-foot-card"><span>{cartas} {cartas === 1 ? 'carta' : 'cartas'}</span><span>{fmtPen(precio)}</span></div>
             </div>
@@ -132,10 +147,6 @@ export function Albumes() {
         )) : null}
       </div>
       {verColeccion && pokedexOculta ? <p className="small muted" style={{ marginTop: 10 }}>La Pokédex está oculta. <button type="button" className="link" onClick={() => ocultarPokedex(false)} data-testid="btn-mostrar-pokedex">Mostrar la Pokédex</button></p> : null}
-      {nuevo ? (
-        <EditorAlbumPropio titulo="Nuevo álbum personalizado" okLabel="Crear álbum" onClose={() => setNuevo(false)}
-          onGuardar={async d => { const a = await col.crearAlbum(d); if (a) { toast('Álbum creado', 'ok'); router.push(`/app/album/p/${a.id}`); } return !!a; }} />
-      ) : null}
     </div>
   );
 }
@@ -164,6 +175,7 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   const [asignando, setAsignando] = useState(false);
   const [confirmarVenta, setConfirmarVenta] = useState(false);
   const [asistente, setAsistente] = useState<'repetidas' | 'llenar' | null>(null);
+  const [quitar, setQuitar] = useState(false);
   const ordenar = useOrdenar(setId);
   const [enRed, setEnRed] = useState<Map<string, ResumenCarta>>(new Map());
   const mercado = useMercado();
@@ -216,6 +228,8 @@ export function AlbumColeccion({ setId }: { setId: string }) {
     router.replace(`/app/album/${encodeURIComponent(set!.id)}?idioma=${encodeURIComponent(idiomaNuevo)}`);
   }
   const sinPublicar = [...propias.values()].flat().filter(e => !col.publicacionDe(e.id));
+  // Mejoras 5 · B: si este álbum se creó a propósito ("Colección oficial"), se puede quitar de Mis álbumes (las cartas no se tocan)
+  const explicito = col.albumes.find(a => tipoDeAlbum(a) === 'coleccion' && (a.parametros as ParametrosAlbum | null)?.set === set!.id && (set!.rg === 'ja' ? true : ((a.parametros as ParametrosAlbum | null)?.idioma || '—') === (idiomaAlb || '—')));
   const total = cartas.filter(c => !c.sd).length;
   const pct = total ? Math.round((idsPropias.length / total) * 100) : 0;
   const enVentaFaltan = idsFaltan.filter(id => enRed.has(id)).length;
@@ -271,7 +285,8 @@ export function AlbumColeccion({ setId }: { setId: string }) {
     ...(idsPropias.length && sinPublicar.length ? [{ texto: `Poner en venta… (${sinPublicar.length})`, icono: 'ventas' as const, onClick: () => setConfirmarVenta(true), disabled: asignando, testid: 'btn-poner-en-venta' }] : []),
     ...(ordenar.copiasRepetidas ? [{ texto: `Ordenar repetidas (${ordenar.copiasRepetidas})`, icono: 'bulk' as const, onClick: () => setAsistente('repetidas'), testid: 'btn-ordenar-repetidas-album' }] : []),
     ...(ordenar.candidatas.length ? [{ texto: `Traer del Bulk (${ordenar.candidatas.length})`, icono: 'album' as const, onClick: () => setAsistente('llenar'), testid: 'btn-llenar-album' }] : []),
-    ...(idsFaltan.length && !consultarFaltan ? [{ texto: 'Precio de las que faltan', icono: 'tendencia' as const, onClick: () => setConsultarFaltan(true), testid: 'btn-precio-faltan' }] : [])
+    ...(idsFaltan.length && !consultarFaltan ? [{ texto: 'Precio de las que faltan', icono: 'tendencia' as const, onClick: () => setConsultarFaltan(true), testid: 'btn-precio-faltan' }] : []),
+    ...(explicito ? [{ texto: 'Quitar de Mis álbumes', icono: 'basura' as const, onClick: () => setQuitar(true), testid: 'btn-quitar-album' }] : [])
   ];
   const filtros = (
     <div className="seg filtro-album" data-testid="filtro-album">
@@ -286,7 +301,7 @@ export function AlbumColeccion({ setId }: { setId: string }) {
       <Libro<Carta>
         items={lista} clave={c => c.id} celda={celda} cuadriculaId={set.id}
         miga={{ href: '/app/album', texto: 'Mis álbumes' }}
-        titulo={<>{nombreColeccion(set, idioma, true)}{idiomaAlb && idiomaAlb !== '—' ? <span className={`pill ${idiomaAlb === 'JP' ? 'jp' : 'info'}`} style={{ marginLeft: 8, verticalAlign: 'middle' }}>{idiomaAlb}</span> : null}</>}
+        titulo={<>{explicito?.nombre || nombreColeccion(set, idioma, true)}{idiomaAlb && idiomaAlb !== '—' ? <span className={`pill ${idiomaAlb === 'JP' ? 'jp' : 'info'}`} style={{ marginLeft: 8, verticalAlign: 'middle' }}>{idiomaAlb}</span> : null}</>}
         resumen={resumen} filtros={filtros} acciones={acciones}
         ayuda="Las casillas grises son las cartas que te faltan: su + las agrega rápido y tocarlas abre la carta con el mercado. Cambia la cuadrícula (y en PC, 1 o 2 páginas) con los selectores; las flechas o deslizar pasan de página."
         vacio={modo === 'faltan' ? '¡No te falta ninguna!' : modo === 'tengo' ? 'Todavía no tienes cartas de esta colección.' : 'Esta colección no tiene cartas en el catálogo.'}
@@ -307,6 +322,7 @@ export function AlbumColeccion({ setId }: { setId: string }) {
       {asistente === 'repetidas' ? <OrdenarRepetidasSheet repetidas={ordenar.repetidas} onClose={() => setAsistente(null)} /> : null}
       {asistente === 'llenar' ? <LlenarAlbumesSheet candidatas={ordenar.candidatas} onClose={() => setAsistente(null)} /> : null}
       {confirmarVenta ? <PonerEnVentaSheet set={set} idioma={idiomaAlb || (set.rg === 'ja' ? 'JP' : '')} entradas={sinPublicar} onClose={() => setConfirmarVenta(false)} /> : null}
+      {quitar && explicito ? <Confirmar titulo="Quitar de Mis álbumes" texto={idsPropias.length ? `El álbum «${explicito.nombre}» deja de aparecer con ese nombre; como tienes ${idsPropias.length} ${idsPropias.length === 1 ? 'carta' : 'cartas'} de esta colección, el álbum por colección sigue ahí. Tus cartas no se tocan.` : `El álbum «${explicito.nombre}» se quita de Mis álbumes. Tus cartas no se tocan.`} okLabel="Quitar" peligro onOk={async () => { const ok = await col.eliminarAlbum(explicito.id); setQuitar(false); if (ok) { toast('Álbum quitado', 'ok'); if (!idsPropias.length) router.replace('/app/album'); } }} onClose={() => setQuitar(false)} /> : null}
     </div>
   );
 }

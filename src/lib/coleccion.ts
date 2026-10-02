@@ -68,6 +68,9 @@ export type Album = {
   /** Mejoras 3 · A: color de la portada (#RRGGBB) y marca de agua (emblema | llamas | olas | hojas | rayos | estrellas | ninguna). Faltan si la base aún no tiene 0008. */
   color?: string | null;
   marca_agua?: string | null;
+  /** Mejoras 5 · B: tipo de álbum (coleccion | pokemon | tipo | ilustrador | libre) y sus parámetros. Faltan si la base aún no tiene 0011. */
+  tipo_album?: string | null;
+  parametros?: Record<string, unknown> | null;
   creado_en: string;
   actualizado_en: string;
 };

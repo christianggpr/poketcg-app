@@ -33,9 +33,18 @@ type Ctx = {
   editarEntrada: (id: string, datos: Partial<Pick<Entrada, 'cantidad' | 'acabado' | 'idioma' | 'condicion' | 'nota' | 'caja_id' | 'posicion' | 'album_coleccion'>>) => Promise<boolean>;
   editarVarias: (ids: string[], datos: Partial<Pick<Entrada, 'idioma' | 'acabado' | 'condicion' | 'caja_id'>>) => Promise<number>;
   eliminarEntrada: (id: string) => Promise<boolean>;
-  crearAlbum: (d: { nombre: string; descripcion?: string; paginas: number; columnas: number; filas: number; color?: string; marca_agua?: string }) => Promise<Album | null>;
+  crearAlbum: (d: { nombre: string; descripcion?: string; paginas: number; columnas: number; filas: number; color?: string; marca_agua?: string; tipo_album?: string; parametros?: Record<string, unknown> }) => Promise<Album | null>;
+  /** Mejoras 5 · B: asigna cartas a bolsillos en lote (upsert por album_id + indice). */
+  asignarBolsillos: (albumId: string, filas: { indice: number; carta_id: string }[]) => Promise<boolean>;
+  /**
+   * Mejoras 5 · B ("¿Ponerlas en este álbum?"): mueve copias que ya tengo a sus bolsillos, en lote. Si una pila tiene varias,
+   * separa 1 (dividir_entrada) y mueve esa. Devuelve cuántas quedaron en el álbum.
+   */
+  ponerEnBolsillos: (albumId: string, pares: { indice: number; entrada: Entrada; set: string }[]) => Promise<number>;
   editarAlbum: (id: string, d: Partial<Pick<Album, 'nombre' | 'descripcion' | 'paginas' | 'columnas' | 'filas' | 'color' | 'marca_agua'>>) => Promise<boolean>;
   eliminarAlbum: (id: string) => Promise<boolean>;
+  /** Mejoras 5 · B: la base no tiene aún las columnas tipo_album / parametros (0011 sin pegar). */
+  sinTipoAlbum: boolean;
   casillasDe: (albumId: string) => Promise<Casilla[]>;
   guardarCasilla: (albumId: string, indice: number, carta_id: string | null, entrada_id?: string | null) => Promise<boolean>;
   moverCasilla: (albumId: string, de: number, a: number) => Promise<boolean>;
@@ -68,6 +77,7 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
   const [cargado, setCargado] = useState(false);
   const [error, setError] = useState('');
   const [ultimaCajaId, setUltimaCajaId] = useState<string | null>(null);
+  const [avisoTipo, setAvisoTipo] = useState(false);   // Mejoras 5 · B: 0011 sin pegar (los álbumes no recuerdan su tipo)
   const canal = useRef<RealtimeChannel | null>(null);
 
   // Las publicaciones se recargan aparte: los disparadores de la base pueden crearlas o ajustarlas solos
@@ -121,7 +131,7 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
   }
 
   const api = useMemo<Ctx>(() => ({
-    cargado, error, cajas, entradas, albumes, casillas, publicaciones, ultimaCajaId, recargar, recargarPublicaciones, recargarCasillas,
+    cargado, error, cajas, entradas, albumes, casillas, publicaciones, ultimaCajaId, recargar, recargarPublicaciones, recargarCasillas, sinTipoAlbum: avisoTipo,
     async colocarEnColeccion(entradaId, setId) {
       const sb = supabaseBrowser();
       const { data, error } = await sb.from('entradas').update({ caja_id: null, posicion: null, album_coleccion: setId }).eq('id', entradaId).select('*').single();
@@ -243,14 +253,52 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
       return true;
     },
     async crearAlbum(d) {
-      // Mejoras 3 · A: color y marca de agua de la portada; si la base aún no tiene esas columnas (0008 sin pegar), se crea sin ellas
+      // Mejoras 3 · A: color y marca de agua de la portada; Mejoras 5 · B: tipo y parámetros. Si la base aún no tiene esas
+      // columnas (0008 / 0011 sin pegar), se crea sin ellas (primero sin tipo, luego sin portada).
       const base = { nombre: d.nombre.trim() || 'Álbum', descripcion: d.descripcion || '', paginas: d.paginas, columnas: d.columnas, filas: d.filas };
       const extra = sinPortada(d);
-      let r = await supabaseBrowser().from('albumes').insert({ ...base, ...extra }).select('*').single();
-      if (r.error && Object.keys(extra).length && columnaFalta(r.error)) r = await supabaseBrowser().from('albumes').insert(base).select('*').single();
+      const tipo: Record<string, unknown> = d.tipo_album && d.tipo_album !== 'libre' ? { tipo_album: d.tipo_album, parametros: d.parametros || {} } : {};
+      const sb = supabaseBrowser();
+      let r = await sb.from('albumes').insert({ ...base, ...extra, ...tipo }).select('*').single();
+      if (r.error && Object.keys(tipo).length && columnaFalta(r.error)) { setAvisoTipo(true); r = await sb.from('albumes').insert({ ...base, ...extra }).select('*').single(); }
+      if (r.error && Object.keys(extra).length && columnaFalta(r.error)) r = await sb.from('albumes').insert(base).select('*').single();
       if (r.error) { setError(r.error.message); return null; }
       setAlbumes(x => upsert(x, r.data as Album));
       return r.data as Album;
+    },
+    async asignarBolsillos(albumId, filas) {
+      const sb = supabaseBrowser();
+      for (let k = 0; k < filas.length; k += 200) {
+        const { error } = await sb.from('album_casillas').upsert(filas.slice(k, k + 200).map(f => ({ album_id: albumId, indice: f.indice, carta_id: f.carta_id, entrada_id: null })), { onConflict: 'album_id,indice' });
+        if (error) { setError(error.message); return false; }
+      }
+      await recargarCasillas();
+      return true;
+    },
+    async ponerEnBolsillos(albumId, pares) {
+      const sb = supabaseBrowser();
+      const filas: { album_id: string; indice: number; carta_id: string | null; entrada_id: string }[] = [];
+      for (const p of pares) {
+        let id = p.entrada.id;
+        if (p.entrada.cantidad > 1) {
+          const { data, error } = await sb.rpc('dividir_entrada', { p_entrada: id, p_cantidad: 1, p_caja: null, p_album: p.set });
+          const r = (data || {}) as { ok: boolean; nueva?: string; error?: string };
+          if (error || !r.ok || !r.nueva) { setError(error?.message || r.error || 'No se pudo separar una copia'); continue; }
+          id = r.nueva;
+        }
+        filas.push({ album_id: albumId, indice: p.indice, carta_id: p.entrada.carta_id, entrada_id: id });
+      }
+      if (!filas.length) return 0;
+      for (let k = 0; k < filas.length; k += 200) {
+        const { error } = await sb.from('album_casillas').upsert(filas.slice(k, k + 200), { onConflict: 'album_id,indice' });
+        if (error) { setError(error.message); await recargar(); return 0; }
+      }
+      const ids = filas.map(f => f.entrada_id);
+      await sb.from('album_casillas').update({ entrada_id: null }).in('entrada_id', ids).neq('album_id', albumId);
+      const { error } = await sb.from('entradas').update({ caja_id: null, posicion: null, album_coleccion: null }).in('id', ids);
+      if (error) setError(error.message);
+      await recargar();
+      return error ? 0 : filas.length;
     },
     async editarAlbum(id, d) {
       const { color, marca_agua, ...resto } = d;
@@ -370,7 +418,7 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
       if (r.ok) await recargar(); else if (r.error) setError(r.error);
       return r;
     }
-  }), [cargado, error, cajas, entradas, albumes, casillas, publicaciones, ultimaCajaId, recargar, recargarPublicaciones, recargarCasillas]);
+  }), [cargado, error, cajas, entradas, albumes, casillas, publicaciones, ultimaCajaId, avisoTipo, recargar, recargarPublicaciones, recargarCasillas]);
 
   return <ColeccionCtx.Provider value={api}>{children}</ColeccionCtx.Provider>;
 }

@@ -171,7 +171,7 @@ export function FormularioFiltros({ ambito, f, onChange, extra }: { ambito: Ambi
 }
 
 /** Colección con buscador dentro de la lista (hay más de 300): se escribe y se elige; la elegida queda arriba con "quitar". */
-function SelectorColeccion({ valor, onChange }: { valor: string; onChange: (id: string) => void }) {
+export function SelectorColeccion({ valor, onChange }: { valor: string; onChange: (id: string) => void }) {
   const cat = useCatalogo();
   const { perfil } = usePerfil();
   const [q, setQ] = useState('');
@@ -204,7 +204,7 @@ function SelectorColeccion({ valor, onChange }: { valor: string; onChange: (id: 
 }
 
 /** Campo de texto con lista de opciones filtrada (ilustrador). */
-function SelectorTexto({ label, valor, opciones, placeholder, onChange, testid }: { label: string; valor: string; opciones: { id: string; texto: string; detalle?: string }[]; placeholder: string; onChange: (v: string) => void; testid: string }) {
+export function SelectorTexto({ label, valor, opciones, placeholder, onChange, testid }: { label: string; valor: string; opciones: { id: string; texto: string; detalle?: string }[]; placeholder: string; onChange: (v: string) => void; testid: string }) {
   const [q, setQ] = useState('');
   const [abierta, setAbierta] = useState(false);
   const lista = useMemo(() => { const t = fold(q); return opciones.filter(o => !t || fold(o.texto).includes(t)).slice(0, 12); }, [opciones, q]);
