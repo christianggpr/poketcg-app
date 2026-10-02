@@ -17,7 +17,7 @@ export function liberarScrollSiNoHayHojas() {
 }
 
 /** Hoja inferior (celular) / ventana centrada (PC). Se cierra con el fondo, la X o Escape. */
-export function Sheet({ titulo, sobre, onClose, children, pie, className = '' }: { titulo?: string; sobre?: React.ReactNode; onClose: () => void; children: React.ReactNode; pie?: React.ReactNode; className?: string }) {
+export function Sheet({ titulo, sobre, cabecera, onClose, children, pie, className = '' }: { titulo?: string; sobre?: React.ReactNode; /** algo a la derecha del título (p. ej. "Limpiar") */ cabecera?: React.ReactNode; onClose: () => void; children: React.ReactNode; pie?: React.ReactNode; className?: string }) {
   const id = useRef<symbol | null>(null);
   if (!id.current) id.current = Symbol('hoja');
   useEffect(() => { const h = id.current!; abrirHoja(h); return () => cerrarHoja(h); }, []);
@@ -33,6 +33,7 @@ export function Sheet({ titulo, sobre, onClose, children, pie, className = '' }:
         {titulo || sobre ? (
           <div className="sheet-head">
             <div className="grow">{sobre ? <div className="small sheet-sobre">{sobre}</div> : null}{titulo ? <h3>{titulo}</h3> : null}</div>
+            {cabecera ? <div className="sheet-cabecera-extra">{cabecera}</div> : null}
             <button className="cerrar" onClick={onClose} aria-label="Cerrar" type="button"><Icono n="cerrar" tam={20} /></button>
           </div>
         ) : null}

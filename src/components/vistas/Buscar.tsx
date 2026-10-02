@@ -10,6 +10,8 @@ import { agruparPorColeccion, totalCartas, ts, type Entrada } from '@/lib/colecc
 import { cartaCumple, cuentaFiltros, entradaCumple, paramsDeFiltros, type ContextoEntrada } from '@/lib/filtros';
 import { ConFiltros, useFiltrosUrl } from '../Filtros';
 import { Buscador, QuisisteDecir } from '../Buscador';
+import { BotonCamara } from '../Barras';
+import { useEsPC } from '../ui';
 import { LocChip } from '../Ubicacion';
 import { fmtPen } from '@/lib/precios-core';
 import { useCatalogo } from '../CatalogoProvider';
@@ -26,11 +28,15 @@ import { AddEntrySheet } from '../AddEntrySheet';
  * Buscar en mi colección. Mejoras 4 · E: búsqueda general (toda mi colección —álbumes y Bulk— y el catálogo completo) con
  * los mismos filtros del Mercado más Dónde y En venta; resultados agrupados en "En tu colección" (con dónde está cada
  * copia) y "Otras cartas" (del catálogo, con Agregar y Ver en el mercado); sugerencias y "¿Quisiste decir…?".
+ * Mejoras 5 · C (maqueta M5-PC-Coleccion): en PC el buscador y la tarjeta Filtros van en la columna izquierda de Mi
+ * Colección (menú lateral), así que aquí solo van el título "Resultados para «…»", los chips y los resultados; en el celular,
+ * buscador con cámara + "Filtros · N" (hoja con Limpiar y "Ver N cartas").
  */
 export function Buscar() {
   const cat = useCatalogo();
   const col = useColeccion();
   const precios = usePrecios();
+  const esPC = useEsPC();
   const params = useSearchParams();
   const router = useRouter();
   const ruta = usePathname();
@@ -72,15 +78,22 @@ export function Buscar() {
     </div>
   );
   const totalPropias = propias.reduce((n, p) => n + p.entradas.reduce((m, e) => m + e.cantidad, 0), 0);
+  const busqueda = !esPC ? (
+    <div className="busqueda-explorar">
+      <Buscador value={q} onChange={setQ} onBuscar={irA} onElegir={s => { if (s.tipo === 'coleccion' && s.id) { setQ(''); setF({ ...f, coleccion: s.id }); } else if (s.tipo === 'ilustrador') { setQ(''); setF({ ...f, ilustrador: s.texto }); } else { setQ(s.texto); irA(s.texto); } }}
+        placeholder="Buscar en mi colección" aria-label="Buscar en mi colección" className="search-wrap con-camara" limpiar derecha={<BotonCamara />} inputTestid="buscar-coleccion-input" />
+      <QuisisteDecir q={q} onElegir={c => { setQ(c.consulta); irA(c.consulta); }} />
+    </div>
+  ) : null;
+  const cabecera = texto || hayFiltros ? (
+    <div className="cabecera-resultados" data-testid="cabecera-resultados">
+      <h1 className="titulo-resultados">{texto ? <>Resultados para «{texto}»</> : 'Cartas que cumplen los filtros'}</h1>
+      <span className="small muted" data-testid="resumen-busqueda">{totalPropias} {totalPropias === 1 ? 'tuya' : 'tuyas'}{texto ? ` · ${otras.length} del catálogo` : ''}</span>
+    </div>
+  ) : null;
   return (
     <div>
-      <div className="row" style={{ gap: 8, alignItems: 'stretch' }}>
-        <Buscador className="search-wrap" value={q} onChange={setQ} onBuscar={irA} onElegir={s => { if (s.tipo === 'coleccion' && s.id) { setQ(''); setF({ ...f, coleccion: s.id }); } else if (s.tipo === 'ilustrador') { setQ(''); setF({ ...f, ilustrador: s.texto }); } else { setQ(s.texto); irA(s.texto); } }}
-          placeholder="Nombre, número (025/165), colección, ilustrador…" limpiar inputTestid="buscar-coleccion-input" />
-        <Link href="/app/escanear" className="btn" title="Identificar una carta con la cámara" data-testid="btn-escanear" style={{ flex: 'none' }}><Icono n="camara" /> Escanear</Link>
-      </div>
-      <QuisisteDecir q={q} onElegir={c => { setQ(c.consulta); irA(c.consulta); }} />
-      <ConFiltros ambito="coleccion" f={f} onChange={setF} barra={texto || hayFiltros ? <span className="small muted" data-testid="resumen-busqueda">{totalPropias} {totalPropias === 1 ? 'carta tuya' : 'cartas tuyas'}{texto ? ` · ${otras.length} del catálogo` : ''}</span> : null}>
+      <ConFiltros ambito="coleccion" f={f} onChange={setF} busqueda={busqueda} panelPC={false} barra={cabecera} total={texto || hayFiltros ? totalPropias : null} unidad="cartas">
         {texto || hayFiltros ? (
           <div className="resultados-buscar" data-testid="resultados-buscar">
             <div className="bloque" data-testid="grupo-propias">

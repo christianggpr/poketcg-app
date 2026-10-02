@@ -2,21 +2,23 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { TYPE_ES, TYPE_ORDER, fold, nombreColeccion, rarezaLabel, type Coleccion } from '@/lib/catalogo';
+import { tiendasActivas, type Tienda } from '@/lib/compras';
 import { ACABADOS, CONDICIONES, ETIQUETA_CONDICION, IDIOMAS_CARTA } from '@/lib/config';
-import { FILTROS_VACIOS, PRECIO_TOPE, chipsDe, cuentaFiltros, filtrosDeParams, opcionesCatalogo, paramsDeFiltros, quitarFiltro, type ClaveFiltro, type Filtros } from '@/lib/filtros';
+import { CLAVE_TIENDA_PREFERIDA, FILTROS_VACIOS, PRECIO_TOPE, chipsDe, cuentaFiltros, filtrosDeParams, opcionesCatalogo, paramsDeFiltros, quitarFiltro, type ClaveFiltro, type Filtros } from '@/lib/filtros';
 import { useCatalogo } from './CatalogoProvider';
 import { usePerfil } from './PerfilProvider';
 import { Icono, PuntoEnergia } from './Icono';
 import { Sheet } from './Sheet';
 import { useEsPC } from './ui';
 
-// Mejoras 4 · D y E: filtros compartidos del Mercado, de Buscar en mi colección y del Bulk.
-// PC: panel al costado izquierdo (se puede plegar); celular: botón "Filtros · N" que abre una hoja con los mismos filtros.
+// Mejoras 4 · D y E · Mejoras 5 · C: filtros compartidos del Mercado (Explorar), de Mi Colección y del Bulk.
+// PC: columna izquierda con el buscador (con cámara), "¿Quisiste decir…?" y la tarjeta "Filtros" (plegable);
+// celular: botón "Filtros · N" junto al buscador que abre una hoja con "Limpiar" y "Ver N cartas".
 // Los filtros activos se ven como chips quitables arriba de los resultados y viven en la dirección (?coleccion=…&tipo=…).
 
 export type AmbitoFiltros = 'mercado' | 'coleccion' | 'bulk';
 
-/** Filtros leídos de la dirección y una función que los escribe (conservando q y orden). */
+/** Filtros leídos de la dirección y una función que los escribe (conservando q, orden, faltan y vista; la página vuelve a la 1). */
 export function useFiltrosUrl(): { f: Filtros; setF: (nf: Filtros) => void; params: URLSearchParams } {
   const params = useSearchParams();
   const router = useRouter();
@@ -28,7 +30,7 @@ export function useFiltrosUrl(): { f: Filtros; setF: (nf: Filtros) => void; para
   const f = local ?? deParams;
   const setF = (nf: Filtros) => {
     setLocal(nf);
-    const p = paramsDeFiltros(nf, { q: params.get('q'), orden: params.get('orden'), faltan: params.get('faltan') });
+    const p = paramsDeFiltros(nf, { q: params.get('q'), orden: params.get('orden'), faltan: params.get('faltan'), vista: params.get('vista') });
     router.replace(`${ruta}${p.toString() ? '?' + p.toString() : ''}`, { scroll: false });
   };
   return { f, setF, params: params as unknown as URLSearchParams };
@@ -37,59 +39,105 @@ export function useFiltrosUrl(): { f: Filtros; setF: (nf: Filtros) => void; para
 const CLAVE_PLEGADO = 'poketcg:filtros-plegados';
 const leerPlegado = (): boolean => { try { return localStorage.getItem(CLAVE_PLEGADO) === '1'; } catch { return false; } };
 
+/** "Ver N cartas" del pie de la hoja (o "Ver resultados" mientras no se sabe cuántas). */
+const textoVer = (total: number | null | undefined, unidad: string) => (total == null ? 'Ver resultados' : `Ver ${total.toLocaleString('es-PE')} ${total === 1 ? unidad.replace(/s$/, '') : unidad}`);
+
 /**
- * Zona de filtros: en PC, un panel plegable a la izquierda del contenido; en el celular, el botón "Filtros · N" (en `barra`)
- * abre una hoja. `children` es el contenido (resultados) y `barra` lo que va arriba de los resultados (buscador, orden…).
+ * Tarjeta "Filtros" (misma en la columna de PC, en el menú lateral de Mi Colección y, sin cabecera, en la hoja del celular):
+ * cabecera con la cuenta y "Limpiar", el formulario y, en modo `aplicar`, los cambios se guardan como borrador hasta
+ * pulsar "Aplicar filtros" (Explorar en PC: cada consulta va a la base).
  */
-export function ConFiltros({ ambito, f, onChange, barra, children, extraFormulario }: { ambito: AmbitoFiltros; f: Filtros; onChange: (f: Filtros) => void; barra?: ReactNode; children: ReactNode; extraFormulario?: ReactNode }) {
+export function TarjetaFiltros({ ambito, f, onChange, aplicar = false, onPlegar, extraFormulario, sinCabecera = false, className = '' }: { ambito: AmbitoFiltros; f: Filtros; onChange: (f: Filtros) => void; aplicar?: boolean; onPlegar?: () => void; extraFormulario?: ReactNode; sinCabecera?: boolean; className?: string }) {
+  const [borrador, setBorrador] = useState<Filtros>(f);
+  const claveF = JSON.stringify(f);
+  useEffect(() => { setBorrador(f); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [claveF]);
+  const mostrado = aplicar ? borrador : f;
+  const cambiar = aplicar ? setBorrador : onChange;
+  const n = cuentaFiltros(f);
+  const pendiente = aplicar && JSON.stringify(borrador) !== claveF;
+  const limpiar = () => { setBorrador({ ...FILTROS_VACIOS }); onChange({ ...FILTROS_VACIOS }); };
+  return (
+    <section className={`panel-filtros ${className}`} data-testid="panel-filtros" aria-label="Filtros">
+      {!sinCabecera ? (
+        <div className="panel-filtros-cabecera">
+          <b><Icono n="filtros" tam={18} /> Filtros{n ? <span className="pill info" style={{ marginLeft: 6 }} data-testid="cuenta-filtros">{n}</span> : null}</b>
+          <span className="row" style={{ gap: 4 }}>
+            <button type="button" className="link" disabled={!n && !pendiente} onClick={limpiar} data-testid="btn-limpiar-formulario">Limpiar</button>
+            {onPlegar ? <button type="button" className="btn icon sm ghost" onClick={onPlegar} aria-label="Plegar los filtros" title="Plegar" data-testid="btn-plegar-filtros"><Icono n="izquierda" tam={18} /></button> : null}
+          </span>
+        </div>
+      ) : null}
+      <FormularioFiltros ambito={ambito} f={mostrado} onChange={cambiar} extra={extraFormulario} />
+      {aplicar ? (
+        <div className="pie-panel-filtros">
+          <button type="button" className="btn primary block" disabled={!pendiente} onClick={() => onChange(borrador)} data-testid="btn-aplicar-filtros">Aplicar filtros</button>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+/**
+ * Zona con filtros. PC: columna izquierda (buscador + tarjeta Filtros, plegable) y el contenido a la derecha; plegada, el
+ * buscador y el botón "Filtros · N" pasan a la barra de arriba de los resultados. Celular: buscador y botón "Filtros · N" en
+ * una fila; el botón abre la hoja con "Limpiar" y "Ver N cartas". `panelPC=false`: en PC no pone columna (la pone el menú
+ * lateral de Mi Colección) y solo muestra los chips y el contenido.
+ */
+export function ConFiltros({ ambito, f, onChange, busqueda, barra, children, extraFormulario, aplicar = false, total, unidad = 'cartas', panelPC = true, columna, ancho = '' }: { ambito: AmbitoFiltros; f: Filtros; onChange: (f: Filtros) => void; busqueda?: ReactNode; barra?: ReactNode; children: ReactNode; extraFormulario?: ReactNode; aplicar?: boolean; total?: number | null; unidad?: string; panelPC?: boolean; /** contenido extra de la columna (debajo de los filtros) */ columna?: ReactNode; ancho?: '' | 'ancha' }) {
   const esPC = useEsPC();
   const [plegado, setPlegado] = useState(false);
   const [hoja, setHoja] = useState(false);
   useEffect(() => { setPlegado(leerPlegado()); }, []);
   const n = cuentaFiltros(f);
   const alternar = () => { setPlegado(p => { try { localStorage.setItem(CLAVE_PLEGADO, p ? '0' : '1'); } catch { /* sin almacenamiento */ } return !p; }); };
+  const conColumna = esPC && panelPC && !plegado;
   const botonFiltros = (
-    <button type="button" className={`btn sm btn-filtros ${n ? 'primary' : ''}`} onClick={() => (esPC ? alternar() : setHoja(true))} aria-expanded={esPC ? !plegado : hoja} data-testid="btn-filtros">
+    <button type="button" className={`btn btn-filtros ${n ? 'primary' : ''}`} onClick={() => (esPC && panelPC ? alternar() : setHoja(true))} aria-expanded={esPC && panelPC ? !plegado : hoja} data-testid="btn-filtros">
       <Icono n="filtros" tam={18} /> Filtros{n ? ` · ${n}` : ''}
     </button>
   );
   return (
-    <div className={`con-filtros ${esPC && !plegado ? 'con-panel' : ''}`} data-testid="con-filtros">
-      {esPC && !plegado ? (
-        <aside className="panel-filtros" data-testid="panel-filtros" aria-label="Filtros">
-          <div className="panel-filtros-cabecera">
-            <b><Icono n="filtros" tam={18} /> Filtros{n ? <span className="pill info" style={{ marginLeft: 6 }}>{n}</span> : null}</b>
-            <button type="button" className="btn icon sm ghost" onClick={alternar} aria-label="Plegar los filtros" title="Plegar" data-testid="btn-plegar-filtros"><Icono n="izquierda" tam={18} /></button>
-          </div>
-          <FormularioFiltros ambito={ambito} f={f} onChange={onChange} extra={extraFormulario} />
+    <div className={`con-filtros ${conColumna ? 'con-panel' : ''} ${ancho}`} data-testid="con-filtros">
+      {conColumna ? (
+        <aside className="columna-filtros" data-testid="columna-filtros">
+          {busqueda}
+          <TarjetaFiltros ambito={ambito} f={f} onChange={onChange} aplicar={aplicar} onPlegar={alternar} extraFormulario={extraFormulario} />
+          {columna}
         </aside>
       ) : null}
       <div className="contenido-filtrado">
-        <div className="barra-filtros">{(!esPC || plegado) ? botonFiltros : null}{barra}</div>
+        {/* celular: buscador + "Filtros · N" (hoja); PC con la columna plegada: lo mismo, y el botón la vuelve a abrir */}
+        {!esPC || (panelPC && plegado) ? <div className="fila-busqueda" data-testid="fila-busqueda">{busqueda}{botonFiltros}</div> : null}
+        {barra ? <div className="barra-filtros">{barra}</div> : null}
         <ChipsFiltros f={f} onChange={onChange} />
         {children}
       </div>
       {hoja && !esPC ? (
-        <Sheet titulo={`Filtros${n ? ` · ${n}` : ''}`} onClose={() => setHoja(false)} className="hoja-filtros" pie={<div className="row" style={{ gap: 8 }}>{n ? <button type="button" className="btn" onClick={() => onChange({ ...FILTROS_VACIOS })} data-testid="btn-limpiar-filtros-hoja">Limpiar todo</button> : null}<button type="button" className="btn primary grow" onClick={() => setHoja(false)} data-testid="btn-ver-resultados">Ver resultados</button></div>}>
-          <FormularioFiltros ambito={ambito} f={f} onChange={onChange} extra={extraFormulario} />
-        </Sheet>
+        <HojaFiltros ambito={ambito} f={f} onChange={onChange} total={total} unidad={unidad} extraFormulario={extraFormulario} onClose={() => setHoja(false)} />
       ) : null}
     </div>
   );
 }
 
+/** Hoja inferior "Filtros · N" del celular: "Limpiar" arriba y "Ver N cartas" abajo. */
+function HojaFiltros({ ambito, f, onChange, total, unidad, extraFormulario, onClose }: { ambito: AmbitoFiltros; f: Filtros; onChange: (f: Filtros) => void; total?: number | null; unidad: string; extraFormulario?: ReactNode; onClose: () => void }) {
+  const n = cuentaFiltros(f);
+  return (
+    <Sheet titulo={`Filtros${n ? ` · ${n}` : ''}`} cabecera={n ? <button type="button" className="link" onClick={() => onChange({ ...FILTROS_VACIOS })} data-testid="btn-limpiar-filtros-hoja">Limpiar</button> : null} onClose={onClose} className="hoja-filtros"
+      pie={<button type="button" className="btn primary grow" onClick={onClose} data-testid="btn-ver-resultados">{textoVer(total, unidad)}</button>}>
+      <FormularioFiltros ambito={ambito} f={f} onChange={onChange} extra={extraFormulario} />
+    </Sheet>
+  );
+}
+
 /** Botón "Filtros · N" que abre la hoja con el formulario (Bulk: en PC y celular por igual, junto a la fila de chips). */
-export function FiltrosEnHoja({ ambito, f, onChange, extraFormulario }: { ambito: AmbitoFiltros; f: Filtros; onChange: (f: Filtros) => void; extraFormulario?: ReactNode }) {
+export function FiltrosEnHoja({ ambito, f, onChange, extraFormulario, total, unidad = 'cartas' }: { ambito: AmbitoFiltros; f: Filtros; onChange: (f: Filtros) => void; extraFormulario?: ReactNode; total?: number | null; unidad?: string }) {
   const [hoja, setHoja] = useState(false);
   const n = cuentaFiltros(f);
   return (
     <>
       <button type="button" className={`btn sm btn-filtros ${n ? 'primary' : ''}`} onClick={() => setHoja(true)} aria-expanded={hoja} data-testid="btn-filtros"><Icono n="filtros" tam={18} /> Filtros{n ? ` · ${n}` : ''}</button>
-      {hoja ? (
-        <Sheet titulo={`Filtros${n ? ` · ${n}` : ''}`} onClose={() => setHoja(false)} className="hoja-filtros" pie={<div className="row" style={{ gap: 8 }}>{n ? <button type="button" className="btn" onClick={() => onChange({ ...FILTROS_VACIOS })} data-testid="btn-limpiar-filtros-hoja">Limpiar todo</button> : null}<button type="button" className="btn primary grow" onClick={() => setHoja(false)} data-testid="btn-ver-resultados">Ver resultados</button></div>}>
-          <FormularioFiltros ambito={ambito} f={f} onChange={onChange} extra={extraFormulario} />
-        </Sheet>
-      ) : null}
+      {hoja ? <HojaFiltros ambito={ambito} f={f} onChange={onChange} total={total} unidad={unidad} extraFormulario={extraFormulario} onClose={() => setHoja(false)} /> : null}
     </>
   );
 }
@@ -108,64 +156,113 @@ export function ChipsFiltros({ f, onChange }: { f: Filtros; onChange: (f: Filtro
   );
 }
 
-/** El formulario de filtros (mismo en el panel de PC y en la hoja del celular). */
+/** Grupo de botones de una opción (Estado NM/LP/MP…, Dónde, En venta): tocar el activo lo quita. */
+function BotonesOpcion({ label, valor, opciones, onChange, testid }: { label: string; valor: string; opciones: { id: string; texto: string; title?: string }[]; onChange: (v: string) => void; testid: string }) {
+  return (
+    <div className="field">
+      <label>{label}</label>
+      <div className="botones-opcion" role="group" aria-label={label} data-testid={testid}>
+        {opciones.map(o => <button key={o.id || 'todas'} type="button" className={`chipbtn ${valor === o.id ? 'active' : ''}`} aria-pressed={valor === o.id} title={o.title} onClick={() => onChange(valor === o.id && o.id ? '' : o.id)} data-testid={`${testid}-${o.id || 'todas'}`}>{o.texto}</button>)}
+      </div>
+    </div>
+  );
+}
+
+/** El formulario de filtros (mismo en la columna de PC y en la hoja del celular), en el orden de las maquetas M5. */
 export function FormularioFiltros({ ambito, f, onChange, extra }: { ambito: AmbitoFiltros; f: Filtros; onChange: (f: Filtros) => void; extra?: ReactNode }) {
   const cat = useCatalogo();
   const opciones = useMemo(() => opcionesCatalogo(cat), [cat]);
+  const ilustradores = useMemo(() => opciones.ilustradores.map(i => ({ id: i.nombre, texto: i.nombre, detalle: `${i.cartas} cartas` })), [opciones]);
   const cambiar = (parte: Partial<Filtros>) => onChange({ ...f, ...parte });
+  const campoColeccion = <SelectorColeccion valor={f.coleccion} onChange={v => cambiar({ coleccion: v })} />;
+  const campoTipo = (
+    <div className="field">
+      <label>Tipo</label>
+      <select className="input" value={f.tipo} onChange={e => cambiar({ tipo: e.target.value })} data-testid="filtro-tipo">
+        <option value="">Todos</option>
+        {TYPE_ORDER.map(t => <option key={t} value={t}>{TYPE_ES[t] || t}</option>)}
+      </select>
+    </div>
+  );
+  const campoIlustrador = <SelectorTexto label="Ilustrador" valor={f.ilustrador} opciones={ilustradores} placeholder="Buscar ilustrador…" onChange={v => cambiar({ ilustrador: v })} testid="filtro-ilustrador" />;
+  const campoRareza = (
+    <div className="field">
+      <label>Rareza</label>
+      <select className="input" value={f.rareza} onChange={e => cambiar({ rareza: e.target.value })} data-testid="filtro-rareza">
+        <option value="">Todas</option>
+        {opciones.rarezas.map(r => <option key={r.id} value={r.id}>{rarezaLabel(r.id)}</option>)}
+      </select>
+    </div>
+  );
+  const campoIdioma = (
+    <div className="field">
+      <label>Idioma</label>
+      <select className="input" value={f.idioma} onChange={e => cambiar({ idioma: e.target.value })} data-testid="filtro-idioma"><option value="">Todos</option>{IDIOMAS_CARTA.map(l => <option key={l} value={l}>{l}</option>)}</select>
+    </div>
+  );
+  const campoAcabado = (
+    <div className="field">
+      <label>Acabado</label>
+      <select className="input" value={f.acabado} onChange={e => cambiar({ acabado: e.target.value })} data-testid="filtro-acabado"><option value="">Todos</option>{ACABADOS.filter(Boolean).map(a => <option key={a} value={a}>{a}</option>)}</select>
+    </div>
+  );
+  const campoEstado = <BotonesOpcion label="Estado" valor={f.condicion} opciones={CONDICIONES.filter(Boolean).map(c => ({ id: c, texto: c, title: ETIQUETA_CONDICION[c] || c }))} onChange={v => cambiar({ condicion: v })} testid="filtro-estado" />;
+  const campoPrecio = <RangoPrecio min={f.min} max={f.max} onChange={(min, max) => cambiar({ min, max })} />;
+  const campoVenta = <BotonesOpcion label="En venta" valor={f.venta} opciones={[{ id: '', texto: 'Todas' }, { id: 'si', texto: 'Sí' }, { id: 'no', texto: 'No' }]} onChange={v => cambiar({ venta: v as Filtros['venta'] })} testid="filtro-venta" />;
   return (
     <div className="formulario-filtros" data-testid="formulario-filtros">
-      <SelectorColeccion valor={f.coleccion} onChange={v => cambiar({ coleccion: v })} />
-      <div className="field">
-        <label>Tipo</label>
-        <select className="input" value={f.tipo} onChange={e => cambiar({ tipo: e.target.value })} data-testid="filtro-tipo">
-          <option value="">Todos</option>
-          {TYPE_ORDER.map(t => <option key={t} value={t}>{TYPE_ES[t] || t}</option>)}
-        </select>
-      </div>
-      <SelectorTexto label="Ilustrador" valor={f.ilustrador} opciones={opciones.ilustradores.map(i => ({ id: i.nombre, texto: i.nombre, detalle: `${i.cartas} cartas` }))} placeholder="Buscar ilustrador…" onChange={v => cambiar({ ilustrador: v })} testid="filtro-ilustrador" />
-      <div className="field">
-        <label>Rareza</label>
-        <select className="input" value={f.rareza} onChange={e => cambiar({ rareza: e.target.value })} data-testid="filtro-rareza">
-          <option value="">Todas</option>
-          {opciones.rarezas.map(r => <option key={r.id} value={r.id}>{rarezaLabel(r.id)}</option>)}
-        </select>
-      </div>
-      <div className="fila-campos">
-        <div className="field">
-          <label>Idioma</label>
-          <select className="input" value={f.idioma} onChange={e => cambiar({ idioma: e.target.value })} data-testid="filtro-idioma"><option value="">Todos</option>{IDIOMAS_CARTA.map(l => <option key={l} value={l}>{l}</option>)}</select>
-        </div>
-        <div className="field">
-          <label>Acabado</label>
-          <select className="input" value={f.acabado} onChange={e => cambiar({ acabado: e.target.value })} data-testid="filtro-acabado"><option value="">Todos</option>{ACABADOS.filter(Boolean).map(a => <option key={a} value={a}>{a}</option>)}</select>
-        </div>
-      </div>
-      <div className="field">
-        <label>Estado</label>
-        <select className="input" value={f.condicion} onChange={e => cambiar({ condicion: e.target.value })} data-testid="filtro-estado"><option value="">Todos</option>{CONDICIONES.filter(Boolean).map(c => <option key={c} value={c}>{ETIQUETA_CONDICION[c] || c}</option>)}</select>
-      </div>
-      <RangoPrecio min={f.min} max={f.max} onChange={(min, max) => cambiar({ min, max })} />
       {ambito === 'mercado' ? (
         <>
-          <label className="check"><input type="checkbox" checked={f.foto} onChange={e => cambiar({ foto: e.target.checked })} data-testid="filtro-foto" /><span>Con foto real</span></label>
+          {campoPrecio}
+          {campoIdioma}
+          {campoColeccion}
+          {campoTipo}
+          {campoIlustrador}
+          {campoRareza}
+          {campoAcabado}
+          {campoEstado}
+          <PuntoDeEntrega />
+          <label className="check"><input type="checkbox" checked={f.foto} onChange={e => cambiar({ foto: e.target.checked })} data-testid="filtro-foto" /><span>Solo con foto real</span></label>
           <label className="check"><input type="checkbox" checked={f.reputacion} onChange={e => cambiar({ reputacion: e.target.checked })} data-testid="filtro-reputacion" /><span>Vendedor con buena reputación</span></label>
         </>
-      ) : null}
-      {ambito === 'coleccion' ? (
-        <div className="field">
-          <label>Dónde</label>
-          <select className="input" value={f.donde} onChange={e => cambiar({ donde: e.target.value as Filtros['donde'] })} data-testid="filtro-donde"><option value="">Cualquiera</option><option value="album">En álbum</option><option value="bulk">En Bulk</option></select>
-        </div>
-      ) : null}
-      {ambito !== 'mercado' ? (
-        <div className="field">
-          <label>En venta</label>
-          <select className="input" value={f.venta} onChange={e => cambiar({ venta: e.target.value as Filtros['venta'] })} data-testid="filtro-venta"><option value="">Todas</option><option value="si">En venta</option><option value="no">No en venta</option></select>
-        </div>
-      ) : null}
+      ) : (
+        <>
+          {ambito === 'coleccion' ? <BotonesOpcion label="Dónde" valor={f.donde} opciones={[{ id: '', texto: 'Todo' }, { id: 'album', texto: 'Álbumes' }, { id: 'bulk', texto: 'Bulk' }]} onChange={v => cambiar({ donde: v as Filtros['donde'] })} testid="filtro-donde" /> : null}
+          {campoColeccion}
+          {campoTipo}
+          {campoIlustrador}
+          {campoRareza}
+          <div className="fila-campos">{campoIdioma}{campoAcabado}</div>
+          {campoEstado}
+          {campoPrecio}
+          {campoVenta}
+        </>
+      )}
       {extra}
-      {cuentaFiltros(f) ? <button type="button" className="btn sm ghost" onClick={() => onChange({ ...FILTROS_VACIOS })} data-testid="btn-limpiar-formulario">Limpiar todo</button> : null}
+    </div>
+  );
+}
+
+/**
+ * "Punto de entrega" (Mejoras 5 · C): la tienda donde prefieres recoger tus compras. No filtra el mercado (cualquier vendedor
+ * entrega en cualquier tienda aliada): se recuerda en este dispositivo y el carrito la deja elegida.
+ */
+function PuntoDeEntrega() {
+  const [tiendas, setTiendas] = useState<Tienda[] | null>(null);
+  const [valor, setValor] = useState('');
+  useEffect(() => {
+    tiendasActivas().then(setTiendas).catch(() => setTiendas([]));
+    try { setValor(localStorage.getItem(CLAVE_TIENDA_PREFERIDA) || ''); } catch { /* sin almacenamiento */ }
+  }, []);
+  if (tiendas && !tiendas.length) return null;
+  return (
+    <div className="field">
+      <label>Punto de entrega</label>
+      <select className="input" value={valor} onChange={e => { setValor(e.target.value); try { if (e.target.value) localStorage.setItem(CLAVE_TIENDA_PREFERIDA, e.target.value); else localStorage.removeItem(CLAVE_TIENDA_PREFERIDA); } catch { /* sin almacenamiento */ } }} aria-label="Punto de entrega" data-testid="filtro-tienda">
+        <option value="">Todas las tiendas</option>
+        {(tiendas || []).map(t => <option key={t.id} value={t.id}>{t.nombre}{t.distrito ? ` · ${t.distrito}` : ''}</option>)}
+      </select>
+      <span className="small muted">Dónde recogerás tus compras: queda elegida en el carrito.</span>
     </div>
   );
 }
@@ -240,14 +337,14 @@ export function RangoPrecio({ min, max, onChange }: { min: number | null; max: n
   return (
     <div className="field rango-precio" data-testid="filtro-precio">
       <label>Precio (S/)</label>
-      <div className="rango-doble" style={{ '--a': `${(vMin / PRECIO_TOPE) * 100}%`, '--b': `${(vMax / PRECIO_TOPE) * 100}%` } as React.CSSProperties}>
-        <input type="range" min={0} max={PRECIO_TOPE} step={1} value={vMin} onChange={e => { const v = Math.min(Number(e.target.value), vMax); setTxtMin(String(v)); aplicar(v || null, max); }} aria-label="Precio mínimo" data-testid="precio-min-rango" />
-        <input type="range" min={0} max={PRECIO_TOPE} step={1} value={vMax} onChange={e => { const v = Math.max(Number(e.target.value), vMin); setTxtMax(v >= PRECIO_TOPE ? '' : String(v)); aplicar(min, v >= PRECIO_TOPE ? null : v); }} aria-label="Precio máximo" data-testid="precio-max-rango" />
-      </div>
       <div className="fila-campos">
         <input className="input" inputMode="decimal" placeholder="Mín." value={txtMin} onChange={e => { setTxtMin(e.target.value); aplicar(num(e.target.value), max); }} aria-label="Precio mínimo en soles" data-testid="precio-min" />
         <span className="muted">–</span>
         <input className="input" inputMode="decimal" placeholder="Máx." value={txtMax} onChange={e => { setTxtMax(e.target.value); aplicar(min, num(e.target.value)); }} aria-label="Precio máximo en soles" data-testid="precio-max" />
+      </div>
+      <div className="rango-doble" style={{ '--a': `${(vMin / PRECIO_TOPE) * 100}%`, '--b': `${(vMax / PRECIO_TOPE) * 100}%` } as React.CSSProperties}>
+        <input type="range" min={0} max={PRECIO_TOPE} step={1} value={vMin} onChange={e => { const v = Math.min(Number(e.target.value), vMax); setTxtMin(String(v)); aplicar(v || null, max); }} aria-label="Precio mínimo" data-testid="precio-min-rango" />
+        <input type="range" min={0} max={PRECIO_TOPE} step={1} value={vMax} onChange={e => { const v = Math.max(Number(e.target.value), vMin); setTxtMax(v >= PRECIO_TOPE ? '' : String(v)); aplicar(min, v >= PRECIO_TOPE ? null : v); }} aria-label="Precio máximo" data-testid="precio-max-rango" />
       </div>
     </div>
   );

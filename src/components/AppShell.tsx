@@ -14,6 +14,7 @@ import { AplicarTemaUsuario } from './Tema';
 import { FondoApp } from './Fondo';
 import { BarraInferiorCelular, BarraSuperior, BuscadorCelular, ChipsSecciones, type PestanaPrincipal, type Seccion } from './Barras';
 import { ResumenColeccion } from './ResumenColeccion';
+import { LateralColeccion } from './LateralColeccion';
 import { PorLlegar } from './vistas/PorLlegar';
 
 /** Las dos pestañas principales y qué rutas pertenecen a cada una. */
@@ -78,7 +79,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <FondoApp />
       <BarraSuperior principales={PRINCIPALES} principal={principal} interior={interior} />
       <main id="main">
-        <div className={`view ${lateral ? 'view-lateral' : ''} ${esLibro ? 'view-ancha' : ''}`}>
+        <div className={`view ${lateral ? 'view-lateral' : ''} ${esLibro || ruta === '/app/mercado/buscar' ? 'view-ancha' : ''}`}>
           <Suspense><AvisosDeEntrada /></Suspense>
           {perfil.estado === 'suspendido' ? <Aviso tipo="danger"><b>Tu cuenta está suspendida</b>{perfil.suspendido_motivo ? `: ${perfil.suspendido_motivo}` : ''}. Puedes seguir usando tu colección, pero no comprar ni vender hasta que el administrador la reactive. Si crees que es un error, escríbenos.</Aviso> : null}
           {error ? <Aviso tipo="danger">No se pudo cargar el catálogo de cartas: {error}. Revisa tu conexión y recarga la página.</Aviso> : null}
@@ -89,6 +90,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <nav className="lateral-menu" aria-label="Mi Colección">
                 {secciones.map(s => <Link key={s.href} href={s.href} className={seccionActiva?.href === s.href ? 'active' : ''} aria-current={seccionActiva?.href === s.href ? 'page' : undefined} data-testid={`lateral-${s.testid}`}>{s.label}{s.insignia}</Link>)}
               </nav>
+              {/* Mejoras 5 · C: buscador con cámara y tarjeta Filtros (los resultados van a /app/buscar) */}
+              <Suspense><LateralColeccion /></Suspense>
               <PorLlegar compacto />
             </aside>
           ) : null}

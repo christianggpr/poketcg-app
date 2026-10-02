@@ -8,6 +8,7 @@ import { crearPago, saldoComprador, tiendasActivas, DIAS_CORTOS, type Tienda } f
 import type { LineaCarrito } from '@/lib/mercado';
 import { fmtPen, textoPlazo } from '@/lib/precios-core';
 import { enlaceMapa } from '@/lib/tiendas-core';
+import { CLAVE_TIENDA_PREFERIDA } from '@/lib/filtros';
 import { reputacionesDe, type VendedorPublico } from '@/lib/reputacion';
 import { VendedorChip } from '../Vendedor';
 import { useCatalogo } from '../CatalogoProvider';
@@ -34,7 +35,8 @@ export function Carrito() {
   const [tiendaSel, setTiendaSel] = useState('');
   const [creando, setCreando] = useState(false);
   useEffect(() => { saldoComprador().then(s => setSaldo(s.saldo)).catch(() => setSaldo(0)); }, []);
-  useEffect(() => { tiendasActivas().then(t => { setTiendas(t); if (t.length === 1) setTiendaSel(t[0].id); }).catch(() => setTiendas([])); }, []);
+  // Mejoras 5 · C: el "Punto de entrega" elegido en los filtros del Mercado queda preseleccionado
+  useEffect(() => { tiendasActivas().then(t => { setTiendas(t); let pref = ''; try { pref = localStorage.getItem(CLAVE_TIENDA_PREFERIDA) || ''; } catch { /* sin almacenamiento */ } if (pref && t.some(x => x.id === pref)) setTiendaSel(pref); else if (t.length === 1) setTiendaSel(t[0].id); }).catch(() => setTiendas([])); }, []);
   const [reputaciones, setReputaciones] = useState<Map<string, VendedorPublico>>(new Map());
   const comision = precios.ajustes.comision;
   const lineas = mercado.carrito;

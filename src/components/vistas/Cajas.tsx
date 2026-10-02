@@ -277,7 +277,7 @@ function BulkVista({ id }: { id?: string }) {
               <input className="input" value={q} onChange={e => setQ(e.target.value)} placeholder={`Buscar en ${caja.nombre}`} aria-label={`Buscar en ${caja.nombre}`} data-testid="buscar-bulk" />
             </div>
             <div className="filtros-bulk" data-testid="filtros-bulk">
-              <FiltrosEnHoja ambito="bulk" f={f} onChange={setF} />
+              <FiltrosEnHoja ambito="bulk" f={f} onChange={setF} total={filtradas.length} />
               <select className="input sm selector-orden" value={orden} onChange={e => setOrden(e.target.value as OrdenBulk)} aria-label="Ordenar el Bulk" data-testid="orden-bulk">
                 {ORDENES_BULK.map(o => <option key={o.id} value={o.id}>{o.texto}</option>)}
               </select>

@@ -94,7 +94,7 @@ export function irASugerencia(destino: string, s: Sugerencia): string {
 }
 
 /** Botón de cámara de los buscadores: abre el escáner (identificar una carta por foto). */
-function BotonCamara() {
+export function BotonCamara() {
   return <Link href="/app/escanear" className="btn icon suave foto" aria-label="Buscar por foto (escáner)" title="Buscar por foto: abre el escáner" data-testid="btn-camara"><Icono n="camara" tam={20} /></Link>;
 }
 

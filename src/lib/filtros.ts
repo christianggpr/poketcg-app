@@ -28,6 +28,18 @@ export const ORDENES_MERCADO: { id: OrdenMercado; texto: string }[] = [
 ];
 export const esOrdenMercado = (s: string | null | undefined): s is OrdenMercado => ORDENES_MERCADO.some(o => o.id === s);
 
+// Mejoras 5 · C: el Mercado "Explorar" se ve en cuadrícula (5 por fila en PC) o en lista; la vista y la página van en la dirección.
+export type VistaMercado = 'cuadricula' | 'lista';
+export const esVistaMercado = (s: string | null | undefined): s is VistaMercado => s === 'cuadricula' || s === 'lista';
+/** Cartas por página en Explorar (PC: 5 por fila × 8 filas). */
+export const POR_PAGINA_MERCADO = 40;
+/** Hasta cuántas cartas distintas se traen del mercado de una vez (la paginación es en el navegador). */
+export const TOPE_MERCADO = 1500;
+/** Número de página leído de la dirección (1 si falta o no vale). */
+export const paginaDeParams = (p: { get: (k: string) => string | null } | null | undefined): number => { const n = parseInt(p?.get('pagina') || '1', 10); return Number.isFinite(n) && n >= 1 ? n : 1; };
+/** "Punto de entrega" preferido para recoger las compras: se recuerda en el dispositivo (no filtra el mercado: cualquier vendedor entrega en cualquier tienda). */
+export const CLAVE_TIENDA_PREFERIDA = 'poketcg:tienda-recojo';
+
 /** Precio máximo del deslizador (S/); por encima se escribe a mano. */
 export const PRECIO_TOPE = 500;
 
