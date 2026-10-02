@@ -380,7 +380,7 @@ try {
   sql(`update public.cajas set en_venta = true where id = '${CAJA_LUCIA}'`);
   if (num(`select count(*) from public.publicaciones where usuario_id = '${LUCIA}' and estado = 'activa'`) !== 3) throw new Error('la caja de Lucía no se publicó');
   // pestaña Mercado → Buscar en el mercado: lista, búsqueda, filtros
-  await page.goto(APP + '/app/mercado/buscar');
+  await page.goto(APP + '/app/mercado');
   await page.waitForSelector('[data-testid=fila-mercado]');
   if ((await page.$$('[data-testid=fila-mercado]')).length !== 3) throw new Error('el mercado debía listar 3 cartas');
   await foto(page, 'mercado');
@@ -650,9 +650,10 @@ try {
   await page.goto(APP + '/app/mercado');
   await page.waitForSelector('[data-testid=sec-ventas]');
   if (await page.$('[data-testid=sec-mazos]')) throw new Error('el Mercado ya no debía tener el chip de Mazos');
-  // Ajustes de layout 2 · 2: Mercado = Inicio · Mis compras · Mis ventas; Mi Colección = Álbumes · Bulk · Mazos; Mis ventas marca la pestaña Mercado
+  // Ajustes de layout 2 · 2 · Mejoras 5 · D: Mercado = Explorar · Compras · Ventas (· Tienda si tengo cartas en venta); Mi Colección = Álbumes · Bulk · Mazos
   const chips = async () => (await page.$$eval('[data-testid=subtabs] a', els => els.map(e => e.textContent.trim().replace(/\s*\d+$/, '')))).join(' · ');
-  if ((await chips()) !== 'Inicio · Mis compras · Mis ventas' || (await page.$('[data-testid=sec-carrito]'))) throw new Error('chips del Mercado inesperados: ' + await chips());
+  const conTiendaChips = num(`select count(*) from public.publicaciones p join public.perfiles u on u.id = p.usuario_id where u.username = 'chris_tcg' and p.estado = 'activa'`) > 0;
+  if ((await chips()) !== 'Explorar · Compras · Ventas' + (conTiendaChips ? ' · Tienda' : '') || (await page.$('[data-testid=sec-carrito]'))) throw new Error('chips del Mercado inesperados: ' + await chips());
   // Ajustes de layout 2 · 3: el carrito es solo el botón amarillo (arriba a la derecha); /app/carrito es una pantalla interior
   if (!(await page.$('[data-testid=chip-carrito]'))) throw new Error('faltaba el botón amarillo del carrito');
   await page.goto(APP + '/app/carrito');
@@ -664,7 +665,7 @@ try {
   await page.goto(APP + '/app/album');
   await page.waitForSelector('[data-testid=sec-album].active');
   if ((await chips()) !== 'Álbumes · Bulk · Mazos') throw new Error('chips de Mi Colección inesperados: ' + await chips());
-  log('secciones: Mi Colección = Álbumes · Bulk · Mazos; Mercado = Inicio · Mis compras · Mis ventas (Mis ventas marca Mercado); carrito solo como botón amarillo');
+  log('secciones: Mi Colección = Álbumes · Bulk · Mazos; Mercado = Explorar · Compras · Ventas' + (conTiendaChips ? ' · Tienda' : '') + ' (Mis ventas marca Mercado); carrito solo como botón amarillo');
   await page.goto(APP + '/app/mazos');
   await page.waitForSelector('[data-testid=fila-mazo]');
   const filaDrag = await page.textContent('[data-testid=fila-mazo] >> nth=0');
@@ -1376,7 +1377,7 @@ try {
   if (sql(`select titulo || '|' || enlace from public.notificaciones where usuario_id = '${CHRIS}' and tipo = 'favorito' order by id desc limit 1`) !== '❤️ Charmeleon (MEW 005) está en venta|/app/carta/sv03.5-005') throw new Error('el aviso de favorito no llegó: ' + sql(`select titulo || '|' || enlace from public.notificaciones where usuario_id = '${CHRIS}' and tipo = 'favorito' order by id desc limit 1`));
   await page.goto(APP + '/app/notificaciones');
   await page.waitForSelector('text=Charmeleon (MEW 005) está en venta');
-  await page.goto(APP + '/app/mercado/buscar');
+  await page.goto(APP + '/app/mercado');
   await page.waitForSelector('[data-testid=btn-lista-deseos]:has-text("(1)")');
   await page.click('[data-testid=btn-lista-deseos]');
   await page.waitForSelector('[data-testid=fila-deseo]:has-text("1 copia")');
@@ -1469,7 +1470,7 @@ try {
 
   // ---------- Mejoras 1 · A1: desplazamiento hasta el final en todas las páginas principales (PC y celular), también tras abrir y cerrar una hoja
   const cajaChris = sql(`select id from public.cajas where usuario_id = '${CHRIS}' order by orden limit 1`);
-  const PAGINAS_SCROLL = ['/app/buscar', '/app/album', '/app/album/sv03.5', '/app/bulk', `/app/bulk/${cajaChris}`, '/app/mercado', '/app/mercado/buscar', '/app/carrito', '/app/mazos', '/app/compras', '/app/ventas', '/app/notificaciones', '/app/ajustes', '/admin', '/ayuda', '/tiendas', '/u/vendedora_lima', '/carta/sv03.5-001'];
+  const PAGINAS_SCROLL = ['/app/buscar', '/app/album', '/app/album/sv03.5', '/app/bulk', `/app/bulk/${cajaChris}`, '/app/mercado', '/app/mercado?q=pikachu', '/app/carrito', '/app/mazos', '/app/compras', '/app/ventas', '/app/notificaciones', '/app/ajustes', '/admin', '/ayuda', '/tiendas', '/u/vendedora_lima', '/carta/sv03.5-001'];
   const comprobarScroll = async (pg, etiqueta) => {
     const problemas = [];
     for (const ruta of PAGINAS_SCROLL) {
@@ -1506,22 +1507,24 @@ try {
   const pagePc = await ctxPc.newPage();
   await entrar(pagePc, 'chris_tcg', 'clave12345');
   await comprobarScroll(pagePc, 'PC 1280×800');
-  // Ajustes de layout 2 · 1 (PC): el buscador de la barra superior tiene cámara, el menú lateral ya no tiene "Buscar / Escanear"
-  // y buscar desde la barra lleva a los resultados con ubicación y botones
+  // Mejoras 5 · D (PC): las secciones van en la barra superior (Álbumes · Bulk · Mazos), ya no hay buscador en la barra ni menú lateral;
+  // el buscador con cámara está en la columna izquierda y buscar lleva a los resultados con ubicación y botones
   await pagePc.goto(APP + '/app/album');
-  await pagePc.waitForSelector('[data-testid=menu-lateral] .lateral-menu a');
-  const menuLateral = await pagePc.$$eval('[data-testid=menu-lateral] .lateral-menu a', els => els.map(e => e.textContent.trim()));
-  if (menuLateral.map(t => t.replace(/\s*\d+$/, '')).join(' · ') !== 'Álbumes · Bulk · Mazos' || !(await pagePc.$('[data-testid=buscador-pc] [data-testid=btn-camara]'))) throw new Error('PC: menú lateral Álbumes · Bulk · Mazos y buscador con cámara esperados: ' + menuLateral.join(' | '));
-  await pagePc.fill('[data-testid=buscador-pc] input', 'pikachu 151');
-  await pagePc.press('[data-testid=buscador-pc] input', 'Enter');
+  await pagePc.waitForSelector('[data-testid=secciones-pc] a');
+  const seccionesPc = await pagePc.$$eval('[data-testid=secciones-pc] a', els => els.map(e => e.querySelector('.largo').textContent.trim()));
+  if (seccionesPc.join(' · ') !== 'Álbumes · Bulk · Mazos' || !(await pagePc.$('[data-testid=barra-sec-album].active')) || (await pagePc.$('[data-testid=buscador-pc]')) || (await pagePc.$('.lateral-menu'))) throw new Error('PC: secciones Álbumes · Bulk · Mazos en la barra, sin buscador ni menú lateral: ' + seccionesPc.join(' · '));
+  await pagePc.waitForSelector('[data-testid=menu-lateral] [data-testid=buscar-lateral-input]');
+  if (!(await pagePc.$('[data-testid=menu-lateral] [data-testid=btn-camara]'))) throw new Error('PC: el buscador de la columna debía tener cámara');
+  await pagePc.fill('[data-testid=buscar-lateral-input]', 'pikachu 151');
+  await pagePc.press('[data-testid=buscar-lateral-input]', 'Enter');
   await pagePc.waitForURL(/\/app\/buscar\?q=pikachu/);
   await pagePc.waitForSelector('[data-testid=resultados-buscar] .card-row [data-testid=btn-ver-mercado]');
-  if (!(await pagePc.$('[data-testid=menu-lateral]'))) throw new Error('PC: los resultados de búsqueda debían conservar el menú lateral de Mi Colección');
+  if (!(await pagePc.$('[data-testid=menu-lateral]'))) throw new Error('PC: los resultados de búsqueda debían conservar la columna izquierda de Mi Colección');
   await foto(pagePc, 'pc-buscar');
-  // Ajustes de layout 2 · 2 (PC): Mis ventas es una sección del Mercado con chips arriba del contenido (sin menú lateral)
+  // Ajustes de layout 2 · 2 · Mejoras 5 · D (PC): Mis ventas es una sección del Mercado (pestaña subrayada arriba; sin chips ni menú lateral)
   await pagePc.goto(APP + '/app/ventas');
-  await pagePc.waitForSelector('[data-testid=sec-ventas].active');
-  if ((await pagePc.$('[data-testid=menu-lateral]')) || !(await pagePc.$('[data-testid=tab-mercado].active')) || !(await pagePc.isVisible('[data-testid=subtabs]'))) throw new Error('PC: Mis ventas debía mostrarse en el Mercado con chips y sin menú lateral');
+  await pagePc.waitForSelector('[data-testid=barra-sec-ventas].active');
+  if ((await pagePc.$('[data-testid=menu-lateral]')) || !(await pagePc.$('[data-testid=tab-mercado].active')) || (await pagePc.isVisible('[data-testid=subtabs]'))) throw new Error('PC: Mis ventas debía mostrarse en el Mercado con la pestaña arriba, sin chips ni menú lateral');
   await foto(pagePc, 'pc-ventas');
   // Ajustes de layout 2 · 4 y Mejoras 4 · A (PC 1280×800): el libro ocupa casi toda la pantalla: una fila de herramientas,
   // fila compacta, menú Acciones, "Ir a" junto al texto; la página completa entra sin bajar en todas las cuadrículas y en 1 o 2 páginas
@@ -1616,11 +1619,12 @@ try {
   await pagePc.waitForSelector('[data-testid=pagina-texto]:has-text("Página 3 de 11")');
   await pagePc.keyboard.press('ArrowLeft');
   await pagePc.waitForSelector('[data-testid=pagina-texto]:has-text("Página 2 de 11")');
-  // escribiendo en el buscador, las flechas del teclado no pasan de página
-  await pagePc.focus('[data-testid=buscador-pc] input');
+  // escribiendo en un campo de texto, las flechas del teclado no pasan de página (campo temporal: la barra ya no tiene buscador)
+  await pagePc.evaluate(() => { const i = document.createElement('input'); i.id = 'campo-prueba-flechas'; document.body.appendChild(i); i.focus(); });
   await pagePc.keyboard.press('ArrowLeft');
   await pagePc.waitForTimeout(300);
   if (!/Página 2 de 11/.test(await pagePc.textContent('[data-testid=pagina-texto]'))) throw new Error('PC: con el cursor en un campo las flechas no debían pasar de página');
+  await pagePc.evaluate(() => { const i = document.getElementById('campo-prueba-flechas'); if (i) { i.blur(); i.remove(); } });
   await pagePc.click('[data-testid=pagina-siguiente]');
   await pagePc.waitForSelector('[data-testid=pagina-texto]:has-text("Página 3 de 11")');
   for (let i = 0; i < 8; i++) await pagePc.keyboard.press('ArrowRight');
@@ -2260,7 +2264,7 @@ try {
   log('Pokédex: primera en la lista (' + especiesChris + ' / 1025), orden nacional, carta más valiosa por especie, "Elegir otra carta" guardado y revertido, filtros generación/tipo/Tengo, falta → mercado, ocultar y mostrar');
 
   // ---------- Mejoras 4 · D: filtros y búsqueda en el Mercado (celular: hoja "Filtros · N"; PC: panel plegable a la izquierda)
-  await page.goto(APP + '/app/mercado/buscar');
+  await page.goto(APP + '/app/mercado');
   await page.waitForSelector('[data-testid=btn-filtros]');
   await page.waitForSelector('[data-testid=fila-mercado]');
   if (await page.$('[data-testid=panel-filtros]')) throw new Error('en el celular los filtros van en una hoja, no en un panel');
@@ -2337,12 +2341,13 @@ try {
   await page.click('[data-testid=sugerencias] [data-testid=sugerencia-carta]:has-text("Pikachu") >> nth=0');
   await page.waitForURL(/q=Pikachu/);
   await page.waitForSelector('[data-testid=sugerencias]', { state: 'detached' });
-  // colección sugerida desde el buscador de arriba del Mercado (celular): lleva al mercado con ?coleccion=
+  // colección sugerida desde el buscador de Explorar (celular): queda como filtro ?coleccion=
   await page.goto(APP + '/app/mercado');
-  await page.fill('[data-testid=mercado-inicio-buscar]', 'obsid');
+  await page.waitForSelector('[data-testid=fila-busqueda] [data-testid=buscar-mercado]');
+  await page.fill('[data-testid=buscar-mercado]', 'obsid');
   await page.waitForSelector('[data-testid=sugerencia-coleccion]:has-text("Obsidian")');
   await page.click('[data-testid=sugerencia-coleccion]:has-text("Obsidian") >> nth=0');
-  await page.waitForURL(/\/app\/mercado\/buscar\?coleccion=sv03$/);
+  await page.waitForURL(/\/app\/mercado\?coleccion=sv03$/);
   await page.waitForSelector('[data-testid=chip-coleccion]');
   log('Mercado (celular): hoja Filtros · N (colección con buscador, tipo), chips quitables y Limpiar todo en la dirección, orden precio/nombre, precio mínimo, reputación y foto como la base, "¿Quisiste decir Charizard?", sugerencias (Pikachu, colección Obsidian)');
   // PC: panel de filtros a la izquierda, plegable (se recuerda), y sugerencias en el buscador de la barra superior
@@ -2350,7 +2355,7 @@ try {
     const ctxPcF = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'es-PE' });
     const pcF = await ctxPcF.newPage();
     await entrar(pcF, 'chris_tcg', process.env.CLAVE_CHRIS || 'clave12345');
-    await pcF.goto(APP + '/app/mercado/buscar?coleccion=sv03.5');
+    await pcF.goto(APP + '/app/mercado?coleccion=sv03.5');
     await pcF.waitForSelector('[data-testid=panel-filtros] [data-testid=quitar-coleccion]');
     const geoPanel = await pcF.evaluate(() => { const p = document.querySelector('[data-testid=panel-filtros]').getBoundingClientRect(); const r = document.querySelector('[data-testid=resultados-mercado]').getBoundingClientRect(); return { panelIzq: Math.round(p.left), panelAncho: Math.round(p.width), resultadosIzq: Math.round(r.left) }; });
     if (geoPanel.panelAncho < 240 || geoPanel.resultadosIzq < geoPanel.panelIzq + geoPanel.panelAncho) throw new Error('PC: el panel de filtros debía ir a la izquierda de los resultados: ' + JSON.stringify(geoPanel));
@@ -2364,18 +2369,18 @@ try {
     if (await pcF.$('[data-testid=panel-filtros]')) throw new Error('PC: el panel plegado debía recordarse al recargar');
     await pcF.click('[data-testid=btn-filtros]');
     await pcF.waitForSelector('[data-testid=panel-filtros]');
-    await pcF.fill('[data-testid=buscador-pc] input', 'charisard');
-    await pcF.press('[data-testid=buscador-pc] input', 'Enter');
+    await pcF.fill('[data-testid=columna-filtros] [data-testid=buscar-mercado]', 'charisard');
+    await pcF.press('[data-testid=columna-filtros] [data-testid=buscar-mercado]', 'Enter');
     await pcF.waitForURL(/q=charisard/);
     await pcF.waitForSelector('[data-testid=quisiste-decir]:has-text("Charizard")');
-    await pcF.fill('[data-testid=buscador-pc] input', 'mitsuhiro');
-    await pcF.waitForSelector('[data-testid=buscador-pc] [data-testid=sugerencia-ilustrador]:has-text("Mitsuhiro Arita")');
-    await pcF.click('[data-testid=buscador-pc] [data-testid=sugerencia-ilustrador]:has-text("Mitsuhiro Arita")');
-    await pcF.waitForURL(/\/app\/mercado\/buscar\?ilustrador=Mitsuhiro(%20|\+)Arita/);
+    await pcF.fill('[data-testid=columna-filtros] [data-testid=buscar-mercado]', 'mitsuhiro');
+    await pcF.waitForSelector('[data-testid=columna-filtros] [data-testid=sugerencia-ilustrador]:has-text("Mitsuhiro Arita")');
+    await pcF.click('[data-testid=columna-filtros] [data-testid=sugerencia-ilustrador]:has-text("Mitsuhiro Arita")');
+    await pcF.waitForURL(/\/app\/mercado\?.*ilustrador=Mitsuhiro(%20|\+)Arita/);
     await pcF.waitForSelector('[data-testid=chip-ilustrador]:has-text("Mitsuhiro Arita")');
     await ctxPcF.close();
   }
-  log('Mercado (PC): panel de filtros a la izquierda, plegable y recordado; "¿Quisiste decir?" y sugerencia de ilustrador desde la barra superior');
+  log('Mercado (PC): panel de filtros a la izquierda, plegable y recordado; "¿Quisiste decir?" y sugerencia de ilustrador desde el buscador de la columna');
 
   // ---------- Mejoras 4 · E: búsqueda general en Mi Colección (En tu colección / Otras cartas, filtros + Dónde + En venta) y filtros del Bulk
   await page.goto(APP + '/app/buscar?q=charisard');
@@ -2440,7 +2445,7 @@ try {
     const ctxPcC = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'es-PE' });
     const pcC = await ctxPcC.newPage();
     await entrar(pcC, 'chris_tcg', process.env.CLAVE_CHRIS || 'clave12345');
-    await pcC.goto(APP + '/app/mercado/buscar');
+    await pcC.goto(APP + '/app/mercado');
     await pcC.waitForSelector('[data-testid=columna-filtros] [data-testid=panel-filtros]');
     await pcC.waitForSelector('[data-testid=resultados-mercado][data-vista=cuadricula] [data-testid=fila-mercado]');
     if (!(await pcC.$('[data-testid=columna-filtros] [data-testid=buscar-mercado]')) || !(await pcC.$('[data-testid=columna-filtros] [data-testid=btn-camara]'))) throw new Error('PC Explorar: el buscador con cámara debía ir en la columna izquierda');
@@ -2493,7 +2498,7 @@ try {
     await pcC.waitForSelector('[data-testid=menu-lateral] [data-testid=lateral-buscar] [data-testid=panel-filtros]');
     if (!(await pcC.$('[data-testid=lateral-buscar] [data-testid=btn-camara]')) || !(await pcC.$('[data-testid=lateral-buscar] [data-testid=filtro-donde-todas].active'))) throw new Error('PC Mi Colección: buscador con cámara y Filtros con Dónde = Todo en la columna izquierda');
     const ordenLateral = await pcC.$$eval('[data-testid=menu-lateral] > *', els => els.map(e => e.dataset.testid || e.className.split(' ')[0]));
-    if (ordenLateral.slice(0, 3).join(' | ') !== 'resumen-coleccion | lateral-menu | lateral-buscar') throw new Error('orden de la columna izquierda inesperado: ' + ordenLateral.join(' | '));
+    if (ordenLateral.slice(0, 2).join(' | ') !== 'resumen-coleccion | lateral-buscar') throw new Error('orden de la columna izquierda inesperado (precio arriba de los filtros): ' + ordenLateral.join(' | '));
     await pcC.click('[data-testid=lateral-buscar] [data-testid=filtro-donde-bulk]');
     await pcC.waitForURL(/\/app\/buscar\?donde=bulk/);
     await pcC.waitForSelector('[data-testid=cabecera-resultados]:has-text("Cartas que cumplen los filtros")');
@@ -2508,10 +2513,10 @@ try {
     await pcC.waitForURL(u => /q=pikachu/.test(u.href) && !/donde=/.test(u.href));
     if (!(await pcC.$('[data-testid=lateral-buscar] [data-testid=filtro-donde-todas].active'))) throw new Error('al quitar el chip, la tarjeta de la columna debía reflejarlo');
     await ctxPcC.close();
-    log('Mejoras 5 · C2 (PC Mi Colección): columna izquierda = precio · menú · buscador con cámara · Filtros; Dónde = Bulk lleva a los resultados (' + enBulkC + '), escribir en la columna busca (pikachu), el chip y la tarjeta van sincronizados');
+    log('Mejoras 5 · C2 (PC Mi Colección): columna izquierda = precio · buscador con cámara · Filtros; Dónde = Bulk lleva a los resultados (' + enBulkC + '), escribir en la columna busca (pikachu), el chip y la tarjeta van sincronizados');
 
     // C3 · celular: buscador con cámara + "Filtros · N" en una fila; hoja con Limpiar y "Ver N cartas"
-    await page.goto(APP + '/app/mercado/buscar');
+    await page.goto(APP + '/app/mercado');
     await page.waitForSelector('[data-testid=fila-busqueda] [data-testid=buscar-mercado]');
     if (!(await page.$('[data-testid=fila-busqueda] [data-testid=btn-camara]')) || !(await page.$('[data-testid=fila-busqueda] [data-testid=btn-filtros]'))) throw new Error('celular: el buscador (con cámara) y "Filtros" debían ir en la misma fila');
     await page.waitForSelector('[data-testid=resultados-mercado][data-vista=cuadricula] [data-testid=fila-mercado]');
@@ -2542,11 +2547,76 @@ try {
     log('Mejoras 5 · C3 (celular): buscador con cámara + "Filtros · N" en una fila (Mercado y Mi Colección), cuadrícula de 2, hoja con Limpiar y "Ver ' + nmEnMercado + ' cartas"');
   }
 
+  // ---------- Mejoras 5 · D: barra superior de PC con las secciones (sin buscador); "Mi tienda" solo con cartas en venta; chips en el celular; Explorar = inicio del Mercado
+  {
+    const activasChris = num(`select count(*) from public.publicaciones where usuario_id = '${CHRIS}' and estado = 'activa'`);
+    const ctxPcD = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'es-PE' });
+    const pcD = await ctxPcD.newPage();
+    await entrar(pcD, 'chris_tcg', process.env.CLAVE_CHRIS || 'clave12345');
+    // Mercado: Explorar · Mis compras · Mis ventas (· Mi tienda); Explorar subrayada en azul; sin buscador en la barra; chips solo en el celular
+    await pcD.goto(APP + '/app/mercado');
+    await pcD.waitForSelector('[data-testid=secciones-pc] [data-testid=barra-sec-explorar].active');
+    const seccionesMercado = await pcD.$$eval('[data-testid=secciones-pc] a', els => els.map(e => e.querySelector('.largo').textContent.trim()));
+    if (seccionesMercado.join(' · ') !== 'Explorar · Mis compras · Mis ventas' + (activasChris ? ' · Mi tienda' : '')) throw new Error('secciones del Mercado en la barra inesperadas: ' + seccionesMercado.join(' · '));
+    const subrayado = await pcD.$eval('[data-testid=barra-sec-explorar]', e => getComputedStyle(e).borderBottomColor);
+    if (subrayado !== 'rgb(31, 95, 204)') throw new Error('la sección activa debía ir subrayada en azul #1F5FCC: ' + subrayado);
+    if ((await pcD.$('[data-testid=buscador-pc]')) || (await pcD.isVisible('[data-testid=subtabs]'))) throw new Error('PC: la barra ya no lleva buscador y los chips de secciones son solo del celular');
+    const ordenBarra = await pcD.$$eval('[data-testid=barra-superior] > *', els => els.map(e => e.dataset.testid || e.className.split(' ')[0]));
+    if (ordenBarra.join(' | ') !== 'brand | tabs-principales | secciones-pc | topbar-right') throw new Error('orden de la barra: logo · pestañas · secciones · derecha (carrito y perfil): ' + ordenBarra.join(' | '));
+    await pcD.waitForSelector('[data-testid=mercado-inicio] [data-testid=carrusel-precio-item]');
+    await pcD.waitForSelector('[data-testid=resultados-mercado] [data-testid=fila-mercado]');
+    await foto(pcD, 'pc-barra-mercado');
+    // "Mi tienda" = mi página pública; desaparece si no tengo cartas en venta y vuelve al reactivarlas
+    if (activasChris) {
+      await pcD.click('[data-testid=barra-sec-tienda]');
+      await pcD.waitForURL(/\/u\/chris_tcg$/);
+      await pcD.waitForSelector('[data-testid=perfil-publico]');
+      if (!/Así te ven los compradores/.test(await pcD.textContent('[data-testid=perfil-publico]'))) throw new Error('"Mi tienda" debía abrir mi página pública');
+      sql(`update public.publicaciones set estado = 'pausada', motivo_pausa = 'prueba D' where usuario_id = '${CHRIS}' and estado = 'activa'`);
+      await pcD.goto(APP + '/app/mercado');
+      await pcD.waitForSelector('[data-testid=barra-sec-ventas]');
+      if (await pcD.$('[data-testid=barra-sec-tienda]')) throw new Error('sin cartas en venta no debía aparecer "Mi tienda"');
+      sql(`update public.publicaciones set estado = 'activa', motivo_pausa = null where usuario_id = '${CHRIS}' and motivo_pausa = 'prueba D'`);
+      await pcD.goto(APP + '/app/mercado');
+      await pcD.waitForSelector('[data-testid=barra-sec-tienda]');
+    }
+    // Mi Colección: Álbumes · Bulk · Mazos arriba; la columna izquierda ya no tiene menú (precio arriba de los filtros)
+    await pcD.goto(APP + '/app/bulk');
+    await pcD.waitForSelector('[data-testid=barra-sec-bulk].active');
+    if ((await pcD.$$eval('[data-testid=secciones-pc] a', els => els.map(e => e.querySelector('.largo').textContent.trim()))).join(' · ') !== 'Álbumes · Bulk · Mazos' || (await pcD.$('.lateral-menu'))) throw new Error('Mi Colección debía tener Álbumes · Bulk · Mazos arriba y sin menú lateral');
+    // a 1024 px la barra entra sin desbordar, con los nombres cortos (Compras · Ventas)
+    await pcD.setViewportSize({ width: 1024, height: 800 });
+    await pcD.goto(APP + '/app/ventas');
+    await pcD.waitForSelector('[data-testid=barra-sec-ventas].active');
+    const anchoBarra = await pcD.evaluate(() => ({ scroll: document.documentElement.scrollWidth, ancho: innerWidth, corto: getComputedStyle(document.querySelector('[data-testid=barra-sec-ventas] .corto')).display, largo: getComputedStyle(document.querySelector('[data-testid=barra-sec-ventas] .largo')).display, derecha: Math.round(document.querySelector('[data-testid=barra-superior] .topbar-right').getBoundingClientRect().right) }));
+    if (anchoBarra.scroll > anchoBarra.ancho || anchoBarra.corto === 'none' || anchoBarra.largo !== 'none' || anchoBarra.derecha > 1024) throw new Error('a 1024 px la barra debía entrar con nombres cortos: ' + JSON.stringify(anchoBarra));
+    await foto(pcD, 'pc-barra-1024');
+    await ctxPcD.close();
+    // celular: chips Explorar · Compras · Ventas (· Tienda) arriba; Explorar trae destacados + cuadrícula; al buscar se van los destacados
+    await page.goto(APP + '/app/mercado');
+    await page.waitForSelector('[data-testid=subtabs] [data-testid=sec-explorar].active');
+    const chipsD = (await page.$$eval('[data-testid=subtabs] a', els => els.map(e => e.textContent.trim().replace(/\s*\d+$/, '')))).join(' · ');
+    if (chipsD !== 'Explorar · Compras · Ventas' + (activasChris ? ' · Tienda' : '')) throw new Error('chips del Mercado en el celular inesperados: ' + chipsD);
+    await page.waitForSelector('[data-testid=mercado-inicio] [data-testid=carrusel-precio-item]');
+    if ((await page.$$('[data-testid=buscar-mercado]')).length !== 1) throw new Error('Explorar debía tener un solo buscador en el celular');
+    await page.fill('[data-testid=buscar-mercado]', 'charmander');
+    await page.waitForURL(/q=charmander/);
+    await page.waitForSelector('[data-testid=mercado-inicio]', { state: 'detached' });
+    await page.fill('[data-testid=buscar-mercado]', '');
+    await page.waitForURL(u => !/q=/.test(u.href));
+    await page.waitForSelector('[data-testid=mercado-inicio]');
+    // la dirección antigua sigue funcionando
+    await page.goto(APP + '/app/mercado/buscar?coleccion=sv03.5');
+    await page.waitForURL(/\/app\/mercado\?coleccion=sv03\.5$/);
+    await page.waitForSelector('[data-testid=chip-coleccion]');
+    log('Mejoras 5 · D: barra de PC = logo · pestañas · secciones subrayadas (Álbumes · Bulk · Mazos / Explorar · Mis compras · Mis ventas' + (activasChris ? ' · Mi tienda' : '') + ') · carrito · perfil, sin buscador ni menú lateral; "Mi tienda" solo con cartas en venta; 1024 px con nombres cortos; celular con chips; Explorar = destacados + cuadrícula; /app/mercado/buscar redirige');
+  }
+
   // ---------- Mejoras 4 · F: textos cortos: en 360, 768, 1024 y 1280 px ningún rótulo, botón o título se parte en 3 líneas, se corta ni desborda
   {
     const albumPropioF = sql(`select id from public.albumes where usuario_id = '${CHRIS}' order by creado_en limit 1`);
     const bulkF = sql(`select id from public.cajas where usuario_id = '${CHRIS}' order by orden limit 1`);
-    const RUTAS_TEXTOS = ['/app/album', '/app/album/sv03.5', '/app/album/pokedex', `/app/album/p/${albumPropioF}`, '/app/bulk', `/app/bulk/${bulkF}`, '/app/mazos', '/app/buscar?q=pikachu', '/app/buscar', '/app/mercado', '/app/mercado/buscar?coleccion=sv03.5&tipo=Grass', '/app/carrito', '/app/compras', '/app/ventas', '/app/notificaciones', '/app/ajustes', '/app/carta/sv03.5-001', '/ayuda', '/tiendas', '/'];
+    const RUTAS_TEXTOS = ['/app/album', '/app/album/sv03.5', '/app/album/pokedex', `/app/album/p/${albumPropioF}`, '/app/bulk', `/app/bulk/${bulkF}`, '/app/mazos', '/app/buscar?q=pikachu', '/app/buscar', '/app/mercado', '/app/mercado?coleccion=sv03.5&tipo=Grass', '/app/carrito', '/app/compras', '/app/ventas', '/app/notificaciones', '/app/ajustes', '/app/carta/sv03.5-001', '/ayuda', '/tiendas', '/'];
     const revisarTextos = () => {
       const SEL = 'button, .btn, label, .pill, .chip, .chipbtn, .chip-filtro, th, h1, h2, h3, h4, .seg button, .subtabs a, .tabs a, .tabbar a, .stat .box span, .stat .box b, .card-name, .card-set, .texto-pagina, .lateral-menu a, .box-card .box-name, .album-title .nombre, .set-header, .field > label, .libro-resumen, select, .menu a, .menu button, .precio-grande, .titulo-pestana, .brand-name, .count, .cifra, .pocket-n, .loc';
       const problemas = [];

@@ -21,6 +21,7 @@ import { usePedirPrecios } from '../Precio';
 import { SimboloSet } from '../CardRow';
 import { Thumb } from '../Thumb';
 import { Aviso, useEsPC } from '../ui';
+import { DestacadosMercado } from './MercadoInicio';
 
 /**
  * Mercado → Explorar (Mejoras 5 · C, maquetas M5-PC-Mercado / M5-Mercado): como un catálogo. PC: columna izquierda con el
@@ -92,6 +93,8 @@ export function Mercado() {
   const visibles = lista.slice((paginaActual - 1) * POR_PAGINA_MERCADO, paginaActual * POR_PAGINA_MERCADO);
   usePedirPrecios(useMemo(() => visibles.map(x => x.carta_id), [visibles]));
   const hayAlgo = !!(q || cuentaFiltros(f) || soloFaltan);
+  // Mejoras 5 · D: sin búsqueda, filtros, orden ni página, Explorar es el inicio del Mercado: destacados arriba de la cuadrícula
+  const enInicio = !hayAlgo && orden === 'novedad' && paginaActual === 1;
   const sinNuevos = mercadoSinFiltrosNuevos() && (f.foto || f.reputacion || orden === 'ventas' || orden === 'nombre');
   const cambiarPagina = (p: number) => { irA({ pagina: Math.max(1, Math.min(paginas, p)) }); document.querySelector('[data-testid=resultados-mercado]')?.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
 
@@ -132,6 +135,7 @@ export function Mercado() {
   return (
     <div className="mercado-buscar explorar">
       <ConFiltros ambito="mercado" f={f} onChange={setF} busqueda={busqueda} barra={cabecera} aplicar total={total} unidad="cartas" columna={esPC ? <ListaDeseos /> : null} ancho="ancha">
+        {enInicio ? <DestacadosMercado /> : null}
         {!esPC ? <ListaDeseos /> : null}
         {sinNuevos ? <Aviso tipo="warn">Para filtrar por foto real o reputación y ordenar por más vendidas o nombre hay que pegar <code>0009_mejoras4.sql</code> en Supabase. Mientras tanto se muestra sin esos filtros.</Aviso> : null}
         {error ? <Aviso tipo="danger">No se pudo consultar el mercado: {error}</Aviso> : null}

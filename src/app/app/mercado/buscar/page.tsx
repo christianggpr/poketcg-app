@@ -1,8 +1,9 @@
-import { Suspense } from 'react';
-import { Mercado } from '@/components/vistas/Mercado';
+import { redirect } from 'next/navigation';
 
-export const metadata = { title: 'Buscar en el mercado' };
-
-export default function PaginaMercadoBuscar() {
-  return <Suspense><Mercado /></Suspense>;
+/** Dirección antigua de "Buscar en el mercado": ahora es Explorar (/app/mercado), con los mismos parámetros. */
+export default async function PaginaMercadoBuscar({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const sp = await searchParams;
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) if (typeof v === 'string') qs.set(k, v);
+  redirect(`/app/mercado${qs.toString() ? '?' + qs.toString() : ''}`);
 }

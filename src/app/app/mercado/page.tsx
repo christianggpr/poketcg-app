@@ -1,14 +1,9 @@
 import { Suspense } from 'react';
-import { redirect } from 'next/navigation';
-import { MercadoInicio } from '@/components/vistas/MercadoInicio';
+import { Mercado } from '@/components/vistas/Mercado';
 
-export const metadata = { title: 'Mercado' };
+export const metadata = { title: 'Mercado · Explorar' };
 
-/** Inicio del Mercado. Los enlaces antiguos con filtros (?q=, ?set=, ?faltan=1) van a Buscar en el mercado. */
-export default async function PaginaMercado({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const sp = await searchParams;
-  const qs = new URLSearchParams();
-  for (const [k, v] of Object.entries(sp)) if (typeof v === 'string') qs.set(k, v);
-  if (sp.q || sp.set || sp.faltan) redirect(`/app/mercado/buscar?${qs}`);
-  return <Suspense><MercadoInicio /></Suspense>;
+/** Mejoras 5 · D: el Mercado abre en "Explorar" (el catálogo con buscador y filtros); los destacados van arriba de la cuadrícula. */
+export default function PaginaMercado() {
+  return <Suspense><Mercado /></Suspense>;
 }

@@ -1480,3 +1480,37 @@ button.card-row { width: 100%; text-align: left; font: inherit; color: inherit; 
 @media (min-width: 1400px) { .con-filtros:not(.con-panel) .cuadricula-mercado { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 .sheet .botones-opcion .chipbtn:not(.active) { background: var(--tarjeta); box-shadow: var(--sombra); }
 .panel-filtros-cabecera .link:disabled { opacity: .45; cursor: default; text-decoration: none; }
+
+/* =====================================================================
+   Mejoras 5 · D: barra superior de PC con las secciones como pestañas subrayadas (sin buscador); sin menú lateral de secciones
+   ===================================================================== */
+.secciones-pc { display: none; }
+@media (min-width: 1024px) {
+  .secciones-pc { display: flex !important; align-items: stretch; gap: 2px; align-self: stretch; min-height: 48px; }
+  .secciones-pc a { display: inline-flex; align-items: center; gap: 6px; min-height: 48px; padding: 0 12px; font-weight: 800; font-size: 15px; color: var(--texto); text-decoration: none; border-bottom: 3px solid transparent; border-top: 3px solid transparent; white-space: nowrap; border-radius: 6px 6px 0 0; }
+  .secciones-pc a:hover { background: var(--suave); }
+  .secciones-pc a.active { color: var(--primario); border-bottom-color: var(--primario); }
+  .secciones-pc a .insignia-menu { font-size: 12px; min-width: 20px; padding: 0 6px; justify-content: center; }
+  .secciones-pc a .corto { display: none; }
+  .topbar .topbar-right .chip.solo-pc { display: inline-flex !important; }
+}
+/* entre 1024 y 1279 px la barra va justa: nombres cortos de sección (Compras · Ventas · Tienda) y menos aire */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .secciones-pc a { padding: 0 10px; font-size: 14.5px; }
+  .secciones-pc a .largo { display: none; }
+  .secciones-pc a .corto { display: inline; }
+  .topbar { gap: 14px; padding-left: 24px; padding-right: 24px; }
+  .tabs a { padding: 10px 14px; }
+}
+/* hasta 1180 px tampoco entran los accesos Tienda / Admin de la derecha (siguen en el menú del avatar) */
+@media (min-width: 1024px) and (max-width: 1180px) { .topbar .topbar-right .chip.solo-pc { display: none !important; } }
+/* Mejoras 5 · D: destacados compactos arriba de la cuadrícula de Explorar (en PC los dos carruseles van lado a lado) */
+.destacados-mercado { margin-bottom: 6px; }
+.destacados-mercado .carrusel { margin-top: 6px; }
+.destacados-mercado .carrusel .tarjeta { width: 130px; padding: 8px; }
+.destacados-mercado .carrusel .tarjeta .nombre { font-size: 13px; }
+@media (min-width: 1024px) {
+  .destacados-mercado { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 20px; align-items: start; }
+  .destacados-mercado > p { grid-column: 1 / -1; }
+  .destacados-mercado .carrusel .tarjeta { width: 128px; }
+}

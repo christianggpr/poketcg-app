@@ -33,9 +33,11 @@ export function BotonVolver({ a, label = 'Volver', className = '' }: { a: string
 
 /**
  * Barra superior. Celular: logo + nombre (o «volver» + nombre de la pestaña en pantallas interiores), carrito amarillo y avatar.
- * PC (≥ 1024 px): logo, las dos pestañas en una cápsula crema, buscador ancho, carrito y avatar.
+ * PC (≥ 1024 px), Mejoras 5 · D (maquetas M5-PC-*): logo, las dos pestañas en una cápsula crema, las **secciones** de la pestaña
+ * activa como pestañas con subrayado azul (Álbumes · Bulk · Mazos / Explorar · Mis compras · Mis ventas · Mi tienda), carrito y
+ * avatar. Ya no lleva buscador: el buscador va en la columna izquierda de cada pantalla (bloque C).
  */
-export function BarraSuperior({ principales, principal, interior }: { principales: PestanaPrincipal[]; principal: PestanaPrincipal | null; interior: boolean }) {
+export function BarraSuperior({ principales, principal, interior, secciones = [], seccionActiva = null }: { principales: PestanaPrincipal[]; principal: PestanaPrincipal | null; interior: boolean; secciones?: Seccion[]; seccionActiva?: Seccion | null }) {
   const mercado = useMercado();
   const notif = useNotificaciones();
   const { perfil } = usePerfil();
@@ -55,7 +57,11 @@ export function BarraSuperior({ principales, principal, interior }: { principale
       <nav className="tabs" data-testid="tabs-principales" aria-label="Secciones principales">
         {principales.map(t => <Link key={t.id} href={t.href} className={principal?.id === t.id ? 'active' : ''} aria-current={principal?.id === t.id ? 'page' : undefined} data-testid={`tab-${t.id}`}><Icono n={t.ico} /> {t.label}</Link>)}
       </nav>
-      <BuscadorPC principal={principal?.id || 'coleccion'} />
+      {secciones.length ? (
+        <nav className="secciones-pc solo-pc" aria-label={`Secciones de ${principal?.label || ''}`} data-testid="secciones-pc">
+          {secciones.map(s => <Link key={s.href} href={s.href} className={seccionActiva?.href === s.href ? 'active' : ''} aria-current={seccionActiva?.href === s.href ? 'page' : undefined} title={s.label} data-testid={`barra-${s.testid}`}><span className="largo">{s.label}</span><span className="corto">{s.labelCorto || s.label}</span>{s.insignia}</Link>)}
+        </nav>
+      ) : null}
       <div className="topbar-right">
         {notif.noLeidas ? <Link className="chip warn" href="/app/notificaciones" title="Notificaciones" aria-label={`${notif.noLeidas} notificaciones sin leer`} data-testid="chip-notificaciones"><Icono n="campana" tam={18} /><span className="cuenta">{notif.noLeidas}</span></Link> : null}
         <Link className="chip carrito" href="/app/carrito" title="Carrito" aria-label={`Carrito: ${mercado.unidades || 0}`} data-testid="chip-carrito"><Icono n="carrito" tam={20} />{mercado.unidades ? <span className="cuenta">{mercado.unidades}</span> : null}</Link>
@@ -64,25 +70,6 @@ export function BarraSuperior({ principales, principal, interior }: { principale
         <MenuPerfil />
       </div>
     </header>
-  );
-}
-
-/**
- * Buscador ancho de la barra superior (solo PC): busca en mi colección o en el mercado según la pestaña.
- * Ajustes de layout 2 · 1: lleva dentro el botón de cámara (buscar por foto: abre el escáner).
- * Mejoras 4 · D: sugerencias mientras se escribe (carta, colección o ilustrador).
- */
-function BuscadorPC({ principal }: { principal: Principal }) {
-  const router = useRouter();
-  const [q, setQ] = useState('');
-  const ruta = usePathname();
-  useEffect(() => { setQ(''); }, [ruta]);
-  const destino = principal === 'mercado' ? '/app/mercado/buscar' : '/app/buscar';
-  return (
-    <Buscador className="buscador-pc" value={q} onChange={setQ} onBuscar={t => router.push(t ? `${destino}?q=${encodeURIComponent(t)}` : destino)}
-      onElegir={s => router.push(irASugerencia(destino, s))}
-      placeholder={principal === 'mercado' ? 'Buscar en el mercado' : 'Buscar en mi colección'} aria-label={principal === 'mercado' ? 'Buscar en el mercado' : 'Buscar en mi colección'}
-      derecha={<BotonCamara />} testid="buscador-pc" />
   );
 }
 
@@ -157,7 +144,7 @@ export function MenuPerfil() {
 export function BuscadorCelular({ principal }: { principal: Principal }) {
   const router = useRouter();
   const [q, setQ] = useState('');
-  const destino = principal === 'mercado' ? '/app/mercado/buscar' : '/app/buscar';
+  const destino = principal === 'mercado' ? '/app/mercado' : '/app/buscar';
   return (
     <Buscador className="buscador-mercado solo-celular" value={q} onChange={setQ} onBuscar={t => router.push(`${destino}${t ? '?q=' + encodeURIComponent(t) : ''}`)}
       onElegir={s => router.push(irASugerencia(destino, s))}

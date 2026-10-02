@@ -1,6 +1,5 @@
 'use client';
-import { Suspense, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ordenesDe } from '@/lib/compras';
 import { useCatalogoOpcional } from './CatalogoProvider';
@@ -23,7 +22,10 @@ const PRINCIPALES: PestanaPrincipal[] = [
   // Ajustes de layout 2 · 2: Mis ventas vive en el Mercado (al abrirla se marca la pestaña Mercado)
   { id: 'mercado', href: '/app/mercado', label: 'Mercado', ico: 'tienda', rutas: ['/app/mercado', '/app/carrito', '/app/compras', '/app/ventas'] }
 ];
-/** Secciones de cada pestaña: chips en el celular; en PC, menú lateral (Mi Colección) o chips arriba del contenido (Mercado). */
+/**
+ * Secciones de cada pestaña: chips arriba del contenido en el celular; en PC, pestañas subrayadas en la barra superior
+ * (Mejoras 5 · D). Mercado = Explorar · Mis compras · Mis ventas (· Mi tienda, solo con cartas en venta: se añade abajo).
+ */
 const SECCIONES: Record<'coleccion' | 'mercado', Seccion[]> = {
   coleccion: [
     { href: '/app/album', label: 'Álbumes', ico: 'album', rutas: ['/app/album'], testid: 'sec-album' },
@@ -34,11 +36,12 @@ const SECCIONES: Record<'coleccion' | 'mercado', Seccion[]> = {
     // el de arriba de Mi Colección en el celular llevan a /app/buscar y /app/escanear, que siguen existiendo como pantallas.
   ],
   mercado: [
-    { href: '/app/mercado', label: 'Inicio', ico: 'inicio', rutas: ['/app/mercado'], testid: 'sec-inicio' },
+    // Mejoras 5 · D: "Explorar" (el catálogo con filtros, antes /app/mercado/buscar) reemplaza a "Inicio"; los destacados van arriba de la cuadrícula
+    { href: '/app/mercado', label: 'Explorar', labelCorto: 'Explorar', ico: 'buscar', rutas: ['/app/mercado'], testid: 'sec-explorar' },
     // Ajustes de layout 2 · 3: el carrito ya no es un chip; solo el botón amarillo con el número (arriba a la derecha). /app/carrito sigue igual.
-    { href: '/app/compras', label: 'Mis compras', ico: 'compras', rutas: ['/app/compras'], testid: 'sec-compras' },
+    { href: '/app/compras', label: 'Mis compras', labelCorto: 'Compras', ico: 'compras', rutas: ['/app/compras'], testid: 'sec-compras' },
     // Ajustes de layout 2 · 2: Mis ventas (con la insignia de órdenes por entregar) pasa de Mi Colección al Mercado
-    { href: '/app/ventas', label: 'Mis ventas', ico: 'ventas', rutas: ['/app/ventas'], testid: 'sec-ventas', insignia: <PorEntregar /> }
+    { href: '/app/ventas', label: 'Mis ventas', labelCorto: 'Ventas', ico: 'ventas', rutas: ['/app/ventas'], testid: 'sec-ventas', insignia: <PorEntregar /> }
   ]
 };
 const pertenece = (ruta: string, prefijo: string) => ruta === prefijo || ruta.startsWith(prefijo + '/');
@@ -61,13 +64,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!esCarta && porRuta) origen.current = porRuta.id;
   const desde = params.get('desde');
   const principal = esCarta ? PRINCIPALES.find(p => p.id === (desde === 'mercado' || desde === 'coleccion' ? desde : origen.current)) || porRuta : porRuta;
-  // sección activa: la de prefijo más largo que coincida (así /app/mercado/buscar no activa otra sección)
-  const secciones = principal ? SECCIONES[principal.id] : [];
+  // sección activa: la de prefijo más largo que coincida
+  // Mejoras 5 · D: "Mi tienda" (mi página pública /u/<usuario>) solo aparece si tengo cartas en venta (publicaciones activas)
+  const conTienda = col.publicaciones.some(p => p.estado === 'activa');
+  const secciones = useMemo<Seccion[]>(() => principal ? (principal.id === 'mercado' ? [...SECCIONES.mercado, ...(conTienda ? [{ href: `/u/${encodeURIComponent(perfil.username)}`, label: 'Mi tienda', labelCorto: 'Tienda', ico: 'tienda' as const, rutas: [], testid: 'sec-tienda' }] : [])] : SECCIONES.coleccion) : [], [principal, conTienda, perfil.username]);
   const seccionActiva = secciones.map(s => ({ s, largo: Math.max(0, ...s.rutas.filter(r => pertenece(ruta, r)).map(r => r.length)) })).filter(x => x.largo > 0).sort((a, b) => b.largo - a.largo)[0]?.s || null;
   const interior = esInterior(ruta);
   const lateral = principal?.id === 'coleccion' && conLateral(ruta);
   const inicioColeccion = ruta === '/app/album';
-  const inicioMercado = ruta === '/app/mercado';
   const listo = !!cat && col.cargado;
   // Mejoras 4 · A: en el detalle de un álbum (libro) la vista es más ancha y con menos relleno vertical para que la hoja sea lo más grande posible
   const esLibro = /^\/app\/album\/.+/.test(ruta) && ruta !== '/app/album/nuevo';   // Mejoras 5 · B: el asistente de nuevo álbum no es un libro
@@ -77,19 +81,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div id="app" className={`${lateral ? 'con-lateral' : ''} ${esLibro ? 'ruta-libro' : ''}`} data-pestana={principal?.id || ''}>
       <AplicarTemaUsuario />
       <FondoApp />
-      <BarraSuperior principales={PRINCIPALES} principal={principal} interior={interior} />
+      <BarraSuperior principales={PRINCIPALES} principal={principal} interior={interior} secciones={secciones} seccionActiva={seccionActiva} />
       <main id="main">
-        <div className={`view ${lateral ? 'view-lateral' : ''} ${esLibro || ruta === '/app/mercado/buscar' ? 'view-ancha' : ''}`}>
+        <div className={`view ${lateral ? 'view-lateral' : ''} ${esLibro || ruta === '/app/mercado' ? 'view-ancha' : ''}`}>
           <Suspense><AvisosDeEntrada /></Suspense>
           {perfil.estado === 'suspendido' ? <Aviso tipo="danger"><b>Tu cuenta está suspendida</b>{perfil.suspendido_motivo ? `: ${perfil.suspendido_motivo}` : ''}. Puedes seguir usando tu colección, pero no comprar ni vender hasta que el administrador la reactive. Si crees que es un error, escríbenos.</Aviso> : null}
           {error ? <Aviso tipo="danger">No se pudo cargar el catálogo de cartas: {error}. Revisa tu conexión y recarga la página.</Aviso> : null}
           {col.error ? <Aviso tipo="danger">Problema al guardar o leer tu colección: {col.error}</Aviso> : null}
           {lateral && listo ? (
             <aside className="lateral" data-testid="menu-lateral">
+              {/* Mejoras 5 · D: ya sin menú de secciones (van en la barra superior); precio arriba de los filtros */}
               <ResumenColeccion />
-              <nav className="lateral-menu" aria-label="Mi Colección">
-                {secciones.map(s => <Link key={s.href} href={s.href} className={seccionActiva?.href === s.href ? 'active' : ''} aria-current={seccionActiva?.href === s.href ? 'page' : undefined} data-testid={`lateral-${s.testid}`}>{s.label}{s.insignia}</Link>)}
-              </nav>
               {/* Mejoras 5 · C: buscador con cámara y tarjeta Filtros (los resultados van a /app/buscar) */}
               <Suspense><LateralColeccion /></Suspense>
               <PorLlegar compacto />
@@ -98,8 +100,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="contenido">
             {/* Ajustes de layout 2 · 1: en el celular, el buscador con cámara va debajo del precio de la colección (como en el Mercado) */}
             {principal && inicioColeccion && listo ? <><h1 className="titulo-pestana solo-celular">Mi Colección</h1><ResumenColeccion className="solo-celular" /><BuscadorCelular principal="coleccion" /></> : null}
-            {principal && inicioMercado ? <><h1 className="titulo-pestana solo-celular">Mercado</h1><BuscadorCelular principal="mercado" /></> : null}
-            {secciones.length && !interior ? <ChipsSecciones secciones={secciones} activa={seccionActiva} label={principal?.label} className={principal?.id === 'coleccion' ? 'solo-celular' : ''} /> : null}
+            {/* Mejoras 5 · D: en el celular las secciones siguen como chips; en PC van en la barra superior. Explorar trae su propio buscador. */}
+            {secciones.length && !interior ? <ChipsSecciones secciones={secciones} activa={seccionActiva} label={principal?.label} className="solo-celular" /> : null}
             {!cat && !error ? <Cargando texto={estado || 'Cargando…'} /> : null}
             {cat && !col.cargado && !col.error ? <Cargando texto="Cargando tu colección…" /> : null}
             {listo ? children : null}

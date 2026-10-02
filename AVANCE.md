@@ -6,25 +6,24 @@
 
 - **Mejoras 5 · bloque A (errores de álbumes): listo** y publicado.
 - **Mejoras 5 · bloque B (tipos de álbum al crear): listo** y publicado.
-- **Mejoras 5 · bloque C (buscador y filtros a la izquierda): listo** y publicado en https://poketcg.pe (rama `main`).
-- **Siguiente bloque: D** (barra superior de PC con las secciones como pestañas subrayadas y sin buscador; "Mi tienda" solo con stock en venta; quitar el menú lateral viejo). No empieza hasta que digas "sigue". Al terminar D va la guía `GUIA-MEJORAS5.md`.
+- **Mejoras 5 · bloque C (buscador y filtros a la izquierda): listo** y publicado.
+- **Mejoras 5 · bloque D (barra superior con secciones): listo** y publicado en https://poketcg.pe (rama `main`).
+- **Mejoras 5 está completo.** La guía corta está en `D:\POKEMON APP\v2\GUIA-MEJORAS5.md` (y en el repositorio). No hay siguiente bloque: pruébalo en celular y PC y dime qué ajustar.
 
-## Lo que tienes que hacer tú (bloque C)
+## Lo que tienes que hacer tú (bloque D)
 
-- **Nada**: este bloque no toca la base de datos (no hay SQL nuevo). Nada en Vercel ni en GoDaddy.
-- Si todavía no pegaste los SQL de los bloques anteriores, pégalos en orden: `0009_mejoras4.sql`, `0010_mejoras5.sql`, `0011_mejoras5b.sql` (Supabase → SQL Editor → New query → pegar → Run; se pueden pegar varias veces).
+- **Nada**: este bloque no toca la base de datos. Nada en Vercel ni en GoDaddy.
+- Si todavía no pegaste los SQL de los bloques anteriores, pégalos en orden: `0009_mejoras4.sql`, `0010_mejoras5.sql`, `0011_mejoras5b.sql` (Supabase → SQL Editor → New query → pegar → Run; se pueden pegar varias veces). Está explicado en la guía.
 
-## Qué cambió en el bloque C
+## Qué cambió en el bloque D
 
-- **Mercado → Explorar en PC** (`/app/mercado/buscar`, maqueta M5-PC-Mercado): dos columnas. Izquierda (~270 px): buscador con botón de cámara, "¿Quisiste decir…?" y la tarjeta **Filtros** (Precio, Idioma, Colección, Tipo, Ilustrador, Rareza, Acabado, **Estado en botones** NM/LP/MP/HP/DM, **Punto de entrega**, Solo con foto real, Vendedor con buena reputación), botón **Aplicar filtros** (los cambios quedan en borrador hasta pulsarlo) y **Limpiar**. Derecha: título **Explorar**, "[N] cartas en venta · página X de Y", **Ordenar**, botones cuadrícula/lista, chips de filtros quitables, **cuadrícula de 5 cartas por fila** (4 a 1280 px) con imagen, colección y número, nombre, copias y vendedor, precio más bajo, "Mercado: S/ X" y **corazón** de favorito; paginación de 40 en 40. La columna se puede **plegar** (flecha) y se recuerda.
-- **Punto de entrega**: no filtra el mercado (cualquier vendedor entrega en cualquier tienda aliada): es la tienda donde prefieres recoger; se recuerda en tu dispositivo y el carrito la deja elegida.
-- **Mi Colección en PC** (maqueta M5-PC-Coleccion): la columna izquierda ahora es precio de mi colección · menú (Álbumes · Bulk · Mazos, hasta el bloque D) · **buscador con cámara** · tarjeta **Filtros** (Dónde Todo/Álbumes/Bulk en botones, Colección, Tipo, Ilustrador, Rareza, Idioma y Acabado, Estado en botones, Precio, En venta Todas/Sí/No). Sin búsqueda se ve la sección elegida; al escribir o tocar un filtro, a la derecha salen los resultados **"Resultados para «…»"** con "N tuyas · M del catálogo", **En tu colección** (con ubicación) y **Otras cartas**. Los chips y la tarjeta van sincronizados. El Bulk conserva sus propios filtros (los de dentro de cada Bulk).
-- **Celular** (maqueta M5-Mercado): el buscador (con cámara dentro) y el botón **"Filtros · N"** van en la misma fila; el botón abre la hoja con **Limpiar** arriba y **"Ver N cartas"** abajo; Explorar se ve en cuadrícula de 2 (o lista).
-- Todo (texto, filtros, orden, vista y página) queda en la dirección de la página para compartir o volver.
-- Pruebas: `npm test` 93; E2E 96 pasos (nuevos: C1 PC Explorar, C2 PC Mi Colección, C3 celular; los de Mejoras 4 adaptados a los botones de Estado/Dónde/En venta y a "Ver N cartas").
+- **Barra superior de PC** (maquetas M5-PC-*): logo · Mi Colección / Mercado · **secciones como pestañas con subrayado azul** · carrito amarillo · perfil. Mi Colección → Álbumes · Bulk · Mazos; Mercado → Explorar · Mis compras · Mis ventas · Mi tienda. Entre 1024 y 1279 px los nombres se acortan (Compras · Ventas · Tienda) y los accesos Tienda/Admin de la derecha se guardan en el menú del avatar hasta 1180 px.
+- **Se quitó el buscador de la barra**: está en la columna izquierda de cada pantalla (bloque C). Se quitó el **menú lateral viejo** de secciones; en la columna de Mi Colección queda el precio arriba del buscador y los filtros.
+- **Mi tienda** = tu página pública `/u/tu_usuario` (cartas en venta, reputación y reseñas, como te ven los compradores). Solo aparece si tienes **cartas en venta** (publicaciones activas): si pausas o retiras todas, desaparece sola.
+- **Explorar es el inicio del Mercado** (`/app/mercado`): sin búsqueda ni filtros muestra arriba los destacados ("Más vendidas" y "Mayor precio", más compactos, lado a lado en PC) y debajo la cuadrícula con todo lo que está en venta (más nuevas primero), que reemplaza a "Recién publicadas". La dirección antigua `/app/mercado/buscar` redirige.
+- **Celular**: las secciones siguen como chips arriba del contenido (Explorar · Compras · Ventas · Tienda / Álbumes · Bulk · Mazos); abajo, las dos pestañas principales. En Explorar hay un solo buscador (el de la fila con "Filtros").
+- Pruebas: `npm test` 93; E2E 97 pasos (nuevo bloque D: secciones en la barra, subrayado, orden de la barra, Mi tienda que aparece y desaparece, 1024 px sin desbordar, chips del celular, destacados que se van al buscar, redirección).
 
 ## Pendiente / a medias
 
-- Nada a medias del bloque C.
-- El buscador de la barra superior de PC sigue hasta el bloque D (ahí se quita y las secciones pasan arriba, como en las maquetas).
-- Bloque D no debería necesitar SQL (te lo confirmo al terminarlo).
+- Nada a medias. Si prefieres Explorar **sin** los destacados arriba (como en la maqueta), dímelo y los quito o los dejo plegados.
