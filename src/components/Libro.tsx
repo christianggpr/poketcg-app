@@ -5,6 +5,7 @@ import { Icono, type NombreIcono } from './Icono';
 import { usePerfil } from './PerfilProvider';
 import { useCuadricula, type Cuadricula } from './useCuadricula';
 import { useEsPC } from './ui';
+import { Ayuda } from './Ayuda';
 
 // Mejoras 4 · A: la "carpeta" (libro) que usan el álbum por colección, los álbumes personalizados (bloque B) y la Pokédex
 // (bloque C). Una sola fila de herramientas (miga, título, resumen compacto, filtros, cuadrícula, 1/2 páginas, Acciones,
@@ -42,11 +43,13 @@ export type LibroProps<T> = {
   despues?: ReactNode;
   /** Cuadrícula propia del álbum personalizado (columnas × filas con las que se creó): se ofrece como opción y es la inicial. */
   cuadriculaPropia?: { cols: number; filas: number } | null;
+  /** Explicación corta detrás del icono ⓘ, junto al título (Mejoras 4 · F). */
+  ayuda?: ReactNode;
   /** Clase extra para el contenedor del libro. */
   className?: string;
 };
 
-export function Libro<T>({ items, clave, celda, cuadriculaId, titulo, miga, resumen, filtros, acciones, vacio, pagina, onPagina, mostrarItem, precargar, nombreUnidad = 'cartas', antes, despues, cuadriculaPropia, className = '' }: LibroProps<T>) {
+export function Libro<T>({ items, clave, celda, cuadriculaId, titulo, miga, resumen, filtros, acciones, vacio, pagina, onPagina, mostrarItem, precargar, nombreUnidad = 'cartas', antes, despues, cuadriculaPropia, ayuda, className = '' }: LibroProps<T>) {
   const { perfil } = usePerfil();
   const esPC = useEsPC();
   const { cuad, setCuad, opciones } = useCuadricula(perfil.id, cuadriculaId, esPC, cuadriculaPropia);
@@ -181,7 +184,7 @@ export function Libro<T>({ items, clave, celda, cuadriculaId, titulo, miga, resu
     <div className={`libro ${completo ? 'libro-completo' : ''} ${className}`} ref={libroRef} data-testid="libro">
       <div className="libro-herramientas" data-testid="libro-herramientas">
         {miga ? <Link href={miga.href} className="miga solo-pc" data-testid="miga-albumes"><Icono n="izquierda" tam={16} /> {miga.texto}</Link> : null}
-        <h1 className="titulo-album libro-titulo">{titulo}</h1>
+        <h1 className="titulo-album libro-titulo">{titulo}{ayuda ? <Ayuda texto={ayuda} /> : null}</h1>
         {resumen ? <div className="libro-resumen" data-testid="libro-resumen">{resumen}</div> : null}
         <div className="libro-controles">
           {filtros}

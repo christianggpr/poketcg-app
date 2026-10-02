@@ -99,7 +99,7 @@ export function Reconocimiento() {
             <label key={s.id} className={`set-item ${m && !m.stale ? 'done' : ''}`}>
               <input type="checkbox" checked={seleccion.has(s.id)} onChange={e => setSeleccion(sel => { const n = new Set(sel); if (e.target.checked) n.add(s.id); else n.delete(s.id); return n; })} />
               <SimboloSet setId={s.id} />
-              <span className="name">{nombreColeccion(s, idioma, true)} <span className="faint">({total} cartas · {s.d ? s.d.slice(0, 4) : ''}){enColeccion.includes(s.id) ? ' · en tu colección' : ''}</span>
+              <span className="name">{nombreColeccion(s, idioma)} <span className="faint">· {total} cartas · {s.d ? s.d.slice(0, 4) : ''}{enColeccion.includes(s.id) ? ' · la tienes' : ''}</span>
                 {m ? (m.stale ? <small className="warn">Huellas de una versión anterior · <button className="link" onClick={e => { e.preventDefault(); preparar([s.id]); }}>volver a preparar</button></small> : <small>Preparada: {m.count} de {m.total} imágenes · <button className="link" onClick={e => { e.preventDefault(); rec.quitarColeccion(s.id).then(actualizarEspacio); }}>quitar</button></small>) : null}
               </span>
             </label>

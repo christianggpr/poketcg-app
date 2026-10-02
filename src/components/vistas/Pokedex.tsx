@@ -139,7 +139,7 @@ export function TarjetaPokedex() {
     <Link href="/app/album/pokedex" className="album-card" data-testid="album-pokedex">
       <PortadaPropia nombre="Pokédex" color={COLOR_POKEDEX} marca="emblema" />
       <div className="album-body">
-        <div className="album-title"><span className="nombre">Pokédex</span><span className="pill info">Por especie</span></div>
+        <div className="album-title"><span className="nombre">Pokédex</span><span className="pill info" title="Álbum virtual: una casilla por especie; no mueve cartas de lugar">Virtual</span></div>
         <div className="bar" style={{ marginTop: 8 }} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}><div style={{ width: pct + '%' }} /></div>
         <div className="album-foot-card"><span>{tengo} / {total}</span><span>{fmtPen(valor)}</span></div>
       </div>
@@ -208,9 +208,10 @@ export function Pokedex() {
       <Libro<CeldaPokedex>
         items={lista} clave={c => String(c.dex)} celda={celda} cuadriculaId="pokedex"
         miga={{ href: '/app/album', texto: 'Mis álbumes' }}
-        titulo={<>Pokédex<span className="pill info" style={{ marginLeft: 8, verticalAlign: 'middle' }}>Por especie</span></>}
+        titulo={<>Pokédex<span className="pill info" style={{ marginLeft: 8, verticalAlign: 'middle' }} title="Álbum virtual: una casilla por especie; no mueve cartas de lugar">Virtual</span></>}
         resumen={<span data-testid="progreso-album"><b>{tengo} / {total}</b> · {pct} % · <b>{fmtPen(valor)}</b></span>}
         filtros={filtros} acciones={acciones} nombreUnidad="casillas" precargar={precargar}
+        ayuda="Una casilla por especie, en orden de Pokédex nacional. Se ve tu carta más valiosa de cada una; toca una casilla para elegir otra o para buscar la que falta en el mercado. No mueve nada de lugar."
         vacio={modo === 'tengo' ? 'Todavía no tienes ninguna carta de estas especies.' : modo === 'faltan' ? 'No te falta ninguna especie de este filtro.' : 'No hay especies con ese filtro.'}
         pagina={pagina} onPagina={setPagina}
       />

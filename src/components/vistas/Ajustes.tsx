@@ -122,9 +122,9 @@ function IdiomaCartas() {
     <div className="panel">
       <h3>Idioma de las cartas</h3>
       <p className="small muted">{unidades} {unidades === 1 ? 'carta no tiene' : 'cartas no tienen'} idioma registrado ({sinIdioma.length} {sinIdioma.length === 1 ? 'entrada' : 'entradas'}). Los álbumes se separan por idioma, así que conviene marcarlo. Si toda tu colección es del mismo idioma, hazlo aquí de una vez; si mezclas idiomas, mejor desde cada álbum (Álbum → colección "sin idioma").</p>
-      <div className="row" style={{ gap: 6 }}>
-        <select className="input sm" value={idioma} onChange={e => setIdioma(e.target.value)}>{IDIOMAS_CARTA.filter(l => l !== 'JP').map(l => <option key={l} value={l}>{l}</option>)}</select>
-        <button className="btn sm primary" disabled={guardando} onClick={async () => { setGuardando(true); const n = await col.editarVarias(sinIdioma.map(e => e.id), { idioma }); setGuardando(false); toast(`${n} entradas marcadas como ${idioma}`, 'ok'); }}>{guardando ? 'Guardando…' : `Marcar todas como ${idioma}`}</button>
+      <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+        <select className="input sm" value={idioma} onChange={e => setIdioma(e.target.value)} style={{ width: 'auto' }}>{IDIOMAS_CARTA.filter(l => l !== 'JP').map(l => <option key={l} value={l}>{l}</option>)}</select>
+        <button className="btn sm primary" style={{ whiteSpace: 'nowrap' }} disabled={guardando} onClick={async () => { setGuardando(true); const n = await col.editarVarias(sinIdioma.map(e => e.id), { idioma }); setGuardando(false); toast(`${n} entradas marcadas como ${idioma}`, 'ok'); }}>{guardando ? 'Guardando…' : `Marcar todas como ${idioma}`}</button>
       </div>
     </div>
   );

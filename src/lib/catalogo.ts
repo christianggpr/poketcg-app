@@ -53,6 +53,8 @@ export type DatosCatalogo = { version: string; generated: string; sets: Coleccio
 export type IdiomaNombres = 'es' | 'en' | 'ja';
 
 export const fold = (s: unknown): string => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+/** Mejoras 4 · D: la búsqueda ignora los guiones ("ho-oh" = "hooh" = "ho oh"): al texto de búsqueda se le añade la variante sin guiones. */
+export const sinGuiones = (t: string): string => (t.includes('-') ? t + ' | ' + t.replace(/-/g, '') : t);
 
 export type ClaveNum = [number, string, number, string];
 /** Clave de orden de un número impreso: 'TG01' → [1,'TG',1,''], '025' → [0,'',25,''], '?' → [2,'?',0,''] */
@@ -114,7 +116,7 @@ export class Catalogo {
     this.species = datos.species || [];
     for (const s of this.sets) {
       this.setsById.set(s.id, s);
-      this.setSearch.set(s.id, fold([s.n, s.ns, s.nj, s.ab, s.sn, s.sns, s.id, s.tid, s.rg === 'ja' ? 'jp japon japan japonesa 日本' : 'intl internacional'].filter(Boolean).join(' | ')));
+      this.setSearch.set(s.id, sinGuiones(fold([s.n, s.ns, s.nj, s.ab, s.sn, s.sns, s.id, s.tid, s.rg === 'ja' ? 'jp japon japan japonesa 日本' : 'intl internacional'].filter(Boolean).join(' | '))));
     }
     for (const c of this.cards) {
       this.cardsById.set(c.id, c);
@@ -140,7 +142,7 @@ export class Catalogo {
     let t = this.cardText.get(c.id);
     if (t == null) {
       const sp = c.dex && c.dex.length ? this.speciesById.get(c.dex[0]) : undefined;
-      t = fold([c.n, c.ns, c.nj, sp && sp[2] !== c.n ? sp[2] : ''].filter(Boolean).join(' | '));
+      t = sinGuiones(fold([c.n, c.ns, c.nj, sp && sp[2] !== c.n ? sp[2] : ''].filter(Boolean).join(' | ')));
       this.cardText.set(c.id, t);
     }
     return t;

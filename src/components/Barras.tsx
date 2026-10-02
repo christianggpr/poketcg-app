@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { APP_NAME } from '@/lib/config';
@@ -7,6 +7,8 @@ import { Icono, type NombreIcono } from './Icono';
 import { useMercado } from './MercadoProvider';
 import { useNotificaciones } from './NotificacionesProvider';
 import { usePerfil } from './PerfilProvider';
+import { Buscador } from './Buscador';
+import type { Sugerencia } from '@/lib/buscar';
 
 export type Principal = 'coleccion' | 'mercado';
 export type PestanaPrincipal = { id: Principal; href: string; label: string; ico: NombreIcono; rutas: string[] };
@@ -68,6 +70,7 @@ export function BarraSuperior({ principales, principal, interior }: { principale
 /**
  * Buscador ancho de la barra superior (solo PC): busca en mi colección o en el mercado según la pestaña.
  * Ajustes de layout 2 · 1: lleva dentro el botón de cámara (buscar por foto: abre el escáner).
+ * Mejoras 4 · D: sugerencias mientras se escribe (carta, colección o ilustrador).
  */
 function BuscadorPC({ principal }: { principal: Principal }) {
   const router = useRouter();
@@ -75,18 +78,19 @@ function BuscadorPC({ principal }: { principal: Principal }) {
   const ruta = usePathname();
   useEffect(() => { setQ(''); }, [ruta]);
   const destino = principal === 'mercado' ? '/app/mercado/buscar' : '/app/buscar';
-  function buscar(e: FormEvent) {
-    e.preventDefault();
-    const t = q.trim();
-    router.push(t ? `${destino}?q=${encodeURIComponent(t)}` : destino);
-  }
   return (
-    <form className="buscador-pc" role="search" onSubmit={buscar} data-testid="buscador-pc">
-      <span className="ico"><Icono n="buscar" tam={20} /></span>
-      <input className="input" type="search" value={q} onChange={e => setQ(e.target.value)} placeholder={principal === 'mercado' ? 'Buscar en el mercado' : 'Buscar en mi colección'} aria-label={principal === 'mercado' ? 'Buscar en el mercado' : 'Buscar en mi colección'} />
-      <BotonCamara />
-    </form>
+    <Buscador className="buscador-pc" value={q} onChange={setQ} onBuscar={t => router.push(t ? `${destino}?q=${encodeURIComponent(t)}` : destino)}
+      onElegir={s => router.push(irASugerencia(destino, s))}
+      placeholder={principal === 'mercado' ? 'Buscar en el mercado' : 'Buscar en mi colección'} aria-label={principal === 'mercado' ? 'Buscar en el mercado' : 'Buscar en mi colección'}
+      derecha={<BotonCamara />} testid="buscador-pc" />
   );
+}
+
+/** Dirección a la que lleva una sugerencia: carta → ?q=, colección → ?coleccion=, ilustrador → ?ilustrador=. */
+export function irASugerencia(destino: string, s: Sugerencia): string {
+  if (s.tipo === 'coleccion' && s.id) return `${destino}?coleccion=${encodeURIComponent(s.id)}`;
+  if (s.tipo === 'ilustrador') return `${destino}?ilustrador=${encodeURIComponent(s.texto)}`;
+  return `${destino}?q=${encodeURIComponent(s.texto)}`;
 }
 
 /** Botón de cámara de los buscadores: abre el escáner (identificar una carta por foto). */
@@ -148,16 +152,16 @@ export function MenuPerfil() {
 /**
  * Buscador grande del inicio de cada pestaña en el celular, con botón de buscar por foto (abre el escáner):
  * en el Mercado busca en el mercado; en Mi Colección (ajustes de layout 2 · 1) busca en mi colección y el catálogo.
+ * Mejoras 4 · D: con sugerencias mientras se escribe.
  */
 export function BuscadorCelular({ principal }: { principal: Principal }) {
   const router = useRouter();
   const [q, setQ] = useState('');
   const destino = principal === 'mercado' ? '/app/mercado/buscar' : '/app/buscar';
   return (
-    <form className="buscador-mercado solo-celular" role="search" onSubmit={e => { e.preventDefault(); router.push(`${destino}${q.trim() ? '?q=' + encodeURIComponent(q.trim()) : ''}`); }} data-testid={`buscador-celular-${principal}`}>
-      <span className="ico"><Icono n="buscar" tam={20} /></span>
-      <input className="input" placeholder={principal === 'mercado' ? 'Busca una carta, colección o número' : 'Busca una carta en tu colección'} aria-label={principal === 'mercado' ? 'Buscar en el mercado' : 'Buscar en mi colección'} value={q} onChange={e => setQ(e.target.value)} data-testid={principal === 'mercado' ? 'mercado-inicio-buscar' : 'coleccion-inicio-buscar'} />
-      <BotonCamara />
-    </form>
+    <Buscador className="buscador-mercado solo-celular" value={q} onChange={setQ} onBuscar={t => router.push(`${destino}${t ? '?q=' + encodeURIComponent(t) : ''}`)}
+      onElegir={s => router.push(irASugerencia(destino, s))}
+      placeholder={principal === 'mercado' ? 'Busca una carta, colección o número' : 'Busca una carta en tu colección'} aria-label={principal === 'mercado' ? 'Buscar en el mercado' : 'Buscar en mi colección'}
+      derecha={<BotonCamara />} testid={`buscador-celular-${principal}`} inputTestid={principal === 'mercado' ? 'mercado-inicio-buscar' : 'coleccion-inicio-buscar'} />
   );
 }

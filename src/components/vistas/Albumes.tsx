@@ -283,11 +283,12 @@ export function AlbumColeccion({ setId }: { setId: string }) {
         miga={{ href: '/app/album', texto: 'Mis álbumes' }}
         titulo={<>{nombreColeccion(set, idioma, true)}{idiomaAlb && idiomaAlb !== '—' ? <span className={`pill ${idiomaAlb === 'JP' ? 'jp' : 'info'}`} style={{ marginLeft: 8, verticalAlign: 'middle' }}>{idiomaAlb}</span> : null}</>}
         resumen={resumen} filtros={filtros} acciones={acciones}
+        ayuda="Las casillas grises son las cartas que te faltan: su + las agrega rápido y tocarlas abre la carta con el mercado. Cambia la cuadrícula (y en PC, 1 o 2 páginas) con los selectores; las flechas o deslizar pasan de página."
         vacio={modo === 'faltan' ? '¡No te falta ninguna!' : modo === 'tengo' ? 'Todavía no tienes cartas de esta colección.' : 'Esta colección no tiene cartas en el catálogo.'}
         pagina={pagina} onPagina={setPagina} mostrarItem={rapido?.id || null} precargar={precargar}
         antes={sinIdioma.length ? (
           <div className="notice info" style={{ marginBottom: 10 }}>
-            Estas {sinIdioma.length} {sinIdioma.length === 1 ? 'carta no tiene' : 'cartas no tienen'} idioma registrado. Si todas son del mismo idioma, márcalo aquí y este álbum se unirá con el de ese idioma:
+            {sinIdioma.length} {sinIdioma.length === 1 ? 'carta sin idioma' : 'cartas sin idioma'}. Si son del mismo, márcalo y el álbum se une con el de ese idioma:
             <div className="row" style={{ marginTop: 6, gap: 6 }}>
               <select className="input sm" value={idiomaNuevo} onChange={e => setIdiomaNuevo(e.target.value)}>{IDIOMAS_CARTA.map(l => <option key={l} value={l}>{l}</option>)}</select>
               <button className="btn sm primary" disabled={asignando} onClick={asignarIdioma}>{asignando ? 'Guardando…' : `Marcar todas como ${idiomaNuevo}`}</button>

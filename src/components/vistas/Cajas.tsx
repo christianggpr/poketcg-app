@@ -3,8 +3,11 @@ import { Icono } from '../Icono';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { Carta } from '@/lib/catalogo';
+import { fold, type Carta } from '@/lib/catalogo';
 import { cajasOrdenadas, coleccionEntrada, nombreEntrada, numeroEntrada, totalCartas, type Caja, type Entrada, type Personalizada } from '@/lib/coleccion';
+import { FILTROS_VACIOS, ORDENES_BULK, cuentaFiltros, entradaCumple, type ContextoEntrada, type Filtros, type OrdenBulk } from '@/lib/filtros';
+import { ChipsFiltros, FiltrosEnHoja } from '../Filtros';
+import { Ayuda } from '../Ayuda';
 import { fmtPen } from '@/lib/precios-core';
 import { useCatalogo } from '../CatalogoProvider';
 import { useColeccion } from '../ColeccionProvider';
@@ -55,10 +58,9 @@ function PorColocar({ entradas }: { entradas: Entrada[] }) {
   return (
     <div className="panel" style={{ marginTop: 12 }} data-testid="por-colocar">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <h3 style={{ margin: 0 }}><Icono n="entrada" /> Por colocar <span className="muted">({totalCartas(entradas)})</span></h3>
+        <h3 style={{ margin: 0 }} className="titulo-con-ayuda"><Icono n="entrada" /> Por colocar <span className="muted">({totalCartas(entradas)})</span> <Ayuda texto="Cartas que todavía no tienen lugar. Elige el Bulk y pulsa «Colocar»: la app te dice en qué posición va. Las que compraste en el mercado también aparecen en Álbumes → Recibidas, con una sugerencia de álbum." /></h3>
         {cajas.length ? <label className="small row" style={{ gap: 6, alignItems: 'center' }}>Colocar en <select className="input" style={{ width: 'auto', minHeight: 34, padding: '5px 10px', fontSize: 13 }} value={cajaDestino} onChange={e => setDestino(e.target.value)} data-testid="select-caja-colocar">{cajas.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select></label> : null}
       </div>
-      <p className="small muted">Cartas que todavía no tienen lugar. Elige el Bulk y pulsa «Colocar»: la app te dice en qué posición va. Las que compraste en el mercado también aparecen en Álbumes → Recibidas, con una sugerencia de álbum.</p>
       {!cajas.length ? <p className="notice warn small">Crea un Bulk para poder colocarlas.</p> : null}
       <div className="card-list">
         {lista.map(e => { const c = cat.carta(e.carta_id); const set = c ? cat.setOf(c) : undefined; return (
@@ -163,8 +165,11 @@ function BulkVista({ id }: { id?: string }) {
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [ocupado, setOcupado] = useState(false);
   const [q, setQ] = useState('');
+  // Mejoras 4 · E: filtros (colección, tipo, idioma, acabado, estado, rareza, ilustrador, precio, en venta) y orden del Bulk
+  const [f, setF] = useState<Filtros>({ ...FILTROS_VACIOS });
+  const [orden, setOrden] = useState<OrdenBulk>('posicion');
   useEffect(() => { if (params.get('elegir') === '1') setElegir(true); }, [params]);
-  useEffect(() => { setQ(''); setSel(new Set()); }, [caja?.id]);
+  useEffect(() => { setQ(''); setSel(new Set()); setF({ ...FILTROS_VACIOS }); setOrden('posicion'); }, [caja?.id]);
   const [picker, setPicker] = useState(false);
   const [agregar, setAgregar] = useState<Carta | null>(null);
   const [formPersonalizada, setFormPersonalizada] = useState(false);
@@ -184,11 +189,21 @@ function BulkVista({ id }: { id?: string }) {
   const selPublicar = [...sel].filter(x => !col.publicacionDe(x) && publicables.some(e => e.id === x));
   const selRetirar = [...sel].map(x => col.publicacionDe(x)).filter((p): p is NonNullable<typeof p> => !!p);
   const precioBulk = entradasCaja.reduce((t, e) => { const c = cat.carta(e.carta_id); return c && !c.sd ? t + precios.precioDefecto(c, e.acabado).pen * e.cantidad : t; }, 0);
-  const qn = q.trim().toLowerCase();
-  const filtradas = pos ? pos.lista.filter(p => { if (!qn) return true; const e = p.entrada; const c = cat.carta(e.carta_id); return [nombreEntrada(cat, e, idioma), c?.n, c?.ns, c?.nj, coleccionEntrada(cat, e, idioma), numeroEntrada(cat, e), String(p.idx), e.nota].filter(Boolean).join(' ').toLowerCase().includes(qn); }) : [];
-  // rangos de posiciones por sección (colección): "151 · posiciones 35–39"
+  const qn = fold(q.trim());
+  const ctxFiltros: ContextoEntrada = { precio: (c, a) => precios.precioDefecto(c, a).pen, donde: e => ubicador.donde(e), enVenta: e => !!col.publicacionDe(e.id) };
+  const hayFiltros = cuentaFiltros(f) > 0;
+  const filtradasSinOrden = pos ? pos.lista.filter(p => { const e = p.entrada; if (hayFiltros && !entradaCumple(cat, e, f, ctxFiltros)) return false; if (!qn) return true; const c = cat.carta(e.carta_id); return fold([nombreEntrada(cat, e, idioma), c?.n, c?.ns, c?.nj, coleccionEntrada(cat, e, idioma), numeroEntrada(cat, e), String(p.idx), e.nota].filter(Boolean).join(' ')).includes(qn); }) : [];
+  const filtradas = orden === 'posicion' ? filtradasSinOrden : filtradasSinOrden.slice().sort((a, b) => {
+    const ea = a.entrada, eb = b.entrada, ca = cat.carta(ea.carta_id), cb = cat.carta(eb.carta_id);
+    if (orden === 'nombre') return nombreEntrada(cat, ea, idioma).localeCompare(nombreEntrada(cat, eb, idioma)) || a.idx - b.idx;
+    if (orden === 'coleccion') return a.claveSeccion.localeCompare(b.claveSeccion) || a.idx - b.idx;
+    const pa = ca && !ca.sd ? precios.precioDefecto(ca, ea.acabado).pen : 0, pb = cb && !cb.sd ? precios.precioDefecto(cb, eb.acabado).pen : 0;
+    return pb - pa || a.idx - b.idx;   // precio: de mayor a menor
+  });
+  // rangos de posiciones por sección (colección): "151 · posiciones 35–39" (solo en orden de posición)
   const secciones: { nombre: string; desde: number; hasta: number; filas: typeof filtradas }[] = [];
-  for (const p of filtradas) { const u = secciones[secciones.length - 1]; if (u && u.nombre === p.seccion) { u.hasta = p.idx; u.filas.push(p); } else secciones.push({ nombre: p.seccion, desde: p.idx, hasta: p.idx, filas: [p] }); }
+  if (orden === 'posicion') for (const p of filtradas) { const u = secciones[secciones.length - 1]; if (u && u.nombre === p.seccion) { u.hasta = p.idx; u.filas.push(p); } else secciones.push({ nombre: p.seccion, desde: p.idx, hasta: p.idx, filas: [p] }); }
+  else if (filtradas.length) secciones.push({ nombre: ORDENES_BULK.find(o => o.id === orden)?.texto || '', desde: 0, hasta: 0, filas: filtradas });
 
   async function cambiarVenta(v: boolean) {
     if (!caja) return;
@@ -255,11 +270,18 @@ function BulkVista({ id }: { id?: string }) {
             </div>
             <label className={`check grande venta-bulk ${caja.en_venta ? 'activo' : ''}`} style={{ cursor: 'pointer' }}>
               <button className={`switch ${caja.en_venta ? 'on' : ''}`} role="switch" aria-checked={caja.en_venta} aria-label="Bulk en venta" disabled={ocupado} data-testid="switch-venta" onClick={() => { if (caja.en_venta) cambiarVenta(false); else setConfirmarVenta(true); }} />
-              <span><b>Bulk en venta</b><span className="small muted solo-pc"> · {caja.en_venta ? 'cada carta que guardes aquí se publica sola' : 'sus cartas solo se publican si tú lo eliges'}</span></span>
+              <span><b>Bulk en venta</b><span className="small muted solo-pc" title={caja.en_venta ? 'Cada carta que guardes aquí se publica sola' : 'Sus cartas solo se publican si tú lo eliges'}> · {caja.en_venta ? 'se publican solas' : 'tú eliges cuáles'}</span></span>
             </label>
             <div className="buscar-bulk">
               <span className="ico"><Icono n="buscar" tam={18} /></span>
               <input className="input" value={q} onChange={e => setQ(e.target.value)} placeholder={`Buscar en ${caja.nombre}`} aria-label={`Buscar en ${caja.nombre}`} data-testid="buscar-bulk" />
+            </div>
+            <div className="filtros-bulk" data-testid="filtros-bulk">
+              <FiltrosEnHoja ambito="bulk" f={f} onChange={setF} />
+              <select className="input sm selector-orden" value={orden} onChange={e => setOrden(e.target.value as OrdenBulk)} aria-label="Ordenar el Bulk" data-testid="orden-bulk">
+                {ORDENES_BULK.map(o => <option key={o.id} value={o.id}>{o.texto}</option>)}
+              </select>
+              {hayFiltros || qn ? <span className="small muted" data-testid="cuenta-bulk">{filtradas.length} de {pos.total}</span> : null}
             </div>
             <div className="acciones-bulk">
               <button className="btn primary" onClick={() => setPicker(true)} data-testid="btn-agregar-bulk"><Icono n="mas" /> Agregar cartas</button>
@@ -281,8 +303,9 @@ function BulkVista({ id }: { id?: string }) {
               <button className="btn sm" onClick={() => { setElegir(false); setSel(new Set()); }}>Cancelar</button>
             </div>
           ) : null}
+          <ChipsFiltros f={f} onChange={setF} />
           {!pos.total ? <div className="empty"><div className="big"><Icono n="bulk" tam={44} grosor={1.5} /></div>Este Bulk está vacío. Pulsa «Agregar cartas».</div> : null}
-          {pos.total && !filtradas.length ? <div className="empty">Ninguna carta coincide con «{q}».</div> : null}
+          {pos.total && !filtradas.length ? <div className="empty">{qn ? <>Ninguna carta coincide con «{q}»{hayFiltros ? ' y esos filtros' : ''}.</> : 'Ninguna carta cumple esos filtros.'}</div> : null}
           {esPC && filtradas.length ? (
             <div className="tabla-scroll"><table className="tabla bulk-tabla" data-testid="bulk-tabla">
               <thead><tr>{elegir ? <th /> : null}<th>Posición</th><th>Carta</th><th>Colección</th><th>N.º</th><th>Idioma</th><th>Estado</th><th>Cant.</th><th>Precio</th><th>Mercado</th></tr></thead>
@@ -308,7 +331,7 @@ function BulkVista({ id }: { id?: string }) {
             <div className="entry-list" style={{ marginTop: 12 }}>
               {secciones.map(sec => (
                 <div key={sec.nombre + sec.desde}>
-                  <div className="set-header">{sec.nombre} · {sec.desde === sec.hasta ? `posición ${sec.desde}` : `posiciones ${sec.desde}–${sec.hasta}`}</div>
+                  <div className="set-header">{sec.nombre}{orden === 'posicion' ? ` · ${sec.desde === sec.hasta ? `posición ${sec.desde}` : `posiciones ${sec.desde}–${sec.hasta}`}` : ''}</div>
                   {sec.filas.map(p => { const e = p.entrada; const c = cat.carta(e.carta_id); const set = c ? cat.setOf(c) : undefined; const pub = col.publicacionDe(e.id); const seleccionable = elegir && !!c && !c.sd; return (
                     <div key={e.id} className={`entry-row ${seleccionable ? 'seleccionable' : ''}`} role="button" tabIndex={0} onClick={() => abrirFila(e, seleccionable)} onKeyDown={ev => { if (ev.key === 'Enter') abrirFila(e, seleccionable); }}>
                       {elegir ? <input type="checkbox" className="sel" checked={sel.has(e.id)} disabled={!seleccionable} readOnly aria-label="Seleccionar" /> : null}
@@ -316,7 +339,8 @@ function BulkVista({ id }: { id?: string }) {
                       <Thumb carta={c} set={set} idioma={e.idioma} />
                       <div className="card-main">
                         <div className="card-name" style={{ fontSize: 14 }}>{nombreEntrada(cat, e, idioma)}</div>
-                        <div className="card-set"><span className="num">{c ? `${c.l}${set?.cc ? '/' + set.cc : ''}` : numeroEntrada(cat, e)}</span>{e.idioma ? <span>· {e.idioma}</span> : null}{e.condicion ? <span>· {e.condicion}</span> : null}{e.acabado ? <span className="pill">{e.acabado}</span> : null}<EstadoPub pub={pub} />{e.nota ? <span className="faint"> · {e.nota}</span> : null}</div>
+                        <div className="card-set"><span className="num">{c ? `${c.l}${set?.cc ? '/' + set.cc : ''}` : numeroEntrada(cat, e)}</span>{e.idioma ? <span>· {e.idioma}</span> : null}{e.condicion ? <span>· {e.condicion}</span> : null}{e.acabado ? <span className="pill">{e.acabado}</span> : null}<EstadoPub pub={pub} conPrecio={false} /></div>
+                        {e.nota ? <div className="small muted nota-entrada">{e.nota}</div> : null}
                       </div>
                       <div className="card-side"><span className="qty">×{e.cantidad}</span><Precio carta={c} acabado={e.acabado} cantidad={e.cantidad} /></div>
                     </div>

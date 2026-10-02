@@ -2,11 +2,14 @@
 import { Icono } from '../Icono';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { nombreAlt, nombreCarta, nombreColeccion, numLabel, rarezaLabel, type Carta } from '@/lib/catalogo';
 import { buscarCatalogo } from '@/lib/buscar';
-import { ACABADOS, CONDICIONES, ETIQUETA_CONDICION, IDIOMAS_CARTA } from '@/lib/config';
-import { resumenMercado, type OrdenMercado, type ResumenCarta } from '@/lib/mercado';
+import { ORDENES_MERCADO, cartaCumple, cuentaFiltros, esOrdenMercado, paramsDeFiltros, type Filtros, type OrdenMercado } from '@/lib/filtros';
+import { mercadoSinFiltrosNuevos, resumenMercado, type ResumenCarta } from '@/lib/mercado';
+import { ConFiltros, useFiltrosUrl } from '../Filtros';
+import { Buscador, QuisisteDecir } from '../Buscador';
+import { Ayuda } from '../Ayuda';
 import { fmtPen } from '@/lib/precios-core';
 import { useCatalogo } from '../CatalogoProvider';
 import { useColeccion } from '../ColeccionProvider';
@@ -16,49 +19,56 @@ import { SimboloSet } from '../CardRow';
 import { Thumb } from '../Thumb';
 import { Aviso } from '../ui';
 
-/** Pestaña Mercado: cartas en venta en toda la red, con búsqueda, filtros y orden. */
+/**
+ * Buscar en el mercado: cartas en venta en toda la red. Mejoras 4 · D: panel de filtros a la izquierda en PC (plegable) y
+ * hoja "Filtros · N" en el celular; chips quitables; filtros y orden en la dirección (?coleccion=…&tipo=…&orden=…);
+ * orden por precio, más nuevas, más vendidas o nombre; búsqueda tolerante a errores (sugerencias y "¿Quisiste decir…?").
+ */
 export function Mercado() {
   const cat = useCatalogo();
   const col = useColeccion();
   const { perfil } = usePerfil();
   const mercado = useMercado();
   const router = useRouter();
+  const ruta = usePathname();
   const params = useSearchParams();
+  const { f, setF } = useFiltrosUrl();
   const [q, setQ] = useState(params.get('q') || '');
   // el buscador de la barra superior (PC) cambia ?q sin recargar la vista
-  useEffect(() => { const pq = params.get('q'); if (pq != null) setQ(pq); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [params]);
-  const [set, setSet] = useState(params.get('set') || '');
-  const [idioma, setIdioma] = useState('');
-  const [acabado, setAcabado] = useState('');
-  const [condicion, setCondicion] = useState('');
-  const [min, setMin] = useState('');
-  const [max, setMax] = useState('');
-  const [orden, setOrden] = useState<OrdenMercado>('novedad');
-  const [soloFaltan, setSoloFaltan] = useState(params.get('faltan') === '1');
-  const [mas, setMas] = useState(false);
+  useEffect(() => { const pq = params.get('q'); if (pq != null && pq !== q) setQ(pq); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [params]);
+  const orden: OrdenMercado = esOrdenMercado(params.get('orden')) ? (params.get('orden') as OrdenMercado) : 'novedad';
+  const soloFaltan = params.get('faltan') === '1';
   const [filas, setFilas] = useState<ResumenCarta[] | null>(null);
   const [error, setError] = useState('');
   const [pagina, setPagina] = useState(0);
   const [hayMas, setHayMas] = useState(false);
   const pedido = useRef(0);
-  const idiomaN = perfil.idioma_nombres;
   const POR_PAGINA = 40;
+  // la dirección lleva q, orden, faltan y los filtros (para compartir o volver)
+  const irA = (cambios: { q?: string; orden?: OrdenMercado; faltan?: boolean; f?: Filtros }) => {
+    const p = paramsDeFiltros(cambios.f ?? f, { q: (cambios.q ?? q).trim(), orden: (cambios.orden ?? orden) === 'novedad' ? '' : (cambios.orden ?? orden), faltan: (cambios.faltan ?? soloFaltan) ? '1' : '' });
+    router.replace(`${ruta}${p.toString() ? '?' + p.toString() : ''}`, { scroll: false });
+  };
+  // el texto escrito pasa a la dirección con una pequeña espera
+  useEffect(() => { const t = setTimeout(() => { if ((params.get('q') || '') !== q.trim()) irA({ q }); }, 400); return () => clearTimeout(t); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [q]);
 
-  // ids de cartas que coinciden con el texto (la búsqueda por nombre ES/EN/JP, número y colección la hace el catálogo)
-  const idsTexto = useMemo(() => {
-    const t = q.trim();
-    if (!t) return null;
-    return buscarCatalogo(cat, t, 400).map(r => r.card.id);
-  }, [cat, q]);
+  // ids de cartas que coinciden con el texto (nombre ES/EN/JP, número y colección: lo hace el catálogo en el navegador)
+  const idsTexto = useMemo(() => { const t = q.trim(); return t ? buscarCatalogo(cat, t, 400).map(r => r.card.id) : null; }, [cat, q]);
+  // si la base aún no tiene 0009, los filtros de catálogo (tipo, rareza, ilustrador) se aplican aquí con la lista de ids
+  const idsFiltro = useMemo(() => {
+    if (!mercadoSinFiltrosNuevos() || !(f.tipo || f.rareza || f.ilustrador)) return idsTexto;
+    const base = idsTexto ? idsTexto.map(id => cat.carta(id)).filter((c): c is Carta => !!c) : cat.cards;
+    return base.filter(c => cartaCumple(c, f)).map(c => c.id).slice(0, 2000);
+  }, [idsTexto, f, cat]);
   const idsMias = useMemo(() => new Set(col.entradas.map(e => e.carta_id).filter((x): x is string => !!x)), [col.entradas]);
-  const sets = useMemo(() => cat.sets.slice().sort((a, b) => (b.d || '').localeCompare(a.d || '')), [cat.sets]);
 
+  const claveFiltros = JSON.stringify(f);
   useEffect(() => {
-    if (idsTexto && !idsTexto.length) { setFilas([]); setHayMas(false); return; }
+    if (idsFiltro && !idsFiltro.length) { setFilas([]); setHayMas(false); return; }
     const n = ++pedido.current;
     const t = setTimeout(async () => {
       try {
-        const r = await resumenMercado({ cartas: idsTexto, set, idioma, acabado, condicion, min: min ? Number(min) : null, max: max ? Number(max) : null, orden, limite: POR_PAGINA + 1, desde: pagina * POR_PAGINA });
+        const r = await resumenMercado({ cartas: idsFiltro, set: f.coleccion, idioma: f.idioma, acabado: f.acabado, condicion: f.condicion, min: f.min, max: f.max, tipo: f.tipo, rareza: f.rareza, ilustrador: f.ilustrador, foto: f.foto, reputacion: f.reputacion, orden, limite: POR_PAGINA + 1, desde: pagina * POR_PAGINA });
         if (n !== pedido.current) return;
         setHayMas(r.length > POR_PAGINA);
         setFilas(r.slice(0, POR_PAGINA));
@@ -66,65 +76,52 @@ export function Mercado() {
       } catch (e) { if (n === pedido.current) setError((e as Error).message); }
     }, 250);
     return () => clearTimeout(t);
-  }, [idsTexto, set, idioma, acabado, condicion, min, max, orden, pagina, mercado.version]);
-  useEffect(() => { setPagina(0); }, [q, set, idioma, acabado, condicion, min, max, orden]);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [idsFiltro, claveFiltros, orden, pagina, mercado.version]);
+  useEffect(() => { setPagina(0); }, [q, claveFiltros, orden]);
 
-  const lista = (filas || []).filter(f => !soloFaltan || !idsMias.has(f.carta_id));
-  const setSel = cat.coleccion(set);
-
+  const lista = (filas || []).filter(x => !soloFaltan || !idsMias.has(x.carta_id));
+  const hayAlgo = !!(q || cuentaFiltros(f) || soloFaltan);
+  const sinNuevos = mercadoSinFiltrosNuevos() && (f.foto || f.reputacion || orden === 'ventas' || orden === 'nombre');
+  const barra = (
+    <>
+      <select className="input sm selector-orden" value={orden} onChange={e => irA({ orden: e.target.value as OrdenMercado })} aria-label="Ordenar" data-testid="orden-mercado">
+        {ORDENES_MERCADO.map(o => <option key={o.id} value={o.id}>{o.texto}</option>)}
+      </select>
+      <label className="check small faltan-check"><input type="checkbox" checked={soloFaltan} onChange={e => irA({ faltan: e.target.checked })} data-testid="solo-faltan" /> Solo las que me faltan</label>
+    </>
+  );
   return (
-    <div>
+    <div className="mercado-buscar">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-        <h2 style={{ margin: 0 }}>Buscar en el mercado</h2>
-        <div className="row" style={{ gap: 6 }}>
-          <Link href="/app/carrito" className="btn sm" data-testid="btn-carrito"><Icono n="carrito" /> Carrito{mercado.unidades ? ` (${mercado.unidades})` : ''}</Link>
-        </div>
+        <h2 style={{ margin: 0 }} className="titulo-con-ayuda">Buscar en el mercado <Ayuda texto="Cartas que otros coleccionistas tienen en venta. El precio que ves es el que pagas por copia (la comisión la paga el vendedor): pagas por Yape/Plin o con tu saldo y recoges en una tienda aliada con tu código de retiro. Las copias del carrito quedan reservadas 24 h." /></h2>
+        <Link href="/app/carrito" className="btn sm" data-testid="btn-carrito"><Icono n="carrito" /> Carrito{mercado.unidades ? ` (${mercado.unidades})` : ''}</Link>
       </div>
-      <p className="small muted">Cartas que otros coleccionistas tienen en venta. El precio que ves es el que pagas por copia (la comisión la paga el vendedor): pagas por Yape/Plin o con tu saldo y recoges en una tienda aliada con tu código de retiro. Las copias del carrito quedan reservadas 24 h.</p>
       <ListaDeseos />
-      <div className="search-wrap" style={{ marginTop: 8 }}>
-        <span className="ico"><Icono n="buscar" tam={20} /></span>
-        <input className="input" placeholder="Buscar por nombre (ES/EN/JP), número o colección…" value={q} onChange={e => setQ(e.target.value)} />
-      </div>
-      <div className="row wrap" style={{ gap: 6, marginTop: 8, alignItems: 'center' }}>
-        <div className="seg">
-          <button className={orden === 'novedad' ? 'active' : ''} onClick={() => setOrden('novedad')}>Novedad</button>
-          <button className={orden === 'precio' ? 'active' : ''} onClick={() => setOrden('precio')}>Menor precio</button>
-          <button className={orden === 'valor' ? 'active' : ''} onClick={() => setOrden('valor')}>Mayor precio</button>
+      <Buscador value={q} onChange={setQ} onBuscar={t => irA({ q: t })} onElegir={s => { if (s.tipo === 'coleccion' && s.id) { setQ(''); irA({ q: '', f: { ...f, coleccion: s.id } }); } else if (s.tipo === 'ilustrador') { setQ(''); irA({ q: '', f: { ...f, ilustrador: s.texto } }); } else irA({ q: s.texto }); }}
+        placeholder="Nombre (ES/EN/JP), número, colección o ilustrador" className="buscador-vista" limpiar inputTestid="buscar-mercado" />
+      <QuisisteDecir q={q} onElegir={c => { setQ(c.consulta); irA({ q: c.consulta }); }} />
+      <ConFiltros ambito="mercado" f={f} onChange={setF} barra={barra}>
+        {sinNuevos ? <Aviso tipo="warn">Para filtrar por foto real o reputación y ordenar por más vendidas o nombre hay que pegar <code>0009_mejoras4.sql</code> en Supabase. Mientras tanto se muestra sin esos filtros.</Aviso> : null}
+        {error ? <Aviso tipo="danger">No se pudo consultar el mercado: {error}</Aviso> : null}
+        {filas === null && !error ? <p className="muted small" style={{ marginTop: 12 }}><span className="spinner" /> Consultando el mercado…</p> : null}
+        {filas && !lista.length ? (
+          <div className="empty"><div className="big"><Icono n="buscar" tam={44} grosor={1.5} /></div><p><b>{hayAlgo ? 'Nada en venta con esos filtros.' : 'Todavía no hay cartas en venta.'}</b></p><p className="muted">{hayAlgo ? 'Prueba quitando algún filtro o revisa cómo escribiste el nombre.' : 'Cuando alguien publique una carta aparecerá aquí al instante. ¿Tienes repetidas? Ponlas en venta desde tus cajas.'}</p></div>
+        ) : null}
+        <div className="card-list" style={{ marginTop: 10 }} data-testid="resultados-mercado">
+          {lista.map(x => {
+            const c = cat.carta(x.carta_id);
+            if (!c) return null;
+            return <FilaMercado key={x.carta_id} carta={c} resumen={x} tengo={idsMias.has(x.carta_id)} onClick={() => router.push(`/app/carta/${encodeURIComponent(c.id)}?desde=mercado#mercado`)} />;
+          })}
         </div>
-        <button className={`btn sm ${mas || set || idioma || acabado || condicion || min || max ? 'primary' : ''}`} onClick={() => setMas(m => !m)}>Filtros{[set, idioma, acabado, condicion, min || max].filter(Boolean).length ? ` (${[set, idioma, acabado, condicion, min || max].filter(Boolean).length})` : ''}</button>
-        <label className="check small" style={{ alignItems: 'center' }}><input type="checkbox" checked={soloFaltan} onChange={e => setSoloFaltan(e.target.checked)} /> Solo las que me faltan</label>
-      </div>
-      {mas ? (
-        <div className="row wrap" style={{ gap: 8, marginTop: 8 }} data-testid="filtros-mercado">
-          <div className="field"><label>Colección</label><select className="input" value={set} onChange={e => setSet(e.target.value)}><option value="">Todas</option>{sets.map(s => <option key={s.id} value={s.id}>{nombreColeccion(s, idiomaN, true)}{s.rg === 'ja' ? ' (JP)' : ''}</option>)}</select></div>
-          <div className="field"><label>Idioma</label><select className="input" value={idioma} onChange={e => setIdioma(e.target.value)}><option value="">Todos</option>{IDIOMAS_CARTA.map(l => <option key={l} value={l}>{l}</option>)}</select></div>
-          <div className="field"><label>Acabado</label><select className="input" value={acabado} onChange={e => setAcabado(e.target.value)}><option value="">Todos</option>{ACABADOS.filter(Boolean).map(a => <option key={a} value={a}>{a}</option>)}</select></div>
-          <div className="field"><label>Estado</label><select className="input" value={condicion} onChange={e => setCondicion(e.target.value)}><option value="">Todos</option>{CONDICIONES.filter(Boolean).map(c => <option key={c} value={c}>{ETIQUETA_CONDICION[c] || c}</option>)}</select></div>
-          <div className="field"><label>Precio desde (S/)</label><input className="input" inputMode="decimal" style={{ maxWidth: 110 }} value={min} onChange={e => setMin(e.target.value.replace(/[^\d.]/g, ''))} /></div>
-          <div className="field"><label>hasta (S/)</label><input className="input" inputMode="decimal" style={{ maxWidth: 110 }} value={max} onChange={e => setMax(e.target.value.replace(/[^\d.]/g, ''))} /></div>
-          {set || idioma || acabado || condicion || min || max ? <div className="field"><label>&nbsp;</label><button className="btn sm ghost" onClick={() => { setSet(''); setIdioma(''); setAcabado(''); setCondicion(''); setMin(''); setMax(''); }}>Limpiar filtros</button></div> : null}
-        </div>
-      ) : null}
-      {setSel ? <p className="small" style={{ marginTop: 6 }}>Colección: <b>{nombreColeccion(setSel, idiomaN, true)}</b> <button className="link" onClick={() => setSet('')}>quitar</button></p> : null}
-      {error ? <Aviso tipo="danger">No se pudo consultar el mercado: {error}</Aviso> : null}
-      {filas === null && !error ? <p className="muted small" style={{ marginTop: 12 }}><span className="spinner" /> Consultando el mercado…</p> : null}
-      {filas && !lista.length ? (
-        <div className="empty"><div className="big"><Icono n="buscar" tam={44} grosor={1.5} /></div><p><b>{q || set || idioma || acabado || condicion || min || max || soloFaltan ? 'Nada en venta con esos filtros.' : 'Todavía no hay cartas en venta.'}</b></p><p className="muted">Cuando alguien publique una carta aparecerá aquí al instante. ¿Tienes repetidas? Ponlas en venta desde tus cajas.</p></div>
-      ) : null}
-      <div className="card-list" style={{ marginTop: 10 }}>
-        {lista.map(f => {
-          const c = cat.carta(f.carta_id);
-          if (!c) return null;
-          return <FilaMercado key={f.carta_id} carta={c} resumen={f} tengo={idsMias.has(f.carta_id)} onClick={() => router.push(`/app/carta/${encodeURIComponent(c.id)}?desde=mercado#mercado`)} />;
-        })}
-      </div>
-      {filas && (pagina > 0 || hayMas) ? (
-        <div className="row" style={{ gap: 6, marginTop: 10, justifyContent: 'center' }}>
-          <button className="btn sm" disabled={pagina === 0} onClick={() => setPagina(p => p - 1)}>← Anteriores</button>
-          <button className="btn sm" disabled={!hayMas} onClick={() => setPagina(p => p + 1)}>Siguientes →</button>
-        </div>
-      ) : null}
+        {filas && (pagina > 0 || hayMas) ? (
+          <div className="row" style={{ gap: 6, marginTop: 10, justifyContent: 'center' }}>
+            <button className="btn sm" disabled={pagina === 0} onClick={() => setPagina(p => p - 1)}>← Anteriores</button>
+            <button className="btn sm" disabled={!hayMas} onClick={() => setPagina(p => p + 1)}>Siguientes →</button>
+          </div>
+        ) : null}
+      </ConFiltros>
     </div>
   );
 }
@@ -173,7 +170,7 @@ export function FilaMercado({ carta, resumen, tengo, onClick }: { carta: Carta; 
   const set = cat.setOf(carta);
   const alt = nombreAlt(carta, idioma);
   return (
-    <div className="card-row" role="button" tabIndex={0} onClick={onClick} onKeyDown={e => { if (e.key === 'Enter') onClick(); }} data-testid="fila-mercado">
+    <div className="card-row" role="button" tabIndex={0} onClick={onClick} onKeyDown={e => { if (e.key === 'Enter') onClick(); }} data-testid="fila-mercado" data-carta={carta.id}>
       <Thumb carta={carta} set={set} />
       <div className="card-main">
         <div className="card-name">{nombreCarta(carta, idioma)}{alt ? <span className="alt"> · {alt}</span> : null}{tengo ? <span className="pill primary" style={{ marginLeft: 6 }}>la tengo</span> : null}</div>

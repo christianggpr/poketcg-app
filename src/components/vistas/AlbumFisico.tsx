@@ -186,6 +186,7 @@ export function AlbumFisico({ id }: { id: string }) {
         titulo={<>{album.nombre}<span className="pill warn" style={{ marginLeft: 8, verticalAlign: 'middle' }}>Propio</span></>}
         resumen={<span data-testid="progreso-album"><b>{stats.tengo} / {stats.asignadas}</b> · <b>{fmtPen(stats.valor)}</b> · <span className="muted">faltan {fmtPen(stats.falta)}</span></span>}
         filtros={filtros} acciones={acciones} nombreUnidad="bolsillos"
+        ayuda="Toca un bolsillo vacío (o su +) para asignarle una carta; uno lleno abre sus opciones. En PC puedes arrastrar una carta a otro bolsillo."
         vacio={modo === 'faltan' ? 'No te falta ninguna de las asignadas.' : modo === 'tengo' ? 'Todavía no tienes ninguna de las cartas asignadas.' : 'Este álbum no tiene bolsillos.'}
         pagina={pagina} onPagina={setPagina}
         antes={seleccion != null ? <div className="notice info small" style={{ marginBottom: 8 }}>Moviendo el bolsillo {seleccion + 1}: toca el destino. <button className="link" onClick={() => setSeleccion(null)}>Cancelar</button></div> : null}

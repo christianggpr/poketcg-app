@@ -21,20 +21,33 @@ export type Oferta = {
   vendedor_id: string;
 };
 
-/** Resumen por carta (función `mercado_resumen`). */
-export type ResumenCarta = { carta_id: string; copias: number; precio_min: number; precio_max: number; vendedores: string[]; ofertas: number; ultima: string };
+/** Resumen por carta (función `mercado_resumen`); `vendidas` (90 días) llega con 0009. */
+export type ResumenCarta = { carta_id: string; copias: number; precio_min: number; precio_max: number; vendedores: string[]; ofertas: number; ultima: string; vendidas?: number };
 
-export type OrdenMercado = 'novedad' | 'precio' | 'valor';
-export type FiltrosMercado = { cartas?: string[] | null; set?: string; idioma?: string; acabado?: string; condicion?: string; min?: number | null; max?: number | null; orden?: OrdenMercado; limite?: number; desde?: number };
+export type { OrdenMercado } from './filtros';
+import type { OrdenMercado } from './filtros';
+/** Mejoras 4 · D: filtros nuevos (tipo, rareza, ilustrador, con foto real, vendedor con buena reputación) y órdenes (más vendidas, nombre); necesitan 0009. */
+export type FiltrosMercado = { cartas?: string[] | null; set?: string; idioma?: string; acabado?: string; condicion?: string; min?: number | null; max?: number | null; orden?: OrdenMercado; limite?: number; desde?: number; tipo?: string; rareza?: string; ilustrador?: string; foto?: boolean; reputacion?: boolean };
 
+/** true cuando la base aún no tiene la función de 0009 (se descubre en la primera consulta que falla con PGRST202). */
+let sinFuncionNueva = false;
+export const mercadoSinFiltrosNuevos = () => sinFuncionNueva;
+const necesitaNuevos = (f: FiltrosMercado) => !!(f.tipo || f.rareza || f.ilustrador || f.foto || f.reputacion || f.orden === 'ventas' || f.orden === 'nombre');
 
 export async function resumenMercado(f: FiltrosMercado = {}): Promise<ResumenCarta[]> {
-  const { data, error } = await supabaseBrowser().rpc('mercado_resumen', {
+  const base = {
     p_cartas: f.cartas && f.cartas.length ? f.cartas : null, p_set: f.set || '', p_idioma: f.idioma || '', p_acabado: f.acabado || '', p_condicion: f.condicion || '',
     p_min: f.min ?? null, p_max: f.max ?? null, p_orden: f.orden || 'novedad', p_limite: f.limite ?? 60, p_desde: f.desde ?? 0
-  });
-  if (error) throw new Error(error.message);
-  return ((data || []) as ResumenCarta[]).map(r => ({ ...r, copias: Number(r.copias), precio_min: Number(r.precio_min), precio_max: Number(r.precio_max), ofertas: Number(r.ofertas) }));
+  };
+  const nuevos = { p_tipo: f.tipo || '', p_rareza: f.rareza || '', p_ilustrador: f.ilustrador || '', p_con_foto: !!f.foto, p_reputacion: !!f.reputacion };
+  let r = sinFuncionNueva ? null : await supabaseBrowser().rpc('mercado_resumen', { ...base, ...nuevos });
+  if (!r || (r.error && (r.error.code === 'PGRST202' || /Could not find the function/i.test(r.error.message || '')))) {
+    // la base todavía tiene la función antigua (0009 sin pegar): se consulta con los parámetros de siempre
+    sinFuncionNueva = true;
+    r = await supabaseBrowser().rpc('mercado_resumen', { ...base, p_orden: necesitaNuevos(f) && (f.orden === 'ventas' || f.orden === 'nombre') ? 'novedad' : base.p_orden });
+  }
+  if (r.error) throw new Error(r.error.message);
+  return ((r.data || []) as ResumenCarta[]).map(x => ({ ...x, copias: Number(x.copias), precio_min: Number(x.precio_min), precio_max: Number(x.precio_max), ofertas: Number(x.ofertas), vendidas: x.vendidas == null ? undefined : Number(x.vendidas) }));
 }
 
 /** Ofertas activas de una carta, de la más barata a la más cara. */

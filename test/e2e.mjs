@@ -210,9 +210,10 @@ try {
   // ---------- Mi colección con valor
   await page.goto(APP + '/app/buscar');
   await page.waitForSelector('text=precio estimado');
-  await page.waitForFunction(() => /\(\d*[1-9]\d* con precio de mercado\)/.test(document.querySelector('.stat')?.textContent || ''), null, { timeout: 30000 });
+  // Mejoras 4 · F: el texto corto es "precio estimado"; cuántas tienen precio de mercado va en data-con-mercado (y en el title)
+  await page.waitForFunction(() => parseInt(document.querySelector('.stat [data-con-mercado]')?.getAttribute('data-con-mercado') || '0', 10) > 0, null, { timeout: 30000 });
   const stat = await page.textContent('.stat');
-  if (!/5cartas \(4 distintas\)/.test(stat) || !/S\/ [1-9]/.test(stat)) throw new Error('resumen inesperado: ' + stat);
+  if (!/5cartas · 4 distintas/.test(stat) || !/S\/ [1-9]/.test(stat) || !/precio estimado/.test(stat)) throw new Error('resumen inesperado: ' + stat);
   await foto(page, 'mi-coleccion');
   log('Mi colección:', stat.replace(/\s+/g, ' ').slice(0, 120));
 
@@ -383,22 +384,26 @@ try {
   await page.waitForSelector('[data-testid=fila-mercado]');
   if ((await page.$$('[data-testid=fila-mercado]')).length !== 3) throw new Error('el mercado debía listar 3 cartas');
   await foto(page, 'mercado');
-  await page.fill('.search-wrap input', 'caterpie');
+  await page.fill('[data-testid=buscar-mercado]', 'caterpie');
   await page.waitForFunction(() => document.querySelectorAll('[data-testid=fila-mercado]').length === 1, null, { timeout: 15000 });
   const filaCat = await page.textContent('[data-testid=fila-mercado]');
   // Caterpie nunca se consultó en TCGdex: sin precio en caché el precio por defecto es el piso (S/ 1.00); la tarea diaria lo renueva
   if (!/@vendedora_lima/.test(filaCat) || !/S\/ 1\.00/.test(filaCat) || !/2 copias/.test(filaCat)) throw new Error('fila del mercado inesperada: ' + filaCat);
-  await page.fill('.search-wrap input', '');
+  await page.fill('[data-testid=buscar-mercado]', '');
   await page.waitForFunction(() => document.querySelectorAll('[data-testid=fila-mercado]').length === 3, null, { timeout: 15000 });
-  await page.click('button:has-text("Filtros")');
-  await page.selectOption('[data-testid=filtros-mercado] select >> nth=2', 'Reverse');
+  // Mejoras 4 · D: los filtros van en la hoja "Filtros" (celular) y quedan en la dirección
+  await page.click('[data-testid=btn-filtros]');
+  await page.selectOption('.sheet [data-testid=filtro-acabado]', 'Reverse');
+  await page.click('[data-testid=btn-ver-resultados]');
+  await page.waitForURL(/acabado=Reverse/);
   await page.waitForFunction(() => document.querySelectorAll('[data-testid=fila-mercado]').length === 1, null, { timeout: 15000 });
   if (!/Charmander/.test(await page.textContent('[data-testid=fila-mercado]'))) throw new Error('el filtro de acabado no funcionó');
-  await page.click('text=Limpiar filtros');
+  await page.click('[data-testid=btn-limpiar-filtros]');
   await page.waitForFunction(() => document.querySelectorAll('[data-testid=fila-mercado]').length === 3, null, { timeout: 15000 });
-  await page.check('label:has-text("Solo las que me faltan") input');
+  await page.click('[data-testid=solo-faltan]');
   await page.waitForFunction(() => document.querySelectorAll('[data-testid=fila-mercado]').length === 2, null, { timeout: 15000 });   // Charmander ya la tengo
-  await page.uncheck('label:has-text("Solo las que me faltan") input');
+  await page.click('[data-testid=solo-faltan]');
+  await page.waitForFunction(() => document.querySelectorAll('[data-testid=fila-mercado]').length === 3, null, { timeout: 15000 });
   log('mercado: 3 cartas en venta; búsqueda, filtro por acabado y "solo las que me faltan" OK');
 
   // Mejoras 1 · D: Inicio del Mercado con carruseles en loop ("Más vendidas" y "Mayor precio") que se mueven solos y se pausan al tocar
@@ -1893,6 +1898,226 @@ try {
   await page.click('[data-testid=btn-mostrar-pokedex]');
   await page.waitForSelector('[data-testid=album-pokedex]');
   log('Pokédex: primera en la lista (' + especiesChris + ' / 1025), orden nacional, carta más valiosa por especie, "Elegir otra carta" guardado y revertido, filtros generación/tipo/Tengo, falta → mercado, ocultar y mostrar');
+
+  // ---------- Mejoras 4 · D: filtros y búsqueda en el Mercado (celular: hoja "Filtros · N"; PC: panel plegable a la izquierda)
+  await page.goto(APP + '/app/mercado/buscar');
+  await page.waitForSelector('[data-testid=btn-filtros]');
+  await page.waitForSelector('[data-testid=fila-mercado]');
+  if (await page.$('[data-testid=panel-filtros]')) throw new Error('en el celular los filtros van en una hoja, no en un panel');
+  await page.click('[data-testid=btn-filtros]');
+  await page.waitForSelector('.sheet [data-testid=formulario-filtros]');
+  await page.fill('.sheet [data-testid=buscar-coleccion]', '151');
+  await page.click('.sheet [data-testid=opcion-coleccion]:has-text("151") >> nth=0');
+  await page.waitForSelector('.sheet [data-testid=quitar-coleccion]');
+  await page.selectOption('.sheet [data-testid=filtro-tipo]', 'Grass');
+  await page.waitForSelector('.sheet-head h3:has-text("Filtros · 2")');
+  await page.click('[data-testid=btn-ver-resultados]');
+  await page.waitForSelector('.sheet', { state: 'detached' });
+  await page.waitForURL(/coleccion=sv03\.5&tipo=Grass/);
+  const chipsMercado = await page.$$eval('[data-testid=chips-filtros] .chip-filtro', els => els.map(e => e.textContent.trim()));
+  if (chipsMercado.join(' | ') !== '151 | Planta' || !/Filtros · 2/.test(await page.textContent('[data-testid=btn-filtros]'))) throw new Error('chips de filtros inesperados: ' + chipsMercado.join(' | '));
+  const enVentaPlanta = num(`select count(distinct m.carta_id) from public.mercado m join public.cartas c on c.id = m.carta_id where c.coleccion_id = 'sv03.5' and 'Grass' = any(c.tipos)`);
+  if (!enVentaPlanta) throw new Error('la prueba necesita cartas Planta de 151 en venta');
+  await page.waitForFunction(n => document.querySelectorAll('[data-testid=fila-mercado]').length === n, enVentaPlanta);
+  const idsPlanta = await page.$$eval('[data-testid=fila-mercado]', els => els.map(e => e.dataset.carta));
+  const planta = new Set(sql(`select id from public.cartas where coleccion_id = 'sv03.5' and 'Grass' = any(tipos)`).split('\n'));
+  if (!idsPlanta.every(id => planta.has(id))) throw new Error('con colección 151 + tipo Planta salieron otras cartas: ' + idsPlanta.join(','));
+  await foto(page, 'mercado-filtros');
+  // quitar un chip y "Limpiar todo" actualizan la dirección
+  await page.click('[data-testid=chip-tipo]');
+  await page.waitForURL(u => /coleccion=sv03\.5/.test(u.href) && !/tipo=/.test(u.href));
+  await page.click('[data-testid=btn-limpiar-filtros]');
+  await page.waitForURL(u => !/coleccion=/.test(u.href));
+  await page.waitForSelector('[data-testid=chips-filtros]', { state: 'detached' });
+  // orden: menor precio (precios no decrecientes) y nombre (como la base: por nombre en inglés)
+  await page.selectOption('[data-testid=orden-mercado]', 'precio');
+  await page.waitForURL(/orden=precio/);
+  await page.waitForTimeout(600);
+  const preciosOrden = await page.$$eval('[data-testid=fila-mercado] .price', els => els.map(e => parseFloat(e.textContent.replace(/[^\d.]/g, ''))));
+  if (preciosOrden.length < 2 || preciosOrden.some((p, i) => i && p < preciosOrden[i - 1])) throw new Error('orden por menor precio inesperado: ' + preciosOrden.join(', '));
+  await page.selectOption('[data-testid=orden-mercado]', 'nombre');
+  await page.waitForURL(/orden=nombre/);
+  const idsNombreDb = sql(`select carta_id from public.mercado_resumen(null, '', '', '', '', null, null, 'nombre', 40, 0, '', '', '', false, false)`).split('\n');
+  await page.waitForFunction(ids => JSON.stringify([...document.querySelectorAll('[data-testid=fila-mercado]')].map(e => e.dataset.carta)) === JSON.stringify(ids), idsNombreDb);
+  await page.selectOption('[data-testid=orden-mercado]', 'novedad');
+  await page.waitForURL(u => !/orden=/.test(u.href));
+  // precio mínimo escrito a mano: todas las filas desde ese precio
+  await page.click('[data-testid=btn-filtros]');
+  await page.fill('.sheet [data-testid=precio-min]', '11');
+  await page.waitForSelector('.sheet-head h3:has-text("Filtros · 1")');
+  await page.click('[data-testid=btn-ver-resultados]');
+  await page.waitForURL(/min=11/);
+  await page.waitForTimeout(600);
+  const desde11 = await page.$$eval('[data-testid=fila-mercado] .price', els => els.map(e => parseFloat(e.textContent.replace(/[^\d.]/g, ''))));
+  if (desde11.some(p => p < 11) || (await page.textContent('[data-testid=chip-precio]')).trim() !== 'desde S/ 11') throw new Error('precio mínimo 11 inesperado: ' + desde11.join(', ') + ' · ' + await page.textContent('[data-testid=chip-precio]'));
+  await page.click('[data-testid=chip-precio]');
+  await page.waitForURL(u => !/min=/.test(u.href));
+  // vendedor con buena reputación y con foto real: mismas filas que la función de la base
+  for (const [testid, param, nombreF] of [['filtro-reputacion', 'reputacion', 'p_reputacion'], ['filtro-foto', 'foto', 'p_con_foto']]) {
+    const esperadas = num(`select count(*) from public.mercado_resumen(null, '', '', '', '', null, null, 'novedad', 500, 0, '', '', '', ${nombreF === 'p_con_foto'}, ${nombreF === 'p_reputacion'})`);
+    await page.click('[data-testid=btn-filtros]');
+    await page.check(`.sheet [data-testid=${testid}]`);
+    await page.click('[data-testid=btn-ver-resultados]');
+    await page.waitForURL(new RegExp(param + '=1'));
+    await page.waitForTimeout(700);
+    const filasF = (await page.$$('[data-testid=fila-mercado]')).length;
+    if (filasF !== esperadas) throw new Error(`${param}: ${filasF} filas, la base dice ${esperadas}`);
+    await page.click('[data-testid=btn-limpiar-filtros]');
+    await page.waitForURL(u => !new RegExp(param + '=').test(u.href));
+  }
+  // búsqueda tolerante a errores: "charisard" → ¿Quisiste decir Charizard?; sugerencias al escribir "pika"
+  await page.fill('[data-testid=buscar-mercado]', 'charisard');
+  await page.waitForSelector('[data-testid=quisiste-decir]:has-text("Charizard")');
+  await page.click('[data-testid=btn-quisiste-decir]');
+  await page.waitForURL(/q=Charizard/);
+  if ((await page.inputValue('[data-testid=buscar-mercado]')) !== 'Charizard') throw new Error('"¿Quisiste decir?" debía poner Charizard en el buscador');
+  await page.fill('[data-testid=buscar-mercado]', 'pika');
+  await page.waitForSelector('[data-testid=sugerencias] [data-testid=sugerencia-carta]:has-text("Pikachu")');
+  await foto(page, 'mercado-sugerencias');
+  await page.click('[data-testid=sugerencias] [data-testid=sugerencia-carta]:has-text("Pikachu") >> nth=0');
+  await page.waitForURL(/q=Pikachu/);
+  await page.waitForSelector('[data-testid=sugerencias]', { state: 'detached' });
+  // colección sugerida desde el buscador de arriba del Mercado (celular): lleva al mercado con ?coleccion=
+  await page.goto(APP + '/app/mercado');
+  await page.fill('[data-testid=mercado-inicio-buscar]', 'obsid');
+  await page.waitForSelector('[data-testid=sugerencia-coleccion]:has-text("Obsidian")');
+  await page.click('[data-testid=sugerencia-coleccion]:has-text("Obsidian") >> nth=0');
+  await page.waitForURL(/\/app\/mercado\/buscar\?coleccion=sv03$/);
+  await page.waitForSelector('[data-testid=chip-coleccion]');
+  log('Mercado (celular): hoja Filtros · N (colección con buscador, tipo), chips quitables y Limpiar todo en la dirección, orden precio/nombre, precio mínimo, reputación y foto como la base, "¿Quisiste decir Charizard?", sugerencias (Pikachu, colección Obsidian)');
+  // PC: panel de filtros a la izquierda, plegable (se recuerda), y sugerencias en el buscador de la barra superior
+  {
+    const ctxPcF = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: 'es-PE' });
+    const pcF = await ctxPcF.newPage();
+    await entrar(pcF, 'chris_tcg', process.env.CLAVE_CHRIS || 'clave12345');
+    await pcF.goto(APP + '/app/mercado/buscar?coleccion=sv03.5');
+    await pcF.waitForSelector('[data-testid=panel-filtros] [data-testid=quitar-coleccion]');
+    const geoPanel = await pcF.evaluate(() => { const p = document.querySelector('[data-testid=panel-filtros]').getBoundingClientRect(); const r = document.querySelector('[data-testid=resultados-mercado]').getBoundingClientRect(); return { panelIzq: Math.round(p.left), panelAncho: Math.round(p.width), resultadosIzq: Math.round(r.left) }; });
+    if (geoPanel.panelAncho < 240 || geoPanel.resultadosIzq < geoPanel.panelIzq + geoPanel.panelAncho) throw new Error('PC: el panel de filtros debía ir a la izquierda de los resultados: ' + JSON.stringify(geoPanel));
+    if (await pcF.$('[data-testid=btn-filtros]')) throw new Error('PC: con el panel abierto no hace falta el botón Filtros');
+    await foto(pcF, 'pc-mercado-filtros');
+    await pcF.click('[data-testid=btn-plegar-filtros]');
+    await pcF.waitForSelector('[data-testid=panel-filtros]', { state: 'detached' });
+    await pcF.waitForSelector('[data-testid=btn-filtros]:has-text("Filtros · 1")');
+    await pcF.reload();
+    await pcF.waitForSelector('[data-testid=btn-filtros]:has-text("Filtros · 1")');
+    if (await pcF.$('[data-testid=panel-filtros]')) throw new Error('PC: el panel plegado debía recordarse al recargar');
+    await pcF.click('[data-testid=btn-filtros]');
+    await pcF.waitForSelector('[data-testid=panel-filtros]');
+    await pcF.fill('[data-testid=buscador-pc] input', 'charisard');
+    await pcF.press('[data-testid=buscador-pc] input', 'Enter');
+    await pcF.waitForURL(/q=charisard/);
+    await pcF.waitForSelector('[data-testid=quisiste-decir]:has-text("Charizard")');
+    await pcF.fill('[data-testid=buscador-pc] input', 'mitsuhiro');
+    await pcF.waitForSelector('[data-testid=buscador-pc] [data-testid=sugerencia-ilustrador]:has-text("Mitsuhiro Arita")');
+    await pcF.click('[data-testid=buscador-pc] [data-testid=sugerencia-ilustrador]:has-text("Mitsuhiro Arita")');
+    await pcF.waitForURL(/\/app\/mercado\/buscar\?ilustrador=Mitsuhiro(%20|\+)Arita/);
+    await pcF.waitForSelector('[data-testid=chip-ilustrador]:has-text("Mitsuhiro Arita")');
+    await ctxPcF.close();
+  }
+  log('Mercado (PC): panel de filtros a la izquierda, plegable y recordado; "¿Quisiste decir?" y sugerencia de ilustrador desde la barra superior');
+
+  // ---------- Mejoras 4 · E: búsqueda general en Mi Colección (En tu colección / Otras cartas, filtros + Dónde + En venta) y filtros del Bulk
+  await page.goto(APP + '/app/buscar?q=charisard');
+  await page.waitForSelector('[data-testid=quisiste-decir]:has-text("Charizard")');
+  await page.click('[data-testid=btn-quisiste-decir]');
+  await page.waitForURL(/\/app\/buscar\?q=Charizard/);
+  await page.waitForSelector('[data-testid=grupo-propias] .card-row');
+  const propiasChar = await page.$$eval('[data-testid=grupo-propias] .card-row [data-testid=donde-la-tengo]', els => els.map(e => e.textContent));
+  const charizardsDb = num(`select count(distinct e.carta_id) from public.entradas e join public.cartas c on c.id = e.carta_id where e.usuario_id = '${CHRIS}' and c.nombre ilike '%charizard%'`);
+  if (propiasChar.length !== charizardsDb || !propiasChar.every(t => /Bulk|Álbum/.test(t))) throw new Error(`"En tu colección" debía listar mis ${charizardsDb} Charizard con su ubicación: ` + JSON.stringify(propiasChar));
+  const otrasChar = await page.$$('[data-testid=grupo-otras] .card-row:has-text("Todavía no la tienes") [data-testid=btn-ver-mercado]');
+  if (!otrasChar.length || !(await page.$('[data-testid=grupo-otras] .card-row [data-testid=btn-guardar-fila]'))) throw new Error('"Otras cartas" debía listar Charizard del catálogo con Agregar y Ver en el mercado');
+  await foto(page, 'buscar-grupos');
+  // filtros: Dónde = Bulk (todas mis copias de Charizard están en Bulk) y Dónde = álbum (ninguna)
+  await page.click('[data-testid=btn-filtros]');
+  await page.selectOption('.sheet [data-testid=filtro-donde]', 'bulk');
+  await page.click('[data-testid=btn-ver-resultados]');
+  await page.waitForURL(/donde=bulk/);
+  const enBulk = num(`select count(distinct e.carta_id) from public.entradas e join public.cartas c on c.id = e.carta_id where e.usuario_id = '${CHRIS}' and c.nombre ilike '%charizard%' and e.caja_id is not null`);
+  await page.waitForFunction(n => document.querySelectorAll('[data-testid=grupo-propias] .card-row').length === n, enBulk);
+  await page.click('[data-testid=chip-donde]');
+  await page.waitForURL(u => !/donde=/.test(u.href));
+  await page.click('[data-testid=btn-filtros]');
+  await page.selectOption('.sheet [data-testid=filtro-venta]', 'si');
+  await page.click('[data-testid=btn-ver-resultados]');
+  await page.waitForURL(/venta=si/);
+  const charEnVenta = num(`select count(distinct e.carta_id) from public.entradas e join public.cartas c on c.id = e.carta_id join public.publicaciones p on p.entrada_id = e.id and p.estado in ('activa', 'pausada', 'reservada') where e.usuario_id = '${CHRIS}' and c.nombre ilike '%charizard%'`);
+  await page.waitForFunction(n => document.querySelectorAll('[data-testid=grupo-propias] .card-row').length === n, charEnVenta);
+  // solo filtros, sin texto: lista mis cartas que cumplen (colección 151) sin "Otras cartas"
+  await page.goto(APP + '/app/buscar?coleccion=sv03.5');
+  await page.waitForSelector('[data-testid=grupo-propias] .card-row');
+  const distintas151 = num(`select count(distinct carta_id) from public.entradas where usuario_id = '${CHRIS}' and carta_id like 'sv03.5-%'`);
+  if ((await page.$$('[data-testid=grupo-propias] .card-row')).length !== distintas151 || (await page.$('[data-testid=grupo-otras]'))) throw new Error('con solo el filtro de colección debía listar mis ' + distintas151 + ' cartas de 151, sin "Otras cartas"');
+  // Bulk: Filtros · N (en venta) y orden por precio
+  const bulkConPubs = sql(`select e.caja_id from public.entradas e join public.publicaciones p on p.entrada_id = e.id and p.estado in ('activa', 'pausada') where e.usuario_id = '${CHRIS}' and e.caja_id is not null group by e.caja_id order by count(*) desc limit 1`);
+  await page.goto(APP + '/app/bulk/' + bulkConPubs);
+  await page.waitForSelector('[data-testid=filtros-bulk] [data-testid=btn-filtros]');
+  const totalBulk = num(`select count(*) from public.entradas where caja_id = '${bulkConPubs}'`);
+  const enVentaBulk = num(`select count(*) from public.entradas e join public.publicaciones p on p.entrada_id = e.id and p.estado in ('activa', 'pausada', 'reservada') where e.caja_id = '${bulkConPubs}'`);
+  await page.click('[data-testid=filtros-bulk] [data-testid=btn-filtros]');
+  await page.selectOption('.sheet [data-testid=filtro-venta]', 'si');
+  await page.waitForSelector('.sheet-head h3:has-text("Filtros · 1")');
+  await page.click('[data-testid=btn-ver-resultados]');
+  await page.waitForSelector(`[data-testid=cuenta-bulk]:has-text("${enVentaBulk} de ${totalBulk}")`);
+  if ((await page.$$('.entry-row')).length !== enVentaBulk || (await page.textContent('[data-testid=chips-filtros]')).indexOf('En venta') < 0) throw new Error('el filtro En venta del Bulk no coincide');
+  await page.selectOption('[data-testid=orden-bulk]', 'precio');
+  await page.waitForTimeout(400);
+  const preciosBulk = await page.$$eval('.entry-row .card-side', els => els.map(e => parseFloat((e.textContent.match(/S\/\s*([\d.,]+)/) || [])[1]?.replace(',', '') || '0')));
+  if (preciosBulk.some((p, i) => i && p > preciosBulk[i - 1])) throw new Error('orden por precio del Bulk inesperado: ' + preciosBulk.join(', '));
+  await page.click('[data-testid=btn-limpiar-filtros]');
+  await page.waitForSelector('[data-testid=chips-filtros]', { state: 'detached' });
+  await foto(page, 'bulk-filtros');
+  log('Mi Colección: "¿Quisiste decir Charizard?", En tu colección (' + charizardsDb + ' con ubicación) y Otras cartas; filtros Dónde y En venta; solo filtros lista mis ' + distintas151 + ' de 151; Bulk con Filtros · 1 (en venta: ' + enVentaBulk + ' de ' + totalBulk + ') y orden por precio');
+
+  // ---------- Mejoras 4 · F: textos cortos: en 360, 768, 1024 y 1280 px ningún rótulo, botón o título se parte en 3 líneas, se corta ni desborda
+  {
+    const albumPropioF = sql(`select id from public.albumes where usuario_id = '${CHRIS}' order by creado_en limit 1`);
+    const bulkF = sql(`select id from public.cajas where usuario_id = '${CHRIS}' order by orden limit 1`);
+    const RUTAS_TEXTOS = ['/app/album', '/app/album/sv03.5', '/app/album/pokedex', `/app/album/p/${albumPropioF}`, '/app/bulk', `/app/bulk/${bulkF}`, '/app/mazos', '/app/buscar?q=pikachu', '/app/buscar', '/app/mercado', '/app/mercado/buscar?coleccion=sv03.5&tipo=Grass', '/app/carrito', '/app/compras', '/app/ventas', '/app/notificaciones', '/app/ajustes', '/app/carta/sv03.5-001', '/ayuda', '/tiendas', '/'];
+    const revisarTextos = () => {
+      const SEL = 'button, .btn, label, .pill, .chip, .chipbtn, .chip-filtro, th, h1, h2, h3, h4, .seg button, .subtabs a, .tabs a, .tabbar a, .stat .box span, .stat .box b, .card-name, .card-set, .texto-pagina, .lateral-menu a, .box-card .box-name, .album-title .nombre, .set-header, .field > label, .libro-resumen, select, .menu a, .menu button, .precio-grande, .titulo-pestana, .brand-name, .count, .cifra, .pocket-n, .loc';
+      const problemas = [];
+      const vistos = new Set();
+      const enScrollHorizontal = el => { for (let p = el.parentElement; p; p = p.parentElement) { const o = getComputedStyle(p).overflowX; if (o === 'auto' || o === 'scroll') return true; } return false; };
+      const lineasDe = el => {
+        const range = document.createRange(); range.selectNodeContents(el);
+        const tops = [];
+        for (const r of range.getClientRects()) { if (r.width < 1 || r.height < 1) continue; if (!tops.some(t => Math.abs(t - r.top) < r.height * 0.6)) tops.push(r.top); }
+        return tops.length;
+      };
+      for (const el of document.querySelectorAll(SEL)) {
+        if (el.closest('.sugerencias, .thumb-texto, .pocket, .sheet-backdrop, [aria-hidden="true"], .fondo-app, textarea, .ayuda-globo, .fondo-opcion, [data-testid=notificacion], .carrusel, .set-item, .carrusel')) continue;
+        if (el.querySelector('div, p, ul, table, h1, h2, h3, h4, img')) continue;   // compuestos (tarjetas enteras): se revisan sus hijos
+        const r = el.getBoundingClientRect();
+        if (r.width < 2 || r.height < 2) continue;
+        const cs = getComputedStyle(el);
+        if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+        const texto = (el.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!texto || texto.length > 90) continue;
+        const lineas = lineasDe(el);
+        const cortado = el.scrollWidth > el.clientWidth + 2 && cs.overflowX !== 'visible';
+        const desborde = !enScrollHorizontal(el) && r.right > innerWidth + 1;
+        const clave = texto.slice(0, 40) + '|' + (lineas >= 3 ? 'L' : '') + (cortado ? 'C' : '') + (desborde ? 'D' : '');
+        if ((lineas >= 3 || cortado || desborde) && !vistos.has(clave)) { vistos.add(clave); problemas.push(`${el.tagName.toLowerCase()}.${String(el.className).split(' ').filter(Boolean).slice(0, 2).join('.')} "${texto.slice(0, 60)}" → ${lineas >= 3 ? lineas + ' líneas ' : ''}${cortado ? 'cortado ' : ''}${desborde ? 'desborda ' : ''}(${Math.round(r.width)}×${Math.round(r.height)})`); }
+      }
+      if (document.documentElement.scrollWidth > innerWidth + 1) problemas.push(`página con desplazamiento horizontal: ${document.documentElement.scrollWidth} > ${innerWidth}`);
+      return problemas;
+    };
+    const fallas = [];
+    for (const w of [360, 768, 1024, 1280]) {
+      await page.setViewportSize({ width: w, height: 900 });
+      for (const ruta of RUTAS_TEXTOS) {
+        await page.goto(APP + ruta);
+        await page.waitForTimeout(700);
+        const p = await page.evaluate(revisarTextos);
+        if (p.length) fallas.push(`[${w}] ${ruta}\n  ` + p.join('\n  '));
+      }
+    }
+    await page.setViewportSize({ width: 420, height: 860 });
+    if (fallas.length) throw new Error('textos cortados, desbordados o en 3 líneas:\n' + fallas.join('\n'));
+    log('textos: ' + RUTAS_TEXTOS.length + ' pantallas en 360, 768, 1024 y 1280 px sin rótulos ni botones partidos en 3 líneas, cortados o desbordados');
+  }
 
   // ---------- Fase 2 · E: huellas compartidas (otro usuario ya preparó la colección 151 → se descarga en segundos)
   {
