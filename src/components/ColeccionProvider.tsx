@@ -134,10 +134,13 @@ export function ColeccionProvider({ children }: { children: React.ReactNode }) {
     },
     async colocarEnAlbum(entradaId, albumId, indice) {
       const sb = supabaseBrowser();
-      const e = entradas.find(x => x.id === entradaId);
       const ocupado = casillas.find(c => c.album_id === albumId && c.indice === indice && c.entrada_id && c.entrada_id !== entradaId);
       if (ocupado) { setError('Ese bolsillo ya tiene una carta.'); return false; }
-      const { error: e1 } = await sb.from('album_casillas').upsert({ album_id: albumId, indice, carta_id: e?.carta_id || null, entrada_id: entradaId }, { onConflict: 'album_id,indice' });
+      // Mejoras 5 · A1: la carta del bolsillo se toma de la copia (si acaba de crearse y aún no está en memoria, se lee de la base)
+      let cartaId: string | null = entradas.find(x => x.id === entradaId)?.carta_id ?? null;
+      if (!cartaId) { const r = await sb.from('entradas').select('carta_id').eq('id', entradaId).maybeSingle(); cartaId = (r.data as { carta_id: string | null } | null)?.carta_id ?? null; }
+      if (!cartaId) { const r = await sb.from('album_casillas').select('carta_id').eq('album_id', albumId).eq('indice', indice).maybeSingle(); cartaId = (r.data as { carta_id: string | null } | null)?.carta_id ?? null; }
+      const { error: e1 } = await sb.from('album_casillas').upsert({ album_id: albumId, indice, carta_id: cartaId, entrada_id: entradaId }, { onConflict: 'album_id,indice' });
       if (e1) { setError(e1.message); return false; }
       await sb.from('album_casillas').update({ entrada_id: null }).eq('entrada_id', entradaId).neq('album_id', albumId);
       const { data, error } = await sb.from('entradas').update({ caja_id: null, posicion: null, album_coleccion: null }).eq('id', entradaId).select('*').single();

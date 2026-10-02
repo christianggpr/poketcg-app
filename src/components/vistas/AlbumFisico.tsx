@@ -18,7 +18,8 @@ import { useUbicador } from '../useUbicador';
 import { Thumb } from '../Thumb';
 import { LocChip } from '../Ubicacion';
 import { CardPicker } from '../CardPicker';
-import { AddEntrySheet } from '../AddEntrySheet';
+import { AgregarRapidoSheet } from '../AgregarRapidoSheet';
+import { idiomaPredominante } from '@/lib/sugerir';
 import { Sheet, Confirmar } from '../Sheet';
 import { usePedirPrecios } from '../Precio';
 import { useToast } from '../Toast';
@@ -43,7 +44,9 @@ export function AlbumFisico({ id }: { id: string }) {
   const [arrastre, setArrastre] = useState<number | null>(null);
   const [picker, setPicker] = useState<number | null>(null);          // bolsillo al que asignar
   const [menu, setMenu] = useState<number | null>(null);
-  const [agregar, setAgregar] = useState<Carta | null>(null);
+  // Mejoras 5 · A1: la copia se guarda en el bolsillo (hoja rápida en modo bolsillo); "Traer aquí" mueve una copia que ya tengo
+  const [rapido, setRapido] = useState<{ indice: number; carta: Carta; nuevo?: boolean } | null>(null);
+  const [trayendo, setTrayendo] = useState<string | null>(null);
   const [editar, setEditar] = useState(false);
   const [borrar, setBorrar] = useState(false);
   const [rellenar, setRellenar] = useState(false);
@@ -95,6 +98,29 @@ export function AlbumFisico({ id }: { id: string }) {
     if (!ok) { toast('No se pudo guardar', 'danger'); return; }
     setCasillas(m => { const n = new Map(m); if (carta) n.set(indice, { album_id: album!.id, indice, carta_id: carta.id, entrada_id: null }); else n.delete(indice); return n; });
   }
+  // Mejoras 5 · A1: traer al bolsillo una copia que ya tengo en otro lugar (si la pila tiene varias, se separa 1)
+  async function traerAqui(indice: number, e: Entrada) {
+    if (!album || !e.carta_id) return;
+    setTrayendo(e.id);
+    let id = e.id, ok = true;
+    if (e.cantidad > 1) {
+      const c = cat.carta(e.carta_id);
+      const r = await col.dividirEntrada(e.id, 1, { album: c?.s || null });
+      if (!r.ok || !r.nueva) { ok = false; toast(r.error || 'No se pudo separar la copia', 'danger'); } else id = r.nueva;
+    }
+    if (ok) ok = await col.colocarEnAlbum(id, album.id, indice);
+    setTrayendo(null);
+    if (!ok) { toast('No se pudo mover la copia', 'danger'); return; }
+    setCasillas(m => { const n = new Map(m); const cas = n.get(indice); n.set(indice, { album_id: album.id, indice, carta_id: cas?.carta_id || e.carta_id, entrada_id: id }); return n; });
+    toast(`Copia movida a «${album.nombre}», bolsillo ${indice + 1}`, 'ok');
+    setMenu(null);
+  }
+  // siguiente bolsillo con carta asignada que todavía no tengo (para "Guardar y siguiente")
+  const siguienteSinTener = (desde: number): { indice: number; carta: Carta } | null => {
+    const orden = [...Array.from({ length: totalBolsillos }, (_, i) => i).filter(i => i > desde), ...Array.from({ length: totalBolsillos }, (_, i) => i).filter(i => i < desde)];
+    for (const i of orden) { const c = casillas.get(i); const carta = c ? cat.carta(c.carta_id) : undefined; if (carta && !propias.get(carta.id)?.length) return { indice: i, carta }; }
+    return null;
+  };
   async function mover(de: number, a: number) {
     if (de === a) return;
     const ok = await col.moverCasilla(album!.id, de, a);
@@ -191,7 +217,7 @@ export function AlbumFisico({ id }: { id: string }) {
         pagina={pagina} onPagina={setPagina}
         antes={seleccion != null ? <div className="notice info small" style={{ marginBottom: 8 }}>Moviendo el bolsillo {seleccion + 1}: toca el destino. <button className="link" onClick={() => setSeleccion(null)}>Cancelar</button></div> : null}
       />
-      {picker != null ? <CardPicker titulo={`Bolsillo ${picker + 1}: elegir carta`} onPick={c => { const i = picker; setPicker(null); asignar(i, c); }} onClose={() => setPicker(null)} /> : null}
+      {picker != null ? <CardPicker titulo={`Bolsillo ${picker + 1}: elegir carta`} onPick={async c => { const i = picker; setPicker(null); await asignar(i, c); if (!propias.get(c.id)?.length) setRapido({ indice: i, carta: c, nuevo: true }); }} onClose={() => setPicker(null)} /> : null}
       {menu != null && casillaMenu ? (
         <Sheet titulo={`Bolsillo ${menu + 1}`} onClose={() => setMenu(null)}>
           {cartaMenu ? (
@@ -205,7 +231,13 @@ export function AlbumFisico({ id }: { id: string }) {
             </div>
           ) : null}
           <div className="stack" style={{ marginTop: 12 }}>
-            {cartaMenu && !(propias.get(cartaMenu.id) || []).length ? <button className="btn primary" onClick={() => { setMenu(null); setAgregar(cartaMenu); }}>+ Ya la tengo: guardar en mi colección</button> : null}
+            {cartaMenu && !(propias.get(cartaMenu.id) || []).length ? <button className="btn primary" onClick={() => { const i = menu; setMenu(null); setRapido({ indice: i, carta: cartaMenu }); }} data-testid="btn-ya-la-tengo"><Icono n="mas" /> Ya la tengo: guardar aquí</button> : null}
+            {/* Mejoras 5 · A1: copias que tengo en otro lugar → traerlas a este bolsillo (o agregar otra copia aquí) */}
+            {cartaMenu && !casillaMenu.entrada_id ? (propias.get(cartaMenu.id) || []).slice(0, 4).map(e => (
+              <button key={e.id} className="btn" disabled={trayendo === e.id} onClick={() => traerAqui(menu, e)} data-testid="btn-traer-aqui"><Icono n="adelante" /> Traer aquí la de <LocChip loc={ubicador.donde(e)} corto />{e.cantidad > 1 ? ` (1 de ${e.cantidad})` : ''}</button>
+            )) : null}
+            {cartaMenu && (propias.get(cartaMenu.id) || []).length && !casillaMenu.entrada_id ? <button className="btn" onClick={() => { const i = menu; setMenu(null); setRapido({ indice: i, carta: cartaMenu }); }} data-testid="btn-otra-copia-aqui"><Icono n="mas" /> Agregar otra copia aquí</button> : null}
+            {casillaMenu.entrada_id ? <p className="small muted" style={{ margin: 0 }} data-testid="bolsillo-con-copia">Esta copia está en este bolsillo.</p> : null}
             {cartaMenu ? <Link className="btn" href={`/app/carta/${encodeURIComponent(cartaMenu.id)}`}>Ver la carta</Link> : null}
             <button className="btn" onClick={() => { setSeleccion(menu); setMenu(null); }}>Mover a otro bolsillo</button>
             <button className="btn" onClick={() => { const i = menu; setMenu(null); setPicker(i); }}>Cambiar la carta de este bolsillo</button>
@@ -213,7 +245,11 @@ export function AlbumFisico({ id }: { id: string }) {
           </div>
         </Sheet>
       ) : null}
-      {agregar ? <AddEntrySheet carta={agregar} onClose={() => setAgregar(null)} /> : null}
+      {rapido ? <AgregarRapidoSheet key={`${rapido.indice}-${rapido.carta.id}`} carta={rapido.carta} set={cat.setOf(rapido.carta)!} idiomaAlbum={idiomaPredominante(cat, col.entradas, rapido.carta.s)} idiomaSugerido
+        bolsillo={{ album, indice: rapido.indice }} siguiente={siguienteSinTener(rapido.indice)?.carta || null}
+        onSoloAsignar={rapido.nuevo ? () => setRapido(null) : undefined}
+        onClose={() => setRapido(null)}
+        onGuardada={(c, continuar) => { const sig = continuar ? siguienteSinTener(rapido.indice) : null; setRapido(sig); cargar(); }} /> : null}
       {rellenar ? <RellenarSheet desde={inicioVisible} onClose={() => setRellenar(false)} onElegir={(s, desde) => { setRellenar(false); rellenarCon(s, desde); }} /> : null}
       {editar ? <EditorAlbum album={album} onClose={() => setEditar(false)} /> : null}
       {borrar ? <Confirmar titulo="Eliminar álbum" texto={`Se eliminará el álbum "${album.nombre}" y la asignación de sus bolsillos. Tus cartas no se borran de tu colección.`} okLabel="Eliminar" peligro onOk={async () => { const ok = await col.eliminarAlbum(album.id); if (ok) { toast('Álbum eliminado', 'ok'); router.replace('/app/album'); } }} onClose={() => setBorrar(false)} /> : null}

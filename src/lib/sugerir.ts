@@ -144,7 +144,9 @@ function sugerirAlbumPatron(ctx: ContextoSugerencia, carta: Carta): Extract<Suge
  */
 export function sugerirDestino(ctx: ContextoSugerencia, carta: Carta, idioma: string, excluirEntradaId?: string | null): Sugerencia {
   const { cat } = ctx;
-  const entradas = entradasConLugar(ctx, excluirEntradaId);
+  // Mejoras 5 · A1: las copias en bolsillos de álbumes personalizados no dicen que coleccione esa colección
+  const enBolsillo = idsEnBolsillo(ctx.casillas);
+  const entradas = entradasConLugar(ctx, excluirEntradaId).filter(e => !enBolsillo.has(e.id));
   const set = cat.setOf(carta);
   const nombreSet = nombreColeccion(set, ctx.idiomaNombres, true);
   const idiomaCarta = idioma || (set?.rg === 'ja' ? 'JP' : 'EN');
@@ -202,3 +204,26 @@ export function sugerirBulk(ctx: ContextoSugerencia, carta: Carta, idioma: strin
 
 /** Nombre corto de una carta para los textos de la sugerencia. */
 export const etiquetaCarta = (cat: Catalogo, carta: Carta, idioma: IdiomaNombres): string => `${nombreCarta(carta, idioma)} ${carta.l}`;
+
+/**
+ * Mejoras 5 · A: idioma con el que conviene guardar una carta cuando el álbum no lo fija: el más usado entre mis copias
+ * de esa colección; si no tengo ninguna, el más usado en toda mi colección; si no, inglés (japonés para colecciones JP).
+ */
+export function idiomaPredominante(cat: Catalogo, entradas: Entrada[], setId?: string | null): string {
+  const cuenta = (lista: Entrada[]): string => {
+    const m = new Map<string, number>();
+    for (const e of lista) if (e.idioma) m.set(e.idioma, (m.get(e.idioma) || 0) + (e.cantidad || 1));
+    let mejor = '', n = 0;
+    for (const [i, k] of m) if (k > n || (k === n && i < mejor)) { mejor = i; n = k; }
+    return mejor;
+  };
+  const set = setId ? cat.coleccion(setId) : undefined;
+  if (set?.rg === 'ja') return 'JP';
+  const delSet = setId ? cuenta(entradas.filter(e => { const c = cat.carta(e.carta_id); return c?.s === setId; })) : '';
+  return delSet || cuenta(entradas.filter(e => { const c = cat.carta(e.carta_id); return c && cat.setOf(c)?.rg !== 'ja'; })) || 'EN';
+}
+
+/** Mejoras 5 · A: ids de las copias que están en un bolsillo de un álbum personalizado (no cuentan para los álbumes por colección). */
+export function idsEnBolsillo(casillas: Casilla[]): Set<string> {
+  return new Set(casillas.filter(c => c.entrada_id).map(c => c.entrada_id as string));
+}

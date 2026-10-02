@@ -29,6 +29,7 @@ import { Libro, type AccionLibro } from '../Libro';
 import { EditorAlbumPropio } from '../EditorAlbumPropio';
 import { PortadaColeccion, PortadaPropia } from '../Portadas';
 import { AgregarRapidoSheet } from '../AgregarRapidoSheet';
+import { idiomaPredominante, idsEnBolsillo } from '@/lib/sugerir';
 import { TarjetaPokedex, useOcultarPokedex } from './Pokedex';
 
 /** Idioma de una entrada para agrupar álbumes: JP para colecciones japonesas, el registrado o "—". */
@@ -44,7 +45,10 @@ function useAlbumesAuto(): AlbumAuto[] {
   const col = useColeccion();
   return useMemo(() => {
     const m = new Map<string, AlbumAuto>();
+    // Mejoras 5 · A1: las copias guardadas en un bolsillo de un álbum personalizado no crean ni llenan álbumes por colección
+    const enBolsillo = idsEnBolsillo(col.casillas);
     for (const e of col.entradas) {
+      if (enBolsillo.has(e.id)) continue;
       const c = cat.carta(e.carta_id);
       if (!c) continue;
       const set = cat.setOf(c);
@@ -57,7 +61,7 @@ function useAlbumesAuto(): AlbumAuto[] {
     }
     for (const a of m.values()) a.distintas = new Set(a.entradas.map(e => e.carta_id)).size;
     return [...m.values()].sort((a, b) => (b.set.d || '').localeCompare(a.set.d || '') || a.idioma.localeCompare(b.idioma));
-  }, [cat, col.entradas]);
+  }, [cat, col.entradas, col.casillas]);
 }
 
 export function Albumes() {
@@ -176,15 +180,16 @@ export function AlbumColeccion({ setId }: { setId: string }) {
   const cartas = useMemo(() => (set ? cat.cartasDe(set.id) : []), [cat, set]);
   const propias = useMemo(() => {
     const m = new Map<string, Entrada[]>();
+    const enBolsillo = idsEnBolsillo(col.casillas);   // Mejoras 5 · A1: las copias en bolsillos de álbumes personalizados no cuentan aquí
     for (const e of col.entradas) {
-      if (!e.carta_id || !set) continue;
+      if (!e.carta_id || !set || enBolsillo.has(e.id)) continue;
       const c = cat.carta(e.carta_id);
       if (!c || c.s !== set.id) continue;
       if (idiomaAlb && idiomaAlbum(e, set) !== idiomaAlb) continue;
       const l = m.get(e.carta_id) || []; l.push(e); m.set(e.carta_id, l);
     }
     return m;
-  }, [col.entradas, cat, set, idiomaAlb]);
+  }, [col.entradas, col.casillas, cat, set, idiomaAlb]);
   const idsPropias = useMemo(() => [...propias.keys()], [propias]);
   const idsFaltan = useMemo(() => cartas.filter(c => !propias.has(c.id) && !c.sd).map(c => c.id), [cartas, propias]);
   usePedirPrecios(consultarFaltan ? [...idsPropias, ...idsFaltan] : idsPropias);
@@ -297,7 +302,8 @@ export function AlbumColeccion({ setId }: { setId: string }) {
         ) : null}
       />
       {agregar ? <AddEntrySheet carta={agregar} idiomaInicial={idiomaAlb !== '—' ? idiomaAlb : ''} onClose={() => setAgregar(null)} /> : null}
-      {rapido ? <AgregarRapidoSheet key={rapido.id} carta={rapido} set={set} idiomaAlbum={idiomaAlb !== '—' ? idiomaAlb : ''} siguiente={siguienteVacia(rapido)} onClose={() => setRapido(null)} onGuardada={(c, continuar) => setRapido(continuar ? siguienteVacia(c) : null)} /> : null}
+      {/* Mejoras 5 · A2: si el álbum se abrió sin idioma (o es el de "sin idioma"), la copia se guarda con el idioma que más uso, no sin idioma */}
+      {rapido ? <AgregarRapidoSheet key={rapido.id} carta={rapido} set={set} idiomaAlbum={idiomaAlb && idiomaAlb !== '—' ? idiomaAlb : idiomaPredominante(cat, col.entradas, set.id)} idiomaSugerido={!idiomaAlb || idiomaAlb === '—'} siguiente={siguienteVacia(rapido)} onClose={() => setRapido(null)} onGuardada={(c, continuar) => setRapido(continuar ? siguienteVacia(c) : null)} /> : null}
       {asistente === 'repetidas' ? <OrdenarRepetidasSheet repetidas={ordenar.repetidas} onClose={() => setAsistente(null)} /> : null}
       {asistente === 'llenar' ? <LlenarAlbumesSheet candidatas={ordenar.candidatas} onClose={() => setAsistente(null)} /> : null}
       {confirmarVenta ? <PonerEnVentaSheet set={set} idioma={idiomaAlb || (set.rg === 'ja' ? 'JP' : '')} entradas={sinPublicar} onClose={() => setConfirmarVenta(false)} /> : null}

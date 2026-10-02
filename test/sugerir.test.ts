@@ -6,7 +6,7 @@ import path from 'node:path';
 import { Catalogo, type DatosCatalogo } from '../src/lib/catalogo.ts';
 import type { Album, Caja, Casilla, Entrada } from '../src/lib/coleccion.ts';
 import { Ubicador } from '../src/lib/coleccion.ts';
-import { albumesPorColeccion, casillaOcupada, patronAlbum, sugerirDestino } from '../src/lib/sugerir.ts';
+import { albumesPorColeccion, casillaOcupada, idiomaPredominante, idsEnBolsillo, patronAlbum, sugerirDestino } from '../src/lib/sugerir.ts';
 
 const datos = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '..', 'public', 'data', 'catalogo.json'), 'utf8')) as DatosCatalogo;
 const cat = new Catalogo(datos);
@@ -117,4 +117,17 @@ test('ubicación en álbumes: por colección (casilla = número) y en bolsillos 
   assert.ok(d1 && d1.tipo === 'coleccion' && d1.numero === '002' && d1.idioma === 'EN');
   assert.ok(d2 && d2.tipo === 'album' && d2.pagina === 1 && d2.bolsillo === 5);
   assert.equal(u.donde(entrada('sv03.5-001')), null);
+});
+
+// Mejoras 5 · A: idioma predominante y copias en bolsillo
+test('idiomaPredominante: el más usado en esa colección, si no en toda la colección, si no EN (JP para colecciones japonesas)', () => {
+  const e = (carta_id: string, idioma: string, cantidad = 1) => ({ id: carta_id + idioma, carta_id, idioma, cantidad } as unknown as Entrada);
+  assert.equal(idiomaPredominante(cat, [], 'sv03.5'), 'EN');
+  assert.equal(idiomaPredominante(cat, [e('sv03.5-001', 'ES'), e('sv03.5-004', 'ES'), e('sv03.5-010', 'EN')], 'sv03.5'), 'ES');
+  assert.equal(idiomaPredominante(cat, [e('sv03.5-001', 'ES'), e('sv03.5-004', 'EN', 5)], 'sv03.5'), 'EN', 'cuenta las copias');
+  assert.equal(idiomaPredominante(cat, [e('base1-4', 'ES')], 'sv03.5'), 'ES', 'sin copias de esa colección: el de toda la colección');
+  assert.equal(idiomaPredominante(cat, [e('sv03.5-001', '')], 'sv03.5'), 'EN', 'las copias sin idioma no cuentan');
+  const jp = cat.sets.find(s => s.rg === 'ja')!;
+  assert.equal(idiomaPredominante(cat, [e('sv03.5-001', 'ES')], jp.id), 'JP');
+  assert.deepEqual([...idsEnBolsillo([{ album_id: 'a', indice: 0, carta_id: 'x', entrada_id: 'e1' }, { album_id: 'a', indice: 1, carta_id: 'y', entrada_id: null }] as Casilla[])], ['e1']);
 });

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Carta, Coleccion } from '@/lib/catalogo';
 import { nombreCarta, nombreColeccion, numLabel } from '@/lib/catalogo';
 import { ACABADOS, CONDICIONES, ETIQUETA_CONDICION, IDIOMAS_CARTA } from '@/lib/config';
-import { cajasOrdenadas, type Entrada } from '@/lib/coleccion';
+import { cajasOrdenadas, type Album, type Entrada } from '@/lib/coleccion';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import type { RegistroPrecio } from '@/lib/precios-core';
 import { casillaOcupada, sugerirBulk } from '@/lib/sugerir';
@@ -53,19 +53,28 @@ export function acabadoMasComun(carta: Carta, rec: RegistroPrecio | null | undef
   return 'Normal';
 }
 
+/** Mejoras 5 · A1: destino "bolsillo de un álbum personalizado": la copia se guarda enlazada a ese bolsillo (no a un álbum por colección). */
+export type DestinoBolsillo = { album: Album; indice: number };
+
 type Props = {
   carta: Carta;
   set: Coleccion;
   /** Idioma del álbum ('' si el álbum no tiene idioma). */
   idiomaAlbum: string;
+  /** El idioma no viene del álbum sino que se dedujo de mis copias (se muestra "sugerido"). */
+  idiomaSugerido?: boolean;
   /** Siguiente casilla vacía del álbum (para "Guardar y siguiente"), si la hay. */
   siguiente: Carta | null;
+  /** Bolsillo de un álbum personalizado al que va la copia (si no se da, va a la casilla del álbum por colección). */
+  bolsillo?: DestinoBolsillo | null;
+  /** Bolsillo: botón "Solo asignar la carta" (reserva el bolsillo sin guardar una copia). */
+  onSoloAsignar?: () => void;
   onClose: () => void;
   /** Tras guardar: la casilla pasa a color; `continuar` = abrir la siguiente casilla vacía. */
   onGuardada: (carta: Carta, continuar: boolean) => void;
 };
 
-export function AgregarRapidoSheet({ carta, set, idiomaAlbum, siguiente, onClose, onGuardada }: Props) {
+export function AgregarRapidoSheet({ carta, set, idiomaAlbum, idiomaSugerido, siguiente, bolsillo, onSoloAsignar, onClose, onGuardada }: Props) {
   const cat = useCatalogo();
   const col = useColeccion();
   const { perfil } = usePerfil();
@@ -95,7 +104,15 @@ export function AgregarRapidoSheet({ carta, set, idiomaAlbum, siguiente, onClose
     return () => { vivo = false; };
   }, [carta.id]);
   const todas = useMemo(() => [...col.entradas, ...servidor.filter(s => !col.entradas.some(e => e.id === s.id))], [col.entradas, servidor]);
-  const ocupada = casillaOcupada(cat, todas, carta, idiomaCarta);
+  // bolsillo: está "ocupado" si ya tiene una copia enlazada (quizá desde otro dispositivo); se consulta la base al abrir
+  const [bolsilloOcupado, setBolsilloOcupado] = useState(false);
+  useEffect(() => {
+    if (!bolsillo) return;
+    let vivo = true;
+    supabaseBrowser().from('album_casillas').select('entrada_id').eq('album_id', bolsillo.album.id).eq('indice', bolsillo.indice).maybeSingle().then(r => { if (vivo && !r.error) setBolsilloOcupado(!!r.data?.entrada_id); });
+    return () => { vivo = false; };
+  }, [bolsillo]);
+  const ocupada = bolsillo ? (bolsilloOcupado ? col.entradas.filter(e => col.casillas.some(c => c.album_id === bolsillo.album.id && c.indice === bolsillo.indice && c.entrada_id === e.id)) : []) : casillaOcupada(cat, todas, carta, idiomaCarta);
   const bulk = sugerirBulk(ctx, carta, idioma);
   const cajaRep = bulk?.caja.id || (col.ultimaCajaId && cajas.some(c => c.id === col.ultimaCajaId) ? col.ultimaCajaId : cajas[0]?.id || null);
   const nombreBulk = cajas.find(c => c.id === cajaRep)?.nombre || null;
@@ -107,10 +124,15 @@ export function AgregarRapidoSheet({ carta, set, idiomaAlbum, siguiente, onClose
     setGuardando(true);
     const base = { carta_id: carta.id, personalizada: null, acabado, idioma, condicion, nota: '' };
     let ok = false;
-    if (ocupada.length) {
-      // la casilla ya tiene una copia: todo va al Bulk como repetidas (si no hay Bulk, queda por colocar)
+    if (ocupada.length || bolsilloOcupado) {
+      // la casilla (o el bolsillo) ya tiene una copia: todo va al Bulk como repetidas (si no hay Bulk, queda por colocar)
       const r = await col.agregarEntrada({ ...base, caja_id: cajaRep, cantidad });
       ok = !!r;
+    } else if (bolsillo) {
+      // Mejoras 5 · A1: la copia queda en ese bolsillo de ese álbum personalizado (sin álbum por colección)
+      const r = await col.agregarEntrada({ ...base, caja_id: null, cantidad: 1, sinFusionar: true });
+      if (r) ok = await col.colocarEnAlbum(r.entrada.id, bolsillo.album.id, bolsillo.indice);
+      if (r && cantidad > 1) await col.agregarEntrada({ ...base, caja_id: cajaRep, cantidad: cantidad - 1 });
     } else {
       const r = await col.agregarEntrada({ ...base, caja_id: null, cantidad: 1, sinFusionar: true });
       if (r) { await col.colocarEnColeccion(r.entrada.id, set.id); ok = true; }
@@ -119,7 +141,9 @@ export function AgregarRapidoSheet({ carta, set, idiomaAlbum, siguiente, onClose
     setGuardando(false);
     if (!ok) { toast('No se pudo guardar', 'danger'); return; }
     recordarAcabado(acabado);
-    toast(ocupada.length ? `${nombreCarta(carta, perfil.idioma_nombres)} guardada en ${nombreBulk || 'por colocar'}` : `${carta.l} · ${nombreCarta(carta, perfil.idioma_nombres)} guardada en el álbum${cantidad > 1 ? ` (+${cantidad - 1} a ${nombreBulk || 'por colocar'})` : ''}`, 'ok', 2200);
+    const nombre = nombreCarta(carta, perfil.idioma_nombres);
+    const extra = cantidad > 1 ? ` (+${cantidad - 1} a ${nombreBulk || 'por colocar'})` : '';
+    toast(ocupada.length || bolsilloOcupado ? `${nombre} guardada en ${nombreBulk || 'por colocar'}` : bolsillo ? `${nombre} guardada en «${bolsillo.album.nombre}», pág. ${Math.floor(bolsillo.indice / (bolsillo.album.columnas * bolsillo.album.filas)) + 1} bolsillo ${(bolsillo.indice % (bolsillo.album.columnas * bolsillo.album.filas)) + 1}${extra}` : `${carta.l} · ${nombre} guardada en el álbum${extra}`, 'ok', 2600);
     onGuardada(carta, continuar && !!siguiente);
   }
 
@@ -137,20 +161,21 @@ export function AgregarRapidoSheet({ carta, set, idiomaAlbum, siguiente, onClose
     document.addEventListener('keydown', tecla);
     return () => document.removeEventListener('keydown', tecla);
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [esPC, acabado, idioma, condicion, cantidad, ocupada.length, cajaRep, guardando, siguiente]);
+  }, [esPC, acabado, idioma, condicion, cantidad, ocupada.length, cajaRep, guardando, siguiente, bolsillo, bolsilloOcupado]);
 
-  const etiquetaIdioma = idioma ? `${NOMBRE_IDIOMA[idioma] || idioma} · del álbum` : 'Sin idioma';
+  const etiquetaIdioma = idioma ? `${NOMBRE_IDIOMA[idioma] || idioma} · ${idiomaSugerido ? 'sugerido' : 'del álbum'}` : 'Sin idioma';
+  const porPagina = bolsillo ? bolsillo.album.columnas * bolsillo.album.filas : 0;
   return (
     <Sheet onClose={onClose} className="hoja-rapida" pie={
       <div className="botones-rapido">
         <button type="button" className="btn" onClick={() => guardar(false)} disabled={guardando} data-testid="rapido-guardar">{guardando ? 'Guardando…' : 'Guardar'}</button>
-        {siguiente ? <button type="button" className="btn primary" onClick={() => guardar(true)} disabled={guardando} data-testid="rapido-siguiente">Guardar y siguiente ({siguiente.l})</button> : null}
+        {siguiente ? <button type="button" className="btn primary" onClick={() => guardar(true)} disabled={guardando} data-testid="rapido-siguiente">Guardar y siguiente ({bolsillo ? 'bolsillo' : siguiente.l})</button> : null}
       </div>
     }>
       <div className="rapido-cabecera" data-testid="rapido-cabecera">
         <div className="rapido-thumb"><Thumb carta={carta} set={set} idioma={idioma} className="lg" grande /></div>
         <div className="rapido-datos">
-          <div className="small muted">Casilla {carta.l} · {nombreColeccion(set, perfil.idioma_nombres, true)}</div>
+          <div className="small muted" data-testid="rapido-destino">{bolsillo ? `«${bolsillo.album.nombre}» · pág. ${Math.floor(bolsillo.indice / porPagina) + 1}, bolsillo ${(bolsillo.indice % porPagina) + 1} · ${nombreColeccion(set, perfil.idioma_nombres)} ${carta.l}` : `Casilla ${carta.l} · ${nombreColeccion(set, perfil.idioma_nombres, true)}`}</div>
           <h3 className="rapido-nombre" data-testid="rapido-nombre">{nombreCarta(carta, perfil.idioma_nombres)}</h3>
           <div className="row wrap" style={{ gap: 6 }}>
             <span className="pill info" data-testid="rapido-idioma">{etiquetaIdioma}</span>
@@ -160,7 +185,7 @@ export function AgregarRapidoSheet({ carta, set, idiomaAlbum, siguiente, onClose
         </div>
         <button className="cerrar rapido-cerrar" onClick={onClose} aria-label="Cerrar" type="button"><Icono n="cerrar" tam={20} /></button>
         <div className="rapido-acabado">
-          {ocupada.length ? <div className="notice warn small" data-testid="rapido-ocupada"><Icono n="alerta" tam={14} /> Esta casilla ya tiene {ocupada.reduce((n, e) => n + e.cantidad, 0) === 1 ? 'una copia' : 'copias'} (quizá la agregaste desde otro dispositivo). Esta copia irá a <b>{nombreBulk || 'por colocar'}</b> como repetida.</div> : null}
+          {ocupada.length || bolsilloOcupado ? <div className="notice warn small" data-testid="rapido-ocupada"><Icono n="alerta" tam={14} /> {bolsillo ? 'Este bolsillo' : 'Esta casilla'} ya tiene {ocupada.reduce((n, e) => n + e.cantidad, 0) <= 1 ? 'una copia' : 'copias'} (quizá la agregaste desde otro dispositivo). Esta copia irá a <b>{nombreBulk || 'por colocar'}</b> como repetida.</div> : null}
           <div className="pregunta-rapido">¿Qué acabado tiene?</div>
           <div className="acabados-rapido" role="radiogroup" aria-label="Acabado" data-testid="acabados-rapido">
             {BOTONES_ACABADO.map(b => {
@@ -175,7 +200,8 @@ export function AgregarRapidoSheet({ carta, set, idiomaAlbum, siguiente, onClose
         <b>Cantidad</b>
         <div className="stepper" data-testid="rapido-cantidad"><button type="button" onClick={() => setCantidad(c => Math.max(1, c - 1))} aria-label="Menos">−</button><input type="number" min={1} value={cantidad} onChange={e => setCantidad(Math.max(1, parseInt(e.target.value, 10) || 1))} /><button type="button" onClick={() => setCantidad(c => c + 1)} aria-label="Más">+</button></div>
       </div>
-      {cantidad > 1 && !ocupada.length ? <div className="small muted" data-testid="rapido-aviso-bulk">Más de 1: una va al álbum y el resto a <b>{nombreBulk || 'por colocar (crea un Bulk)'}</b>.</div> : null}
+      {cantidad > 1 && !ocupada.length && !bolsilloOcupado ? <div className="small muted" data-testid="rapido-aviso-bulk">Más de 1: una va al {bolsillo ? 'bolsillo' : 'álbum'} y el resto a <b>{nombreBulk || 'por colocar (crea un Bulk)'}</b>.</div> : null}
+      {onSoloAsignar ? <button type="button" className="link" style={{ marginTop: 8 }} onClick={onSoloAsignar} data-testid="rapido-solo-asignar">Todavía no la tengo: solo reservar el bolsillo</button> : null}
       {esPC ? <div className="small muted" style={{ marginTop: 8 }}>Enter: guardar y siguiente · Esc: cerrar · 1–4: acabado</div> : null}
       {!cambiar ? <button type="button" className="link cambiar-rapido" onClick={() => setCambiar(true)} data-testid="rapido-cambiar">Cambiar idioma o estado</button> : (
         <div className="row wrap" style={{ marginTop: 8 }}>

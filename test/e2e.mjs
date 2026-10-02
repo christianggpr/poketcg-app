@@ -1829,6 +1829,100 @@ try {
   log('álbum propio como libro: 18 bolsillos (3×3 propia, 2 páginas),', casillas, 'asignados, + en los vacíos, Acciones (Rellenar / Editar / Eliminar), fila compacta, movimiento 1 → 5 y filtro Faltan OK');
 
 
+  // ---------- Mejoras 5 · A: la copia de "Ya la tengo" queda en ese bolsillo (sin álbum por colección); el "+" asigna y ofrece guardar; "Traer aquí"
+  {
+    const albumPropioId = sql(`select id from public.albumes where usuario_id = '${CHRIS}' and nombre = 'Carpeta azul'`);
+    const cartaB0 = sql(`select carta_id from public.album_casillas where album_id = '${albumPropioId}' and indice = 0`);
+    const setB0 = sql(`select coleccion_id from public.cartas where id = '${cartaB0}'`);
+    if (num(`select count(*) from public.entradas where usuario_id = '${CHRIS}' and carta_id = '${cartaB0}'`) !== 0) throw new Error('la prueba necesita que el bolsillo 1 tenga una carta que no tengo: ' + cartaB0);
+    await page.goto(APP + '/app/album');
+    await page.waitForSelector('[data-testid=album-coleccion]');
+    const albumesColAntes = (await page.$$('[data-testid=album-coleccion]')).length;
+    await page.goto(APP + '/app/album/p/' + albumPropioId);
+    await page.waitForSelector('[data-testid=bolsillo-falta][data-indice="0"]');
+    // A1: bolsillo 1 (sin tener) → "Ya la tengo: guardar aquí" → hoja rápida en modo bolsillo → Guardar
+    await page.click('[data-testid=bolsillo-falta][data-indice="0"]');
+    await page.waitForSelector('.sheet [data-testid=btn-ya-la-tengo]');
+    if (await page.$('.sheet [data-testid=btn-traer-aqui]')) throw new Error('sin copias en otro lugar no debía ofrecer "Traer aquí"');
+    await page.click('.sheet [data-testid=btn-ya-la-tengo]');
+    await page.waitForSelector('.sheet.hoja-rapida [data-testid=rapido-destino]');
+    const destinoTxt = await page.textContent('.sheet.hoja-rapida [data-testid=rapido-destino]');
+    if (!/«Carpeta azul» · pág\. 1, bolsillo 1/.test(destinoTxt)) throw new Error('la hoja rápida debía apuntar al bolsillo 1 de Carpeta azul: ' + destinoTxt);
+    if (!/sugerido/.test(await page.textContent('.sheet.hoja-rapida [data-testid=rapido-idioma]'))) throw new Error('el idioma debía ser el sugerido (el que más uso)');
+    if (await page.$('.sheet.hoja-rapida [data-testid=rapido-solo-asignar]')) throw new Error('desde el menú del bolsillo no hace falta "solo reservar"');
+    await page.click('.sheet.hoja-rapida [data-testid=rapido-guardar]');
+    await page.waitForSelector('.sheet.hoja-rapida', { state: 'detached' });
+    await page.waitForSelector('[data-testid=bolsillo-tengo][data-indice="0"]');
+    for (let i = 0; i < 20 && sql(`select count(*) from public.album_casillas c join public.entradas e on e.id = c.entrada_id where c.album_id = '${albumPropioId}' and c.indice = 0 and e.carta_id = '${cartaB0}'`) !== '1'; i++) await page.waitForTimeout(250);
+    const copiaB0 = sql(`select e.id || '|' || coalesce(e.album_coleccion, '-') || '|' || coalesce(e.caja_id::text, '-') || '|' || e.idioma || '|' || e.condicion || '|' || e.cantidad from public.album_casillas c join public.entradas e on e.id = c.entrada_id where c.album_id = '${albumPropioId}' and c.indice = 0`);
+    const idiomaEsperado = setB0.startsWith('jp-') || sql(`select region from public.colecciones_tcg where id = '${setB0}'`) === 'ja' ? 'JP' : sql(`select idioma from public.entradas where usuario_id = '${CHRIS}' and idioma <> '' and carta_id like '${setB0}-%' group by idioma order by sum(cantidad) desc, idioma limit 1`) || 'EN';
+    if (!new RegExp(`^[0-9a-f-]+\\|-\\|-\\|${idiomaEsperado}\\|NM\\|1$`).test(copiaB0)) throw new Error('la copia debía quedar enlazada al bolsillo, sin álbum por colección ni Bulk, con idioma ' + idiomaEsperado + ' y NM: ' + copiaB0);
+    if (num(`select count(*) from public.entradas where usuario_id = '${CHRIS}' and carta_id = '${cartaB0}'`) !== 1) throw new Error('debía haber una sola copia nueva');
+    // el bolsillo dice que la copia está ahí; en Mis álbumes no apareció ningún álbum por colección nuevo
+    await page.click('[data-testid=bolsillo-tengo][data-indice="0"]');
+    await page.waitForSelector('.sheet [data-testid=bolsillo-con-copia]');
+    if (!/«Carpeta azul»|Carpeta azul/.test(await page.textContent('.sheet .card-main'))) throw new Error('la ubicación de la copia debía ser el álbum propio: ' + await page.textContent('.sheet .card-main'));
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('.sheet', { state: 'detached' });
+    await page.goto(APP + '/app/album');
+    await page.waitForSelector('[data-testid=album-coleccion]');
+    if ((await page.$$('[data-testid=album-coleccion]')).length !== albumesColAntes) throw new Error(`guardar en el bolsillo no debía crear un álbum por colección (antes ${albumesColAntes}, ahora ${(await page.$$('[data-testid=album-coleccion]')).length})`);
+    // A1 bis: el "+" de un bolsillo vacío asigna la carta y abre la hoja rápida; "solo reservar" deja el bolsillo sin copia
+    await page.goto(APP + '/app/album/p/' + albumPropioId);
+    await page.waitForSelector('[data-testid=bolsillo-falta][data-indice="1"]');
+    await page.click('[data-testid=bolsillo-falta][data-indice="1"]');
+    await page.click('.sheet button:has-text("Vaciar bolsillo")');
+    await page.waitForSelector('[data-testid=bolsillo-vacio][data-indice="1"]');
+    await page.click('.celda-libro:has([data-testid=bolsillo-vacio][data-indice="1"]) [data-testid=btn-mas-bolsillo]');
+    await page.waitForSelector('.sheet .search-wrap input');
+    await page.fill('.sheet .search-wrap input', 'base set bulbasaur');
+    await page.click('.sheet .card-row:has-text("44/102")');
+    await page.waitForSelector('.sheet.hoja-rapida [data-testid=rapido-solo-asignar]');
+    await page.click('.sheet.hoja-rapida [data-testid=rapido-solo-asignar]');
+    await page.waitForSelector('.sheet.hoja-rapida', { state: 'detached' });
+    await page.waitForSelector('[data-testid=bolsillo-falta][data-indice="1"]');
+    if (sql(`select carta_id || '|' || coalesce(entrada_id::text, '-') from public.album_casillas where album_id = '${albumPropioId}' and indice = 1`) !== 'base1-44|-') throw new Error('"solo reservar" debía dejar la carta asignada sin copia');
+    // A1 ter: "Traer aquí" mueve una copia que ya tengo (de una pila de 2 en Bulk 2 se separa 1)
+    const bulk2 = sql(`select id from public.cajas where usuario_id = '${CHRIS}' and nombre = 'Bulk 2'`);
+    const pila = sql(`insert into public.entradas (usuario_id, caja_id, carta_id, cantidad, acabado, idioma, condicion, posicion) values ('${CHRIS}', '${bulk2}', 'base1-44', 2, 'Normal', 'EN', 'LP', 99) returning id`);
+    await page.reload();
+    await page.waitForSelector('[data-testid=bolsillo-tengo][data-indice="1"]');
+    await page.click('[data-testid=bolsillo-tengo][data-indice="1"]');
+    await page.waitForSelector('.sheet [data-testid=btn-traer-aqui]');
+    if (!/Bulk 2/.test(await page.textContent('.sheet [data-testid=btn-traer-aqui]')) || !/1 de 2/.test(await page.textContent('.sheet [data-testid=btn-traer-aqui]'))) throw new Error('"Traer aquí" debía ofrecer la copia de Bulk 2 (1 de 2): ' + await page.textContent('.sheet [data-testid=btn-traer-aqui]'));
+    await page.click('.sheet [data-testid=btn-traer-aqui]');
+    await page.waitForSelector('.sheet', { state: 'detached' });
+    for (let i = 0; i < 20 && sql(`select coalesce(entrada_id::text, '') from public.album_casillas where album_id = '${albumPropioId}' and indice = 1`) === ''; i++) await page.waitForTimeout(250);
+    const traida = sql(`select e.cantidad || '|' || coalesce(e.caja_id::text, '-') || '|' || coalesce(e.album_coleccion, '-') || '|' || e.idioma from public.album_casillas c join public.entradas e on e.id = c.entrada_id where c.album_id = '${albumPropioId}' and c.indice = 1`);
+    if (traida !== '1|-|-|EN' || sql(`select cantidad::text from public.entradas where id = '${pila}'`) !== '1') throw new Error('"Traer aquí" debía separar 1 copia al bolsillo y dejar 1 en Bulk 2: ' + traida);
+    await page.waitForSelector('[data-testid=bolsillo-tengo][data-indice="1"]');
+    // limpieza: las copias de prueba se borran (el bolsillo conserva la carta asignada)
+    sql(`delete from public.entradas where usuario_id = '${CHRIS}' and carta_id in ('base1-44', '${cartaB0}')`);
+    log('Mejoras 5 · A1: "Ya la tengo" guarda la copia en el bolsillo (idioma sugerido ' + idiomaEsperado + ', NM, sin álbum por colección ni Bulk; Mis álbumes sin álbumes nuevos); "+" asigna y ofrece guardar o solo reservar; "Traer aquí" separa 1 de 2 copias de Bulk 2 al bolsillo');
+  }
+  // A2: desde un álbum por colección abierto sin idioma, el "+" rápido guarda con el idioma que más uso (no "sin idioma")
+  {
+    await page.goto(APP + '/app/album');
+    await page.waitForSelector('[data-testid=album-coleccion]');
+    const albumesColAntes2 = (await page.$$('[data-testid=album-coleccion]')).length;
+    await page.goto(APP + '/app/album/sv03.5');
+    await page.waitForSelector('[data-testid=btn-mas-rapido]');
+    const idiomaMas = sql(`select idioma from public.entradas where usuario_id = '${CHRIS}' and idioma <> '' and carta_id like 'sv03.5-%' group by idioma order by sum(cantidad) desc, idioma limit 1`);
+    await page.click('.celda-libro:has([data-testid=casilla-falta]:has-text("007")) [data-testid=btn-mas-rapido]');
+    await page.waitForSelector('.sheet.hoja-rapida [data-testid=rapido-nombre]:has-text("Squirtle")');
+    if (!new RegExp(`${idiomaMas === 'ES' ? 'Español' : idiomaMas === 'EN' ? 'Inglés' : idiomaMas} · sugerido`).test(await page.textContent('.sheet.hoja-rapida [data-testid=rapido-idioma]'))) throw new Error('sin idioma en la dirección, el + debía sugerir ' + idiomaMas + ': ' + await page.textContent('.sheet.hoja-rapida [data-testid=rapido-idioma]'));
+    await page.click('.sheet.hoja-rapida [data-testid=rapido-guardar]');
+    await page.waitForSelector('.sheet.hoja-rapida', { state: 'detached' });
+    await page.waitForSelector('[data-testid=casilla-tengo]:has-text("007")');
+    for (let i = 0; i < 20 && sql(`select count(*) from public.entradas where usuario_id = '${CHRIS}' and carta_id = 'sv03.5-007'`) !== '1'; i++) await page.waitForTimeout(250);
+    if (sql(`select idioma || '|' || coalesce(album_coleccion, '-') from public.entradas where usuario_id = '${CHRIS}' and carta_id = 'sv03.5-007'`) !== `${idiomaMas}|sv03.5`) throw new Error('la copia debía guardarse con idioma ' + idiomaMas + ' en el álbum de la colección: ' + sql(`select idioma || '|' || coalesce(album_coleccion, '-') from public.entradas where usuario_id = '${CHRIS}' and carta_id = 'sv03.5-007'`));
+    await page.goto(APP + '/app/album');
+    await page.waitForSelector('[data-testid=album-coleccion]');
+    if ((await page.$$('[data-testid=album-coleccion]')).length !== albumesColAntes2) throw new Error('la copia debía ir al álbum de la colección que ya tengo en ese idioma, sin crear otro (ni uno "sin idioma")');
+    sql(`delete from public.entradas where usuario_id = '${CHRIS}' and carta_id = 'sv03.5-007'; delete from public.precios where carta_id in ('sv03.5-007', 'base1-44')`);
+    log('Mejoras 5 · A2: el + rápido en un álbum abierto sin idioma guarda con el idioma sugerido (' + idiomaMas + ') en el álbum de la colección; sin álbum "sin idioma"');
+  }
+
   // ---------- Mejoras 4 · C: Pokédex (álbum virtual, una casilla por especie en orden nacional; primero en la lista)
   await page.goto(APP + '/app/album');
   await page.waitForSelector('[data-testid=album-pokedex]');
